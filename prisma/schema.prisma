@@ -1,0 +1,121 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  EDUCATOR
+}
+
+enum QuestionType {
+  MCQ
+  TEXT
+}
+
+model Branch {
+  id        String   @id @default(cuid())
+  name      String
+  location  String
+  createdAt DateTime @default(now())
+  users     User[]
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  role      Role     @default(EDUCATOR)
+  branchId  String?
+  branch    Branch?  @relation(fields: [branchId], references: [id])
+  createdBy String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  progress      StageProgress[]
+  sessions      Session[]
+  textResponses TextResponse[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model Stage {
+  id               String  @id @default(cuid())
+  number           Int     @unique
+  title            String
+  subtitle         String?
+  description      String?
+  week             String?
+  docUrl           String?
+  timeLimitMinutes Int     @default(30)
+  passScore        Int     @default(70)
+  maxAttempts      Int     @default(3)
+  badgeTitle       String?
+  badgeColor       String  @default("#FECB08")
+  badgeIcon        String  @default("award")
+  isPublished      Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  questions Question[]
+  progress  StageProgress[]
+}
+
+model Question {
+  id          String       @id @default(cuid())
+  stageId     String
+  stage       Stage        @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  type        QuestionType @default(MCQ)
+  text        String
+  options     Json         @default("[]")
+  correctId   String       @default("")
+  explanation String?
+  order       Int          @default(0)
+
+  createdAt     DateTime       @default(now())
+  textResponses TextResponse[]
+}
+
+model TextResponse {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  response   String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, questionId])
+}
+
+model StageProgress {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stageId     String
+  stage       Stage     @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  attempts    Int       @default(0)
+  bestScore   Int?
+  passed      Boolean   @default(false)
+  docRead     Boolean   @default(false)
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([userId, stageId])
+}
