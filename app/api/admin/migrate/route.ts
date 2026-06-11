@@ -5,6 +5,26 @@ import { getSession } from '@/lib/auth'
 import { Role } from '@/app/generated/prisma/client'
 import { Pool } from 'pg'
 
+async function checkPending() {
+  const pool = new Pool({ connectionString: process.env.DATABASE_URL })
+  try {
+    const [r1, r2] = await Promise.all([
+      pool.query(`SELECT 1 FROM information_schema.columns WHERE table_name='Question' AND column_name='docGroupId'`),
+      pool.query(`SELECT 1 FROM information_schema.columns WHERE table_name='Stage' AND column_name='weeks'`),
+    ])
+    return r1.rows.length === 0 || r2.rows.length === 0
+  } finally {
+    await pool.end()
+  }
+}
+
+export async function GET() {
+  const user = await getSession()
+  if (!user || user.role !== Role.SUPER_ADMIN) return NextResponse.json({ pending: false })
+  const pending = await checkPending()
+  return NextResponse.json({ pending })
+}
+
 export async function POST() {
   const user = await getSession()
   if (!user || user.role !== Role.SUPER_ADMIN) {

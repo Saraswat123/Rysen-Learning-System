@@ -26,14 +26,17 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true)
   const [migrating, setMigrating] = useState(false)
   const [migrateResult, setMigrateResult] = useState<string[] | null>(null)
+  const [migrationNeeded, setMigrationNeeded] = useState(false)
 
   useEffect(() => {
     Promise.all([
       fetch('/api/stages').then((r) => r.json()),
       fetch('/api/educators').then((r) => r.json()),
-    ]).then(([s, e]) => {
+      fetch('/api/admin/migrate').then((r) => r.json()),
+    ]).then(([s, e, m]) => {
       setStages(s)
       setEducators(e)
+      setMigrationNeeded(m.pending === true)
     }).finally(() => setLoading(false))
   }, [])
 
@@ -55,6 +58,7 @@ export default function AdminDashboard() {
     const data = await res.json()
     setMigrateResult(data.results ?? [data.error ?? 'Unknown error'])
     setMigrating(false)
+    if (data.ok) setMigrationNeeded(false)
   }
 
   if (loading) return <div className="flex items-center justify-center h-64"><div className="w-8 h-8 border-4 border-midnight border-t-transparent rounded-full animate-spin" /></div>
@@ -66,25 +70,27 @@ export default function AdminDashboard() {
         <p className="text-charcoal/60 text-sm mt-1">RYSEN Learning Centre — Overview</p>
       </div>
 
-      {/* DB Migration banner */}
-      <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <Database size={18} className="text-amber-600 flex-shrink-0" />
-          <div>
-            <p className="text-sm font-semibold text-amber-800">Database migration required</p>
-            <p className="text-xs text-amber-600">New columns (weeks, docGroupId) must be added once. Click to apply.</p>
-            {migrateResult && (
-              <ul className="mt-1 text-xs text-amber-700 list-none">
-                {migrateResult.map((r, i) => <li key={i}>{r}</li>)}
-              </ul>
-            )}
+      {/* DB Migration banner — only shows when columns missing */}
+      {migrationNeeded && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <Database size={18} className="text-amber-600 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-amber-800">Database migration required</p>
+              <p className="text-xs text-amber-600">New columns must be added once. Click to apply — takes 2 seconds.</p>
+              {migrateResult && (
+                <ul className="mt-1 text-xs text-amber-700 list-none">
+                  {migrateResult.map((r, i) => <li key={i}>{r}</li>)}
+                </ul>
+              )}
+            </div>
           </div>
+          <button onClick={runMigration} disabled={migrating}
+            className="flex-shrink-0 px-4 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-colors">
+            {migrating ? 'Running…' : 'Run Migration'}
+          </button>
         </div>
-        <button onClick={runMigration} disabled={migrating}
-          className="flex-shrink-0 px-4 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-colors">
-          {migrating ? 'Running…' : migrateResult ? 'Done ✓' : 'Run Migration'}
-        </button>
-      </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">

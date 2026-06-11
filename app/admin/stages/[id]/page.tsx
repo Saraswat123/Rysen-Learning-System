@@ -69,6 +69,9 @@ export default function StageEditor({ params }: { params: Promise<{ id: string }
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        title: stage.title,
+        subtitle: stage.subtitle,
+        week: stage.week,
         applicableTo: stage.applicableTo,
         timeLimitMinutes: stage.timeLimitMinutes,
         passScore: stage.passScore,
@@ -358,6 +361,14 @@ export default function StageEditor({ params }: { params: Promise<{ id: string }
       <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-6">
         <h2 className="font-bold text-midnight mb-4">Stage Settings</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Input label="Stage Title" placeholder="e.g. Foundations of Teaching" value={stage.title ?? ''}
+            onChange={(e) => setStage((s) => s ? { ...s, title: e.target.value } : s)} />
+          <Input label="Subtitle" placeholder="e.g. Core pedagogy concepts" value={stage.subtitle ?? ''}
+            onChange={(e) => setStage((s) => s ? { ...s, subtitle: e.target.value } : s)} />
+          <div className="md:col-span-2">
+            <Input label="Period Label" placeholder="e.g. Weeks 1–4" value={stage.week ?? ''}
+              onChange={(e) => setStage((s) => s ? { ...s, week: e.target.value } : s)} />
+          </div>
           <div className="md:col-span-2">
             <div className="flex flex-col gap-1">
               <label className="text-sm font-semibold text-charcoal">Applicable To</label>
