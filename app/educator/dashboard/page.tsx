@@ -86,12 +86,17 @@ export default function EducatorDashboard() {
       fetch('/api/progress').then((r) => r.json()),
       fetch('/api/auth/me').then((r) => r.json()),
     ]).then(([d, m]) => {
-      const visPrograms = (d.programs as ProgramData[]).filter(
-        (p) => p.isPublished && (p.applicableTo === 'BOTH' || p.applicableTo === 'EDUCATOR') &&
-          p.stages.some((s) => s.applicableTo === 'BOTH' || s.applicableTo === 'EDUCATOR')
-      )
-      setPrograms(visPrograms)
-      setUnassigned((d.unassigned as StageData[]).filter((s) => s.applicableTo === 'BOTH' || s.applicableTo === 'EDUCATOR'))
+      // d may be array (old API) or object with programs/unassigned (new API)
+      if (Array.isArray(d)) {
+        setUnassigned((d as StageData[]).filter((s) => s.applicableTo === 'BOTH' || s.applicableTo === 'EDUCATOR'))
+      } else {
+        const visPrograms = ((d.programs ?? []) as ProgramData[]).filter(
+          (p) => p.isPublished && (p.applicableTo === 'BOTH' || p.applicableTo === 'EDUCATOR') &&
+            p.stages.some((s) => s.applicableTo === 'BOTH' || s.applicableTo === 'EDUCATOR')
+        )
+        setPrograms(visPrograms)
+        setUnassigned(((d.unassigned ?? d.stages ?? []) as StageData[]).filter((s) => s.applicableTo === 'BOTH' || s.applicableTo === 'EDUCATOR'))
+      }
       setUser(m.user)
     }).finally(() => setLoading(false))
   }, [])

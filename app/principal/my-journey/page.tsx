@@ -87,12 +87,16 @@ export default function PrincipalMyJourneyPage() {
       fetch('/api/progress').then((r) => r.json()),
       fetch('/api/auth/me').then((r) => r.json()),
     ]).then(([d, m]) => {
-      const visPrograms = (d.programs as ProgramData[]).filter(
-        (p) => p.isPublished && (p.applicableTo === 'BOTH' || p.applicableTo === 'PRINCIPAL') &&
-          p.stages.some((s) => s.applicableTo === 'BOTH' || s.applicableTo === 'PRINCIPAL')
-      )
-      setPrograms(visPrograms)
-      setUnassigned((d.unassigned as StageData[]).filter((s) => s.applicableTo === 'BOTH' || s.applicableTo === 'PRINCIPAL'))
+      if (Array.isArray(d)) {
+        setUnassigned((d as StageData[]).filter((s) => s.applicableTo === 'BOTH' || s.applicableTo === 'PRINCIPAL'))
+      } else {
+        const visPrograms = ((d.programs ?? []) as ProgramData[]).filter(
+          (p) => p.isPublished && (p.applicableTo === 'BOTH' || p.applicableTo === 'PRINCIPAL') &&
+            p.stages.some((s) => s.applicableTo === 'BOTH' || s.applicableTo === 'PRINCIPAL')
+        )
+        setPrograms(visPrograms)
+        setUnassigned(((d.unassigned ?? d.stages ?? []) as StageData[]).filter((s) => s.applicableTo === 'BOTH' || s.applicableTo === 'PRINCIPAL'))
+      }
       setUser(m.user)
     }).finally(() => setLoading(false))
   }, [])
