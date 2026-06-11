@@ -106,13 +106,14 @@ async function main() {
   }
   console.log('✓ Branches seeded')
 
-  // Stages
+  // Stages — upsert by title since number is no longer globally unique
   for (const s of STAGES) {
-    await db.stage.upsert({
-      where: { number: s.number },
-      update: s,
-      create: s,
-    })
+    const existing = await db.stage.findFirst({ where: { title: s.title } })
+    if (existing) {
+      await db.stage.update({ where: { id: existing.id }, data: s })
+    } else {
+      await db.stage.create({ data: s })
+    }
   }
   console.log('✓ Stages seeded')
 

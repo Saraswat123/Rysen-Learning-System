@@ -53,24 +53,37 @@ model Session {
   createdAt DateTime @default(now())
 }
 
+model Program {
+  id           String   @id @default(cuid())
+  name         String
+  description  String?
+  isPublished  Boolean  @default(false)
+  applicableTo String   @default("BOTH")
+  order        Int      @default(0)
+  createdAt    DateTime @default(now())
+  stages       Stage[]
+}
+
 model Stage {
-  id               String  @id @default(cuid())
-  number           Int     @unique
+  id               String   @id @default(cuid())
+  programId        String?
+  program          Program? @relation(fields: [programId], references: [id], onDelete: SetNull)
+  number           Int
   title            String
   subtitle         String?
   description      String?
   week             String?
   docUrl           String?
-  docs             Json    @default("[]")
-  weeks            Json    @default("[]")
-  applicableTo     String  @default("BOTH")
-  timeLimitMinutes Int     @default(30)
-  passScore        Int     @default(70)
-  maxAttempts      Int     @default(3)
+  docs             Json     @default("[]")
+  weeks            Json     @default("[]")
+  applicableTo     String   @default("BOTH")
+  timeLimitMinutes Int      @default(30)
+  passScore        Int      @default(70)
+  maxAttempts      Int      @default(3)
   badgeTitle       String?
-  badgeColor       String  @default("#FECB08")
-  badgeIcon        String  @default("award")
-  isPublished      Boolean @default(false)
+  badgeColor       String   @default("#FECB08")
+  badgeIcon        String   @default("award")
+  isPublished      Boolean  @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
