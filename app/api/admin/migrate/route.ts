@@ -77,7 +77,7 @@ export async function GET() {
 
 export async function POST() {
   const user = await getSession()
-  if (!user || user.role !== Role.SUPER_ADMIN) {
+  if (!user || (user.role !== Role.SUPER_ADMIN && user.role !== Role.ADMIN)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   }
 

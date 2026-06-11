@@ -30,7 +30,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     fetch('/api/auth/me').then((r) => {
       if (!r.ok) { router.push('/admin/login'); return }
       return r.json()
-    }).then((d) => d && setUser(d.user))
+    }).then((d) => {
+      if (!d) return
+      setUser(d.user)
+      // Auto-run DB migrations silently — idempotent, safe every login
+      fetch('/api/admin/migrate', { method: 'POST' }).catch(() => {})
+    })
   }, [router])
 
   async function logout() {

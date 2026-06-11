@@ -1,21 +1,16 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Users, BookOpen, Award, TrendingUp, ChevronRight, Database } from 'lucide-react'
+import { Users, BookOpen, Award, TrendingUp, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
 
 interface StageWithProgress {
-  id: string
-  number: number
-  title: string
-  week: string
-  isPublished: boolean
-  _count: { questions: number }
+  id: string; number: number; title: string; week: string
+  isPublished: boolean; _count: { questions: number }
 }
 
 interface Educator {
-  id: string
-  name: string
+  id: string; name: string
   branch: { name: string } | null
   progress: { passed: boolean }[]
 }
@@ -24,24 +19,19 @@ export default function AdminDashboard() {
   const [stages, setStages] = useState<StageWithProgress[]>([])
   const [educators, setEducators] = useState<Educator[]>([])
   const [loading, setLoading] = useState(true)
-  const [migrating, setMigrating] = useState(false)
-  const [migrateResult, setMigrateResult] = useState<string[] | null>(null)
-  const [migrationNeeded, setMigrationNeeded] = useState(false)
 
   useEffect(() => {
     Promise.all([
-      fetch('/api/stages').then((r) => r.json()),
-      fetch('/api/educators').then((r) => r.json()),
-      fetch('/api/admin/migrate').then((r) => r.json()),
-    ]).then(([s, e, m]) => {
-      setStages(s)
-      setEducators(e)
-      setMigrationNeeded(m.pending === true)
+      fetch('/api/stages').then((r) => r.json()).catch(() => []),
+      fetch('/api/educators').then((r) => r.json()).catch(() => []),
+    ]).then(([s, e]) => {
+      setStages(Array.isArray(s) ? s : [])
+      setEducators(Array.isArray(e) ? e : [])
     }).finally(() => setLoading(false))
   }, [])
 
   const totalEducators = educators.length
-  const completed = educators.filter((e) => e.progress.length === 5 && e.progress.every((p) => p.passed)).length
+  const completed = educators.filter((e) => e.progress.length > 0 && e.progress.every((p) => p.passed)).length
   const inProgress = educators.filter((e) => e.progress.length > 0 && !e.progress.every((p) => p.passed)).length
   const publishedStages = stages.filter((s) => s.isPublished).length
 
@@ -49,19 +39,14 @@ export default function AdminDashboard() {
     { label: 'Total Educators', value: totalEducators, icon: Users, color: 'bg-midnight text-white' },
     { label: 'Certified', value: completed, icon: Award, color: 'bg-forest text-white' },
     { label: 'In Progress', value: inProgress, icon: TrendingUp, color: 'bg-gold text-midnight' },
-    { label: 'Active Stages', value: `${publishedStages}/5`, icon: BookOpen, color: 'bg-olive text-white' },
+    { label: 'Active Stages', value: publishedStages, icon: BookOpen, color: 'bg-olive text-white' },
   ]
 
-  async function runMigration() {
-    setMigrating(true)
-    const res = await fetch('/api/admin/migrate', { method: 'POST' })
-    const data = await res.json()
-    setMigrateResult(data.results ?? [data.error ?? 'Unknown error'])
-    setMigrating(false)
-    if (data.ok) setMigrationNeeded(false)
-  }
-
-  if (loading) return <div className="flex items-center justify-center h-64"><div className="w-8 h-8 border-4 border-midnight border-t-transparent rounded-full animate-spin" /></div>
+  if (loading) return (
+    <div className="flex items-center justify-center h-64">
+      <div className="w-8 h-8 border-4 border-midnight border-t-transparent rounded-full animate-spin" />
+    </div>
+  )
 
   return (
     <div className="max-w-5xl mx-auto">
@@ -69,28 +54,6 @@ export default function AdminDashboard() {
         <h1 className="text-2xl font-bold text-midnight">Dashboard</h1>
         <p className="text-charcoal/60 text-sm mt-1">RYSEN Learning Centre — Overview</p>
       </div>
-
-      {/* DB Migration banner — only shows when columns missing */}
-      {migrationNeeded && (
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <Database size={18} className="text-amber-600 flex-shrink-0" />
-            <div>
-              <p className="text-sm font-semibold text-amber-800">Database migration required</p>
-              <p className="text-xs text-amber-600">New columns must be added once. Click to apply — takes 2 seconds.</p>
-              {migrateResult && (
-                <ul className="mt-1 text-xs text-amber-700 list-none">
-                  {migrateResult.map((r, i) => <li key={i}>{r}</li>)}
-                </ul>
-              )}
-            </div>
-          </div>
-          <button onClick={runMigration} disabled={migrating}
-            className="flex-shrink-0 px-4 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-colors">
-            {migrating ? 'Running…' : 'Run Migration'}
-          </button>
-        </div>
-      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -120,7 +83,7 @@ export default function AdminDashboard() {
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-charcoal">{stage.title}</p>
-                  <p className="text-xs text-charcoal/50">{stage.week} · {stage._count.questions} questions</p>
+                  <p className="text-xs text-charcoal/50">{stage.week ? `${stage.week} · ` : ''}{stage._count.questions} questions</p>
                 </div>
               </div>
               <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${stage.isPublished ? 'bg-forest/10 text-forest' : 'bg-gray-100 text-gray-500'}`}>
@@ -128,6 +91,7 @@ export default function AdminDashboard() {
               </span>
             </div>
           ))}
+          {stages.length === 0 && <p className="text-sm text-charcoal/40 text-center py-4">No stages yet.</p>}
         </div>
       </div>
 
@@ -146,7 +110,7 @@ export default function AdminDashboard() {
               <p className="text-xs text-charcoal/50">{e.branch?.name ?? 'No branch'}</p>
             </div>
             <div className="text-xs text-charcoal/50">
-              {e.progress.filter((p) => p.passed).length}/5 stages
+              {e.progress.filter((p) => p.passed).length} stages passed
             </div>
           </div>
         ))}
