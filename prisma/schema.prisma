@@ -62,6 +62,7 @@ model Stage {
   week             String?
   docUrl           String?
   docs             Json    @default("[]")
+  weeks            Json    @default("[]")
   applicableTo     String  @default("BOTH")
   timeLimitMinutes Int     @default(30)
   passScore        Int     @default(70)
