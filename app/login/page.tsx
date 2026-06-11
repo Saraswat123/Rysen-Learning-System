@@ -125,11 +125,15 @@ export default function EducatorLogin() {
             </p>
           </div>
 
-          <p className="text-center mt-4">
+          <div className="flex items-center justify-center gap-4 mt-4">
+            <a href="/principal/login" className="text-xs text-charcoal/40 hover:text-midnight">
+              Principal / Center Head Login →
+            </a>
+            <span className="text-charcoal/20 text-xs">|</span>
             <a href="/admin/login" className="text-xs text-charcoal/40 hover:text-midnight">
               Admin Login →
             </a>
-          </p>
+          </div>
         </div>
       </div>
     </div>

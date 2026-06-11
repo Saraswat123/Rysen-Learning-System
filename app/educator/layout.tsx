@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import RysenLogo from '@/components/RysenLogo'
-import { LayoutDashboard, Award, LogOut } from 'lucide-react'
+import { LayoutDashboard, Award, Trophy, LogOut } from 'lucide-react'
 
 export default function EducatorLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
@@ -35,6 +35,9 @@ export default function EducatorLayout({ children }: { children: React.ReactNode
               </Link>
               <Link href="/educator/certificate" className="flex items-center gap-1.5 text-sm text-white/70 hover:text-white px-3 py-1.5 rounded-lg hover:bg-white/10 transition-colors">
                 <Award size={15} /> Certificate
+              </Link>
+              <Link href="/leaderboard" className="flex items-center gap-1.5 text-sm text-white/70 hover:text-white px-3 py-1.5 rounded-lg hover:bg-white/10 transition-colors">
+                <Trophy size={15} /> Leaderboard
               </Link>
             </nav>
           </div>
