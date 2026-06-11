@@ -137,6 +137,16 @@ export default function StageEditor({ params }: { params: Promise<{ id: string }
   function removeDoc(i: number) {
     setStage((s) => s ? { ...s, docs: s.docs.filter((_, idx) => idx !== i) } : s)
   }
+  function moveDoc(i: number, dir: -1 | 1) {
+    setStage((s) => {
+      if (!s) return s
+      const next = [...s.docs]
+      const target = i + dir
+      if (target < 0 || target >= next.length) return s
+      ;[next[i], next[target]] = [next[target], next[i]]
+      return { ...s, docs: next.map((d, idx) => ({ ...d, order: idx })) }
+    })
+  }
 
   function handleMcqFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -233,6 +243,17 @@ export default function StageEditor({ params }: { params: Promise<{ id: string }
           <div className="flex flex-col gap-2">
             {(stage.docs ?? []).map((doc, di) => (
               <div key={doc.id} className="flex items-center gap-2 bg-cream/50 border border-gray-100 rounded-xl p-3">
+                <div className="flex flex-col gap-0.5 flex-shrink-0">
+                  <button onClick={() => moveDoc(di, -1)} disabled={di === 0}
+                    className="p-0.5 text-charcoal/30 hover:text-midnight disabled:opacity-20 disabled:cursor-not-allowed">
+                    <ChevronUp size={13} />
+                  </button>
+                  <button onClick={() => moveDoc(di, 1)} disabled={di === (stage.docs ?? []).length - 1}
+                    className="p-0.5 text-charcoal/30 hover:text-midnight disabled:opacity-20 disabled:cursor-not-allowed">
+                    <ChevronDown size={13} />
+                  </button>
+                </div>
+                <span className="text-xs font-bold text-charcoal/30 w-4 flex-shrink-0">{di + 1}</span>
                 <LinkIcon size={14} className="text-charcoal/40 flex-shrink-0" />
                 <input placeholder="Document title (e.g. Week 1 - Day 1 Reading)"
                   value={doc.title} onChange={(e) => updateDoc(di, { title: e.target.value })}

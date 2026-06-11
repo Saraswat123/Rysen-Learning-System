@@ -35,6 +35,7 @@ export default function StagePage({ params }: { params: Promise<{ id: string }> 
   const [result, setResult] = useState<MCQResult | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [timedOut, setTimedOut] = useState(false)
+  const [openedDocs, setOpenedDocs] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     fetch(`/api/stages/${id}`).then((r) => r.json()).then((data) => {
@@ -109,19 +110,30 @@ export default function StagePage({ params }: { params: Promise<{ id: string }> 
             const docs = stage.docs?.filter((d) => d.url) ?? []
             const legacyDoc = !docs.length && stage.docUrl ? [{ id: 'legacy', title: 'Training Document', url: stage.docUrl, order: 0 }] : []
             const allDocs = [...docs, ...legacyDoc]
+            const allOpened = allDocs.length > 0 && allDocs.every((d) => openedDocs.has(d.id))
             return allDocs.length > 0 ? (
               <>
+                <p className="text-xs text-charcoal/40 mb-3">{openedDocs.size}/{allDocs.length} opened</p>
                 <div className="flex flex-col gap-3 mb-5">
-                  {allDocs.map((doc, i) => (
-                    <a key={doc.id} href={doc.url} target="_blank" rel="noopener noreferrer"
-                      className="flex items-center gap-3 text-sm font-semibold text-midnight bg-cream hover:bg-gold/20 border border-gold/30 px-5 py-3 rounded-xl transition-colors">
-                      <span className="w-6 h-6 bg-gold/30 rounded-full text-xs font-bold flex items-center justify-center text-midnight flex-shrink-0">{i + 1}</span>
-                      <span className="flex-1">{doc.title || `Document ${i + 1}`}</span>
-                      <ExternalLink size={14} className="text-gold flex-shrink-0" />
-                    </a>
-                  ))}
+                  {allDocs.map((doc, i) => {
+                    const opened = openedDocs.has(doc.id)
+                    return (
+                      <a key={doc.id} href={doc.url} target="_blank" rel="noopener noreferrer"
+                        onClick={() => setOpenedDocs((s) => new Set([...s, doc.id]))}
+                        className={`flex items-center gap-3 text-sm font-semibold px-5 py-3 rounded-xl border transition-colors ${opened ? 'bg-forest/10 border-forest/30 text-forest' : 'bg-cream hover:bg-gold/20 border-gold/30 text-midnight'}`}>
+                        <span className={`w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center flex-shrink-0 ${opened ? 'bg-forest text-white' : 'bg-gold/30 text-midnight'}`}>
+                          {opened ? '✓' : i + 1}
+                        </span>
+                        <span className="flex-1">{doc.title || `Document ${i + 1}`}</span>
+                        <ExternalLink size={14} className={opened ? 'text-forest' : 'text-gold'} />
+                      </a>
+                    )
+                  })}
                 </div>
-                <Button onClick={markDocRead} className="w-full">
+                {!allOpened && (
+                  <p className="text-xs text-amber-600 mb-3 text-center">Open all documents to continue</p>
+                )}
+                <Button onClick={markDocRead} disabled={!allOpened} className="w-full">
                   <CheckCircle size={16} /> I&apos;ve Read All Documents — Start MCQ
                 </Button>
               </>
