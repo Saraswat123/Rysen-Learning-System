@@ -26,13 +26,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (Array.isArray(body)) {
     await db.question.deleteMany({ where: { stageId } })
     const questions = await db.question.createMany({
-      data: body.map((q: { type?: string; text: string; options: object; correctId: string; explanation?: string }, i: number) => ({
+      data: body.map((q: { type?: string; text: string; options: object; correctId: string; explanation?: string; docGroupId?: string | null }, i: number) => ({
         stageId,
         type: q.type === 'TEXT' ? QuestionType.TEXT : QuestionType.MCQ,
         text: q.text,
         options: q.type === 'TEXT' ? [] : q.options as object,
         correctId: q.type === 'TEXT' ? '' : q.correctId,
         explanation: q.explanation ?? null,
+        docGroupId: q.docGroupId ?? null,
         order: i,
       })),
     })
