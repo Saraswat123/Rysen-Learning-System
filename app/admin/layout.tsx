@@ -6,15 +6,17 @@ import Link from 'next/link'
 import RysenLogo from '@/components/RysenLogo'
 import {
   LayoutDashboard, Users, BookOpen, BarChart3,
-  UserCog, LogOut, Menu, X,
+  UserCog, LogOut, Menu, Trophy, GraduationCap,
 } from 'lucide-react'
 
 const NAV = [
   { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/admin/educators', label: 'Educators', icon: Users },
+  { href: '/admin/principals', label: 'Principals', icon: GraduationCap },
   { href: '/admin/stages', label: 'Stages & MCQ', icon: BookOpen },
   { href: '/admin/analytics', label: 'AI Analytics', icon: BarChart3 },
   { href: '/admin/admins', label: 'Admin Users', icon: UserCog },
+  { href: '/leaderboard', label: 'Leaderboard', icon: Trophy },
 ]
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

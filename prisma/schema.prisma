@@ -11,6 +11,7 @@ enum Role {
   SUPER_ADMIN
   ADMIN
   EDUCATOR
+  PRINCIPAL
 }
 
 enum QuestionType {
@@ -60,6 +61,8 @@ model Stage {
   description      String?
   week             String?
   docUrl           String?
+  docs             Json    @default("[]")
+  applicableTo     String  @default("BOTH")
   timeLimitMinutes Int     @default(30)
   passScore        Int     @default(70)
   maxAttempts      Int     @default(3)

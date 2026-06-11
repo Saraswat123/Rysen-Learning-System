@@ -86,7 +86,7 @@ export default function StagePage({ params }: { params: Promise<{ id: string }> 
 
   return (
     <div className="max-w-2xl mx-auto">
-      <button onClick={() => router.push('/educator/dashboard')} className="flex items-center gap-2 text-sm text-charcoal/60 hover:text-midnight mb-6">
+      <button onClick={() => router.push('/principal/dashboard')} className="flex items-center gap-2 text-sm text-charcoal/60 hover:text-midnight mb-6">
         <ArrowLeft size={16} /> Back to Journey
       </button>
 
@@ -288,7 +288,7 @@ export default function StagePage({ params }: { params: Promise<{ id: string }> 
                 Try Again
               </Button>
             ) : null}
-            <Button onClick={() => router.push('/educator/dashboard')} variant={result.passed ? 'primary' : 'ghost'} className="flex-1">
+            <Button onClick={() => router.push('/principal/dashboard')} variant={result.passed ? 'primary' : 'ghost'} className="flex-1">
               {result.passed ? 'Continue Journey →' : 'Back to Dashboard'}
             </Button>
           </div>

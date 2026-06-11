@@ -2,7 +2,7 @@
 
 import { useState, useEffect, use, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Plus, Trash2, Save, Upload, Download, X, FileSpreadsheet } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, Save, Upload, Download, X, FileSpreadsheet, ChevronUp, ChevronDown, Link as LinkIcon } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Toast from '@/components/Toast'
@@ -13,9 +13,11 @@ interface Question {
   id?: string; type: 'MCQ' | 'TEXT'; text: string; options: Option[]
   correctId: string; explanation: string; order: number
 }
+interface StageDoc { id: string; title: string; url: string; order: number }
 interface Stage {
   id: string; number: number; title: string; subtitle: string
   description: string; week: string; docUrl: string
+  docs: StageDoc[]; applicableTo: string
   timeLimitMinutes: number; passScore: number; maxAttempts: number
   badgeTitle: string; badgeColor: string; isPublished: boolean
   questions: Question[]
@@ -43,7 +45,7 @@ export default function StageEditor({ params }: { params: Promise<{ id: string }
 
   useEffect(() => {
     fetch(`/api/stages/${id}`).then((r) => r.json()).then((data) => {
-      setStage(data)
+      setStage({ ...data, docs: data.docs ?? [], applicableTo: data.applicableTo ?? 'BOTH' })
       setQuestions(data.questions?.length ? data.questions : [makeQuestion(0)])
     })
   }, [id])
@@ -56,6 +58,8 @@ export default function StageEditor({ params }: { params: Promise<{ id: string }
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         docUrl: stage.docUrl,
+        docs: stage.docs,
+        applicableTo: stage.applicableTo,
         timeLimitMinutes: stage.timeLimitMinutes,
         passScore: stage.passScore,
         maxAttempts: stage.maxAttempts,
@@ -112,6 +116,26 @@ export default function StageEditor({ params }: { params: Promise<{ id: string }
     setQuestions((qs) => qs.map((q, idx) => idx !== qi ? q : {
       ...q, options: q.options.map((o, j) => j === oi ? { ...o, text } : o)
     }))
+  }
+
+  function moveQuestion(qi: number, dir: -1 | 1) {
+    setQuestions((qs) => {
+      const next = [...qs]
+      const target = qi + dir
+      if (target < 0 || target >= next.length) return qs
+      ;[next[qi], next[target]] = [next[target], next[qi]]
+      return next.map((q, i) => ({ ...q, order: i }))
+    })
+  }
+
+  function addDoc() {
+    setStage((s) => s ? { ...s, docs: [...(s.docs ?? []), { id: crypto.randomUUID(), title: '', url: '', order: (s.docs ?? []).length }] } : s)
+  }
+  function updateDoc(i: number, patch: Partial<StageDoc>) {
+    setStage((s) => s ? { ...s, docs: s.docs.map((d, idx) => idx === i ? { ...d, ...patch } : d) } : s)
+  }
+  function removeDoc(i: number) {
+    setStage((s) => s ? { ...s, docs: s.docs.filter((_, idx) => idx !== i) } : s)
   }
 
   function handleMcqFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -195,11 +219,47 @@ export default function StageEditor({ params }: { params: Promise<{ id: string }
       {/* Stage Settings */}
       <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-6">
         <h2 className="font-bold text-midnight mb-4">Stage Settings</h2>
+        {/* Multiple Training Documents */}
+        <div className="mb-5">
+          <div className="flex items-center justify-between mb-3">
+            <label className="text-sm font-semibold text-charcoal">Training Documents</label>
+            <button onClick={addDoc} className="flex items-center gap-1.5 text-xs text-midnight bg-cream hover:bg-gold/20 px-3 py-1.5 rounded-lg font-medium transition-colors">
+              <Plus size={12} /> Add Link
+            </button>
+          </div>
+          {(stage.docs ?? []).length === 0 && (
+            <p className="text-xs text-charcoal/40 italic">No documents added. Click "Add Link" to add training materials.</p>
+          )}
+          <div className="flex flex-col gap-2">
+            {(stage.docs ?? []).map((doc, di) => (
+              <div key={doc.id} className="flex items-center gap-2 bg-cream/50 border border-gray-100 rounded-xl p-3">
+                <LinkIcon size={14} className="text-charcoal/40 flex-shrink-0" />
+                <input placeholder="Document title (e.g. Week 1 - Day 1 Reading)"
+                  value={doc.title} onChange={(e) => updateDoc(di, { title: e.target.value })}
+                  className="flex-1 bg-transparent text-sm focus:outline-none text-charcoal min-w-0" />
+                <input placeholder="https://docs.google.com/..."
+                  value={doc.url} onChange={(e) => updateDoc(di, { url: e.target.value })}
+                  className="flex-1 bg-transparent text-sm focus:outline-none text-charcoal/70 min-w-0" />
+                <button onClick={() => removeDoc(di)} className="text-red-400 hover:text-red-600 flex-shrink-0">
+                  <Trash2 size={13} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="md:col-span-2">
-            <Input label="Google Doc URL" placeholder="https://docs.google.com/document/..."
-              value={stage.docUrl ?? ''}
-              onChange={(e) => setStage((s) => s ? { ...s, docUrl: e.target.value } : s)} />
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-semibold text-charcoal">Applicable To</label>
+              <select value={stage.applicableTo}
+                onChange={(e) => setStage((s) => s ? { ...s, applicableTo: e.target.value } : s)}
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-midnight text-sm">
+                <option value="BOTH">Both Educators & Principals</option>
+                <option value="EDUCATOR">Educators Only</option>
+                <option value="PRINCIPAL">Principals / Center Heads Only</option>
+              </select>
+            </div>
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-sm font-semibold text-charcoal">Time Limit (minutes)</label>
@@ -278,8 +338,18 @@ export default function StageEditor({ params }: { params: Promise<{ id: string }
                   </span>
                   {incomplete && <span className="text-xs text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">Incomplete</span>}
                 </div>
-                <button onClick={() => setQuestions((qs) => qs.filter((_, i) => i !== qi))}
-                  className="text-red-400 hover:text-red-600"><Trash2 size={14} /></button>
+                <div className="flex items-center gap-1">
+                  <button onClick={() => moveQuestion(qi, -1)} disabled={qi === 0}
+                    className="p-1 rounded hover:bg-gray-100 disabled:opacity-20 text-charcoal/50">
+                    <ChevronUp size={14} />
+                  </button>
+                  <button onClick={() => moveQuestion(qi, 1)} disabled={qi === questions.length - 1}
+                    className="p-1 rounded hover:bg-gray-100 disabled:opacity-20 text-charcoal/50">
+                    <ChevronDown size={14} />
+                  </button>
+                  <button onClick={() => setQuestions((qs) => qs.filter((_, i) => i !== qi))}
+                    className="text-red-400 hover:text-red-600 p-1"><Trash2 size={14} /></button>
+                </div>
               </div>
 
               <textarea
