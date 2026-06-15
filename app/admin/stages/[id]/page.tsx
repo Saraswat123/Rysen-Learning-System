@@ -4,7 +4,7 @@ import { useState, useEffect, use, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   ArrowLeft, Plus, Trash2, Save, Upload, Download, X,
-  FileSpreadsheet, ChevronUp, ChevronDown, Link as LinkIcon, BookOpen,
+  FileSpreadsheet, ChevronUp, ChevronDown, Link as LinkIcon, BookOpen, Video,
 } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
@@ -17,7 +17,7 @@ interface Question {
   correctId: string; explanation: string; order: number
   docGroupId: string | null
 }
-interface StageDoc { id: string; title: string; url: string; weekId: string | null; order: number }
+interface StageDoc { id: string; title: string; url: string; weekId: string | null; order: number; type: 'doc' | 'video' }
 interface StageWeek { id: string; label: string; order: number }
 interface Stage {
   id: string; number: number; title: string; subtitle: string
@@ -51,7 +51,7 @@ export default function StageEditor({ params }: { params: Promise<{ id: string }
     fetch(`/api/stages/${id}`).then((r) => r.json()).then((data) => {
       setStage({
         ...data,
-        docs: (data.docs ?? []).map((d: StageDoc) => ({ ...d, weekId: d.weekId ?? null })),
+        docs: (data.docs ?? []).map((d: StageDoc) => ({ ...d, weekId: d.weekId ?? null, type: d.type ?? 'doc' })),
         weeks: data.weeks ?? [],
         applicableTo: data.applicableTo ?? 'BOTH',
       })
@@ -150,8 +150,8 @@ export default function StageEditor({ params }: { params: Promise<{ id: string }
 
   // ─── Doc helpers ─────────────────────────────────────────────────────────────
 
-  function addDoc(weekId: string | null) {
-    const newDoc: StageDoc = { id: crypto.randomUUID(), title: '', url: '', weekId, order: (stage?.docs ?? []).filter((d) => d.weekId === weekId).length }
+  function addDoc(weekId: string | null, type: 'doc' | 'video' = 'doc') {
+    const newDoc: StageDoc = { id: crypto.randomUUID(), title: '', url: '', weekId, order: (stage?.docs ?? []).filter((d) => d.weekId === weekId).length, type }
     setStage((s) => s ? { ...s, docs: [...s.docs, newDoc] } : s)
   }
   function updateDoc(did: string, patch: Partial<StageDoc>) {
@@ -302,24 +302,30 @@ export default function StageEditor({ params }: { params: Promise<{ id: string }
   // ─── Render doc group ─────────────────────────────────────────────────────────
 
   function renderDocGroup(doc: StageDoc, docsInWeek: StageDoc[]) {
+    const isVideo = doc.type === 'video'
     const docPos = docsInWeek.findIndex((d) => d.id === doc.id)
     const groupQs = questions.map((q, gi) => ({ q, gi })).filter(({ q }) => q.docGroupId === doc.id)
+    const borderColor = isVideo ? 'border-forest/25' : 'border-gold/25'
+    const bgColor = isVideo ? 'bg-forest/8' : 'bg-gold/10'
+    const borderB = isVideo ? 'border-forest/20' : 'border-gold/20'
     return (
-      <div key={doc.id} className="border-2 border-gold/25 rounded-xl overflow-hidden">
-        {/* Doc header */}
-        <div className="bg-gold/10 border-b border-gold/20 px-3 py-2.5 flex items-center gap-2">
+      <div key={doc.id} className={`border-2 ${borderColor} rounded-xl overflow-hidden`}>
+        <div className={`${bgColor} border-b ${borderB} px-3 py-2.5 flex items-center gap-2`}>
           <div className="flex flex-col gap-0.5 flex-shrink-0">
             <button onClick={() => moveDocInWeek(doc.id, -1)} disabled={docPos === 0} className="p-0.5 text-charcoal/30 hover:text-midnight disabled:opacity-20"><ChevronUp size={12} /></button>
             <button onClick={() => moveDocInWeek(doc.id, 1)} disabled={docPos === docsInWeek.length - 1} className="p-0.5 text-charcoal/30 hover:text-midnight disabled:opacity-20"><ChevronDown size={12} /></button>
           </div>
-          <LinkIcon size={13} className="text-charcoal/40 flex-shrink-0" />
-          <input placeholder="Document title" value={doc.title} onChange={(e) => updateDoc(doc.id, { title: e.target.value })}
+          {isVideo
+            ? <Video size={13} className="text-forest flex-shrink-0" />
+            : <LinkIcon size={13} className="text-charcoal/40 flex-shrink-0" />}
+          <input placeholder={isVideo ? 'Video title' : 'Document title'} value={doc.title} onChange={(e) => updateDoc(doc.id, { title: e.target.value })}
             className="w-36 bg-transparent text-sm font-semibold focus:outline-none text-midnight min-w-0 border-b border-transparent focus:border-gold/50" />
-          <input placeholder="https://docs.google.com/..." value={doc.url} onChange={(e) => updateDoc(doc.id, { url: e.target.value })}
+          <input
+            placeholder={isVideo ? 'YouTube URL or direct video URL (MP4)' : 'https://docs.google.com/...'}
+            value={doc.url} onChange={(e) => updateDoc(doc.id, { url: e.target.value })}
             className="flex-1 bg-transparent text-xs focus:outline-none text-charcoal/60 min-w-0 border-b border-transparent focus:border-gold/50" />
           <button onClick={() => removeDoc(doc.id)} className="text-red-400 hover:text-red-600 flex-shrink-0 ml-1"><Trash2 size={12} /></button>
         </div>
-        {/* Questions */}
         <div className="p-3 bg-cream/10 flex flex-col gap-2">
           {groupQs.length === 0 && <p className="text-xs text-charcoal/30 italic text-center py-1">No questions — add below</p>}
           {groupQs.map(({ q, gi }, gqi) => renderQCard(q, gi, gqi === 0, gqi === groupQs.length - 1))}
@@ -458,10 +464,16 @@ export default function StageEditor({ params }: { params: Promise<{ id: string }
                 <div className="p-3 flex flex-col gap-3">
                   {weekDocs.length === 0 && <p className="text-xs text-charcoal/30 italic text-center py-1">No links yet — add below</p>}
                   {weekDocs.map((doc) => renderDocGroup(doc, weekDocs))}
-                  <button onClick={() => addDoc(week.id)}
-                    className="flex items-center gap-1.5 text-xs text-midnight bg-cream hover:bg-gold/20 border border-dashed border-gold/40 px-3 py-2 rounded-xl font-medium transition-colors w-full justify-center">
-                    <Plus size={12} /> Add Link to {week.label}
-                  </button>
+                  <div className="flex gap-2">
+                    <button onClick={() => addDoc(week.id, 'doc')}
+                      className="flex items-center gap-1.5 text-xs text-midnight bg-cream hover:bg-gold/20 border border-dashed border-gold/40 px-3 py-2 rounded-xl font-medium transition-colors flex-1 justify-center">
+                      <LinkIcon size={12} /> Add Link
+                    </button>
+                    <button onClick={() => addDoc(week.id, 'video')}
+                      className="flex items-center gap-1.5 text-xs text-forest bg-cream hover:bg-forest/10 border border-dashed border-forest/30 px-3 py-2 rounded-xl font-medium transition-colors flex-1 justify-center">
+                      <Video size={12} /> Add Video
+                    </button>
+                  </div>
                 </div>
               </div>
             )

@@ -5,10 +5,11 @@ import { useRouter } from 'next/navigation'
 import { ExternalLink, CheckCircle, XCircle, ArrowLeft, Clock, ChevronRight } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import MCQTimer from '@/components/MCQTimer'
+import VideoEmbed from '@/components/VideoEmbed'
 
 interface Option { id: string; text: string }
 interface Question { id: string; type: 'MCQ' | 'TEXT'; text: string; options: Option[]; explanation?: string; docGroupId?: string | null }
-interface StageDoc { id: string; title: string; url: string; weekId?: string | null; order: number }
+interface StageDoc { id: string; title: string; url: string; weekId?: string | null; order: number; type?: 'doc' | 'video' }
 interface StageWeek { id: string; label: string; order: number }
 interface Stage {
   id: string; number: number; title: string; subtitle: string
@@ -143,24 +144,33 @@ export default function PrincipalStagePage({ params }: { params: Promise<{ id: s
           {currentGroup && (
             <div className="flex flex-col gap-4">
               {currentDoc && (
-                <div className={`rounded-2xl border-2 p-4 transition-all ${docOpened ? 'border-olive/40 bg-olive/5' : 'border-gold/40 bg-gold/5'}`}>
-                  <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${docOpened ? 'bg-olive text-white' : 'bg-gold text-midnight'}`}>
-                      {docOpened ? '✓' : '📄'}
+                currentDoc.type === 'video' ? (
+                  <VideoEmbed
+                    url={currentDoc.url}
+                    title={currentDoc.title}
+                    watched={docOpened}
+                    onWatched={() => setOpenedDocs((s) => new Set([...s, currentDoc.id]))}
+                  />
+                ) : (
+                  <div className={`rounded-2xl border-2 p-4 transition-all ${docOpened ? 'border-olive/40 bg-olive/5' : 'border-gold/40 bg-gold/5'}`}>
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${docOpened ? 'bg-olive text-white' : 'bg-gold text-midnight'}`}>
+                        {docOpened ? '✓' : '📄'}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-midnight text-sm truncate">{currentDoc.title || 'Training Document'}</p>
+                        <p className={`text-xs ${docOpened ? 'text-olive' : 'text-charcoal/50'}`}>
+                          {docOpened ? 'Opened — scroll down to answer questions' : 'Open document to unlock questions below'}
+                        </p>
+                      </div>
+                      <a href={currentDoc.url} target="_blank" rel="noopener noreferrer"
+                        onClick={() => setOpenedDocs((s) => new Set([...s, currentDoc.id]))}
+                        className={`flex items-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-xl transition-colors flex-shrink-0 ${docOpened ? 'bg-olive/10 text-olive hover:bg-olive/20' : 'bg-gold text-midnight hover:bg-yellow-400'}`}>
+                        <ExternalLink size={13} /> {docOpened ? 'Re-read' : 'Open Doc'}
+                      </a>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-midnight text-sm truncate">{currentDoc.title || 'Training Document'}</p>
-                      <p className={`text-xs ${docOpened ? 'text-olive' : 'text-charcoal/50'}`}>
-                        {docOpened ? 'Opened — scroll down to answer questions' : 'Open document to unlock questions below'}
-                      </p>
-                    </div>
-                    <a href={currentDoc.url} target="_blank" rel="noopener noreferrer"
-                      onClick={() => setOpenedDocs((s) => new Set([...s, currentDoc.id]))}
-                      className={`flex items-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-xl transition-colors flex-shrink-0 ${docOpened ? 'bg-olive/10 text-olive hover:bg-olive/20' : 'bg-gold text-midnight hover:bg-yellow-400'}`}>
-                      <ExternalLink size={13} /> {docOpened ? 'Re-read' : 'Open Doc'}
-                    </a>
                   </div>
-                </div>
+                )
               )}
 
               {currentQs.length > 0 && (
