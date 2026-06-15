@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Plus, X, ChevronRight, CheckCircle, Circle, Layers, Trash2 } from 'lucide-react'
+import { Plus, X, ChevronRight, CheckCircle, Circle, Layers, Trash2, Users, UserPlus, UserMinus } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Toast from '@/components/Toast'
@@ -12,6 +12,8 @@ interface Program {
   isPublished: boolean; applicableTo: string; order: number
   _count: { stages: number }
 }
+interface Enrollment { id: string; enrolledAt: string; user: { id: string; name: string; email: string; branch: { name: string } | null } }
+interface AllEducator { id: string; name: string; email: string; branch: { name: string } | null }
 
 export default function ProgramsPage() {
   const [programs, setPrograms] = useState<Program[]>([])
@@ -20,6 +22,10 @@ export default function ProgramsPage() {
   const [creating, setCreating] = useState(false)
   const [form, setForm] = useState({ name: '', description: '', applicableTo: 'BOTH' })
   const [confirmDelete, setConfirmDelete] = useState<Program | null>(null)
+  const [manageProgram, setManageProgram] = useState<Program | null>(null)
+  const [enrollments, setEnrollments] = useState<Enrollment[]>([])
+  const [allEducators, setAllEducators] = useState<AllEducator[]>([])
+  const [enrollSearch, setEnrollSearch] = useState('')
 
   async function load() {
     const data = await fetch('/api/programs').then((r) => r.json())
@@ -62,6 +68,38 @@ export default function ProgramsPage() {
     load()
   }
 
+  async function openEnrollments(p: Program) {
+    setManageProgram(p)
+    setEnrollSearch('')
+    const [enr, edu] = await Promise.all([
+      fetch(`/api/programs/${p.id}/enrollments`).then((r) => r.json()),
+      fetch('/api/educators').then((r) => r.json()),
+    ])
+    setEnrollments(enr)
+    setAllEducators(edu)
+  }
+
+  async function adminEnroll(userId: string) {
+    if (!manageProgram) return
+    await fetch(`/api/programs/${manageProgram.id}/enrollments`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userIds: [userId] }),
+    })
+    const enr = await fetch(`/api/programs/${manageProgram.id}/enrollments`).then((r) => r.json())
+    setEnrollments(enr)
+    setToast({ msg: 'Educator enrolled', type: 'success' })
+  }
+
+  async function adminUnenroll(userId: string) {
+    if (!manageProgram) return
+    await fetch(`/api/programs/${manageProgram.id}/enrollments`, {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId }),
+    })
+    setEnrollments((prev) => prev.filter((e) => e.user.id !== userId))
+    setToast({ msg: 'Educator removed', type: 'success' })
+  }
+
   const APPLICABLE_LABEL: Record<string, string> = { BOTH: 'Educators & Principals', EDUCATOR: 'Educators Only', PRINCIPAL: 'Principals Only' }
 
   return (
@@ -99,8 +137,12 @@ export default function ProgramsPage() {
                   {p.isPublished ? <CheckCircle size={14} /> : <Circle size={14} />}
                   {p.isPublished ? 'Published' : 'Draft'}
                 </button>
+                <button onClick={() => openEnrollments(p)}
+                  className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full bg-midnight/5 text-midnight hover:bg-midnight/10 transition-colors">
+                  <Users size={13} /> Enrollments
+                </button>
                 <Link href={`/admin/stages?programId=${p.id}`}>
-                  <Button variant="ghost" size="sm"><ChevronRight size={14} /> Manage Stages</Button>
+                  <Button variant="ghost" size="sm"><ChevronRight size={14} /> Stages</Button>
                 </Link>
                 <button onClick={() => setConfirmDelete(p)} className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors">
                   <Trash2 size={15} />
@@ -148,6 +190,76 @@ export default function ProgramsPage() {
             <div className="flex gap-3 mt-6">
               <Button variant="ghost" className="flex-1" onClick={() => setShowCreate(false)}>Cancel</Button>
               <Button className="flex-1" loading={creating} onClick={createProgram} disabled={!form.name.trim()}>Create Program</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Enrollment Management Modal */}
+      {manageProgram && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col">
+            <div className="flex items-center justify-between p-6 border-b border-gray-100">
+              <div>
+                <h3 className="text-lg font-bold text-midnight">Enrollments — {manageProgram.name}</h3>
+                <p className="text-sm text-charcoal/50">{enrollments.length} educators currently enrolled</p>
+              </div>
+              <button onClick={() => setManageProgram(null)}><X size={20} className="text-charcoal/40" /></button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-5">
+              {/* Currently enrolled */}
+              <div>
+                <h4 className="text-sm font-bold text-midnight mb-3">Enrolled Educators</h4>
+                {enrollments.length === 0 ? (
+                  <p className="text-sm text-charcoal/40">No educators enrolled yet.</p>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    {enrollments.map((e) => (
+                      <div key={e.id} className="flex items-center justify-between bg-cream/50 rounded-xl px-4 py-3">
+                        <div>
+                          <p className="text-sm font-semibold text-midnight">{e.user.name}</p>
+                          <p className="text-xs text-charcoal/50">{e.user.email} · {e.user.branch?.name ?? 'No campus'}</p>
+                        </div>
+                        <button onClick={() => adminUnenroll(e.user.id)}
+                          className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 px-2.5 py-1.5 rounded-lg hover:bg-red-50 transition-colors">
+                          <UserMinus size={13} /> Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Add more educators */}
+              <div>
+                <h4 className="text-sm font-bold text-midnight mb-3">Add Educators</h4>
+                <input placeholder="Search by name or email..."
+                  value={enrollSearch} onChange={(e) => setEnrollSearch(e.target.value)}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-midnight" />
+                <div className="flex flex-col gap-2 max-h-56 overflow-y-auto">
+                  {allEducators
+                    .filter((e) => !enrollments.find((en) => en.user.id === e.id))
+                    .filter((e) => !enrollSearch || e.name.toLowerCase().includes(enrollSearch.toLowerCase()) || e.email.toLowerCase().includes(enrollSearch.toLowerCase()))
+                    .map((e) => (
+                      <div key={e.id} className="flex items-center justify-between border border-gray-100 rounded-xl px-4 py-3">
+                        <div>
+                          <p className="text-sm font-semibold text-midnight">{e.name}</p>
+                          <p className="text-xs text-charcoal/50">{e.email} · {e.branch?.name ?? 'No campus'}</p>
+                        </div>
+                        <button onClick={() => adminEnroll(e.id)}
+                          className="flex items-center gap-1 text-xs text-forest font-semibold px-2.5 py-1.5 rounded-lg bg-forest/10 hover:bg-forest/20 transition-colors">
+                          <UserPlus size={13} /> Enroll
+                        </button>
+                      </div>
+                    ))}
+                  {allEducators.filter((e) => !enrollments.find((en) => en.user.id === e.id)).length === 0 && (
+                    <p className="text-sm text-charcoal/40 text-center py-4">All educators are enrolled.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="p-4 border-t border-gray-100">
+              <Button className="w-full" variant="ghost" onClick={() => setManageProgram(null)}>Done</Button>
             </div>
           </div>
         </div>

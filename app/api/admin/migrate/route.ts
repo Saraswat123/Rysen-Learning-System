@@ -52,6 +52,28 @@ const MIGRATIONS = [
     check: `SELECT 1 FROM "Stage" WHERE "programId" IS NULL LIMIT 1`,
     sql: `UPDATE "Stage" SET "programId" = 'default-orientation' WHERE "programId" IS NULL`,
   },
+  {
+    label: 'ProgramEnrollment table',
+    check: `SELECT 1 FROM information_schema.tables WHERE table_name='ProgramEnrollment'`,
+    sql: `CREATE TABLE IF NOT EXISTS "ProgramEnrollment" (
+      "id" TEXT PRIMARY KEY,
+      "userId" TEXT NOT NULL REFERENCES "User"("id") ON DELETE CASCADE,
+      "programId" TEXT NOT NULL REFERENCES "Program"("id") ON DELETE CASCADE,
+      "enrolledAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE("userId","programId")
+    )`,
+  },
+  {
+    label: 'Auto-enroll existing educators in Orientation Program',
+    check: `SELECT 1 FROM "ProgramEnrollment" WHERE "programId" = 'default-orientation' LIMIT 1`,
+    sql: `INSERT INTO "ProgramEnrollment" ("id","userId","programId","enrolledAt")
+          SELECT gen_random_uuid()::text, u."id", 'default-orientation', NOW()
+          FROM "User" u
+          WHERE u."role" IN ('EDUCATOR','PRINCIPAL')
+          AND NOT EXISTS (
+            SELECT 1 FROM "ProgramEnrollment" e WHERE e."userId"=u."id" AND e."programId"='default-orientation'
+          )`,
+  },
 ]
 
 async function checkPending() {

@@ -42,6 +42,7 @@ model User {
   progress      StageProgress[]
   sessions      Session[]
   textResponses TextResponse[]
+  enrollments   ProgramEnrollment[]
 }
 
 model Session {
@@ -62,6 +63,18 @@ model Program {
   order        Int      @default(0)
   createdAt    DateTime @default(now())
   stages       Stage[]
+  enrollments  ProgramEnrollment[]
+}
+
+model ProgramEnrollment {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  programId  String
+  program    Program  @relation(fields: [programId], references: [id], onDelete: Cascade)
+  enrolledAt DateTime @default(now())
+
+  @@unique([userId, programId])
 }
 
 model Stage {

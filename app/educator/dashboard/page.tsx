@@ -2,19 +2,17 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Lock, CheckCircle, ChevronRight, BookOpen, Award, Layers } from 'lucide-react'
+import { Lock, CheckCircle, ChevronRight, BookOpen, Award, Layers, Plus, LogIn } from 'lucide-react'
 
 interface Progress { passed: boolean; bestScore: number | null; attempts: number; docRead: boolean }
 interface StageData {
   id: string; number: number; title: string; subtitle: string
-  week: string; isPublished: boolean; isUnlocked: boolean
-  applicableTo: string
-  _count: { questions: number }
-  progress: Progress | null
+  week: string; isPublished: boolean; isUnlocked: boolean; applicableTo: string
+  _count: { questions: number }; progress: Progress | null
 }
 interface ProgramData {
   id: string; name: string; description: string | null
-  isPublished: boolean; applicableTo: string
+  isPublished: boolean; applicableTo: string; enrolled: boolean
   stages: StageData[]
 }
 
@@ -23,7 +21,7 @@ const PALETTE_TEXT = ['#FFFFFF', '#FFFFFF', '#FFFFFF', '#033D4C', '#FFFFFF']
 const col = (i: number) => PALETTE[i % PALETTE.length]
 const colText = (i: number) => PALETTE_TEXT[i % PALETTE_TEXT.length]
 
-function StageCard({ stage, i, base }: { stage: StageData; i: number; base: string }) {
+function StageCard({ stage, i }: { stage: StageData; i: number }) {
   const passed = stage.progress?.passed ?? false
   const attempted = (stage.progress?.attempts ?? 0) > 0
   const locked = !stage.isUnlocked || !stage.isPublished
@@ -53,7 +51,7 @@ function StageCard({ stage, i, base }: { stage: StageData; i: number; base: stri
               {locked ? (
                 <div className="flex items-center gap-1 text-xs text-charcoal/40 px-3 py-1.5"><Lock size={14} /> Locked</div>
               ) : (
-                <Link href={`${base}/${stage.id}`}>
+                <Link href={`/educator/stage/${stage.id}`}>
                   <button className="flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-xl transition-colors"
                     style={{ backgroundColor: col(i), color: colText(i) }}>
                     {passed ? 'Review' : attempted ? 'Continue' : 'Start'}<ChevronRight size={16} />
@@ -77,29 +75,39 @@ function StageCard({ stage, i, base }: { stage: StageData; i: number; base: stri
 
 export default function EducatorDashboard() {
   const [programs, setPrograms] = useState<ProgramData[]>([])
+  const [available, setAvailable] = useState<ProgramData[]>([])
   const [unassigned, setUnassigned] = useState<StageData[]>([])
   const [user, setUser] = useState<{ name: string } | null>(null)
   const [loading, setLoading] = useState(true)
+  const [enrolling, setEnrolling] = useState<string | null>(null)
 
-  useEffect(() => {
-    Promise.all([
+  async function load() {
+    const [d, m] = await Promise.all([
       fetch('/api/progress').then((r) => r.json()),
       fetch('/api/auth/me').then((r) => r.json()),
-    ]).then(([d, m]) => {
-      // d may be array (old API) or object with programs/unassigned (new API)
-      if (Array.isArray(d)) {
-        setUnassigned((d as StageData[]).filter((s) => s.applicableTo === 'BOTH' || s.applicableTo === 'EDUCATOR'))
-      } else {
-        const visPrograms = ((d.programs ?? []) as ProgramData[]).filter(
-          (p) => p.isPublished && (p.applicableTo === 'BOTH' || p.applicableTo === 'EDUCATOR') &&
-            p.stages.some((s) => s.applicableTo === 'BOTH' || s.applicableTo === 'EDUCATOR')
-        )
-        setPrograms(visPrograms)
-        setUnassigned(((d.unassigned ?? d.stages ?? []) as StageData[]).filter((s) => s.applicableTo === 'BOTH' || s.applicableTo === 'EDUCATOR'))
-      }
-      setUser(m.user)
-    }).finally(() => setLoading(false))
-  }, [])
+    ])
+    if (Array.isArray(d)) {
+      setUnassigned((d as StageData[]).filter((s) => s.applicableTo === 'BOTH' || s.applicableTo === 'EDUCATOR'))
+    } else {
+      const isEdu = (p: ProgramData) => p.applicableTo === 'BOTH' || p.applicableTo === 'EDUCATOR'
+      const hasStageForMe = (p: ProgramData) =>
+        (p.stages ?? []).some((s) => s.applicableTo === 'BOTH' || s.applicableTo === 'EDUCATOR')
+      setPrograms(((d.programs ?? []) as ProgramData[]).filter((p) => isEdu(p) && hasStageForMe(p)))
+      setAvailable(((d.availablePrograms ?? []) as ProgramData[]).filter(isEdu))
+      setUnassigned(((d.unassigned ?? []) as StageData[]).filter((s) => s.applicableTo === 'BOTH' || s.applicableTo === 'EDUCATOR'))
+    }
+    setUser(m.user)
+    setLoading(false)
+  }
+
+  useEffect(() => { load() }, []) // eslint-disable-line
+
+  async function enroll(programId: string) {
+    setEnrolling(programId)
+    await fetch(`/api/programs/${programId}/enroll`, { method: 'POST' })
+    await load()
+    setEnrolling(null)
+  }
 
   const totalPassed = [...programs.flatMap((p) => p.stages), ...unassigned].filter((s) => s.progress?.passed).length
   const totalVisible = [...programs.flatMap((p) => p.stages), ...unassigned].length
@@ -136,7 +144,7 @@ export default function EducatorDashboard() {
         </div>
       )}
 
-      {/* Programs */}
+      {/* Enrolled Programs */}
       {programs.map((program) => {
         const progStages = program.stages.filter((s) => s.applicableTo === 'BOTH' || s.applicableTo === 'EDUCATOR')
         const progPassed = progStages.filter((s) => s.progress?.passed).length
@@ -144,43 +152,74 @@ export default function EducatorDashboard() {
           <div key={program.id} className="mb-8">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <Layers size={16} className="text-midnight/50" />
+                <div className="w-6 h-6 rounded-lg bg-midnight flex items-center justify-center flex-shrink-0">
+                  <Layers size={13} className="text-gold" />
+                </div>
                 <h2 className="text-base font-bold text-midnight">{program.name}</h2>
                 {program.description && <span className="text-xs text-charcoal/40 hidden sm:inline">— {program.description}</span>}
               </div>
-              <span className="text-xs text-charcoal/50 font-medium">{progPassed}/{progStages.length} passed</span>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-charcoal/50 font-medium">{progPassed}/{progStages.length} passed</span>
+                <span className="text-xs bg-forest/10 text-forest px-2 py-0.5 rounded-full font-medium">Enrolled</span>
+              </div>
             </div>
             <div className="flex flex-col gap-3">
-              {progStages.map((stage, i) => (
-                <StageCard key={stage.id} stage={stage} i={i} base="/educator/stage" />
-              ))}
-              {progStages.length === 0 && (
-                <p className="text-sm text-charcoal/40 text-center py-4">No stages in this program yet.</p>
-              )}
+              {progStages.map((stage, i) => <StageCard key={stage.id} stage={stage} i={i} />)}
+              {progStages.length === 0 && <p className="text-sm text-charcoal/40 text-center py-4">No stages yet in this program.</p>}
             </div>
           </div>
         )
       })}
 
-      {/* Unassigned stages (legacy / no program) */}
+      {/* Unassigned stages */}
       {unassigned.length > 0 && (
         <div className="mb-8">
-          {programs.length > 0 && (
-            <div className="flex items-center gap-2 mb-3">
-              <h2 className="text-base font-bold text-midnight">Other Stages</h2>
-            </div>
-          )}
+          {programs.length > 0 && <h2 className="text-base font-bold text-midnight mb-3">Other Stages</h2>}
           <div className="flex flex-col gap-3">
-            {unassigned.map((stage, i) => (
-              <StageCard key={stage.id} stage={stage} i={i} base="/educator/stage" />
+            {unassigned.map((stage, i) => <StageCard key={stage.id} stage={stage} i={i} />)}
+          </div>
+        </div>
+      )}
+
+      {/* Available Programs to Join */}
+      {available.length > 0 && (
+        <div className="mt-8">
+          <div className="flex items-center gap-2 mb-4">
+            <h2 className="text-base font-bold text-midnight">Available Training Programs</h2>
+            <span className="text-xs text-charcoal/40">— enroll to access</span>
+          </div>
+          <div className="flex flex-col gap-3">
+            {available.map((p) => (
+              <div key={p.id} className="bg-white rounded-2xl border border-dashed border-midnight/20 p-5">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-midnight/5 border border-midnight/10 flex items-center justify-center flex-shrink-0">
+                      <Layers size={18} className="text-midnight/40" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-midnight">{p.name}</h3>
+                      {p.description && <p className="text-sm text-charcoal/60 mt-0.5">{p.description}</p>}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => enroll(p.id)}
+                    disabled={enrolling === p.id}
+                    className="flex items-center gap-2 px-4 py-2 bg-midnight text-white text-sm font-semibold rounded-xl hover:bg-midnight/80 disabled:opacity-50 transition-colors flex-shrink-0">
+                    {enrolling === p.id
+                      ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                      : <><LogIn size={15} /> Enroll</>}
+                  </button>
+                </div>
+              </div>
             ))}
           </div>
         </div>
       )}
 
-      {programs.length === 0 && unassigned.length === 0 && (
+      {programs.length === 0 && unassigned.length === 0 && available.length === 0 && (
         <div className="text-center py-16 text-charcoal/40">
-          <p className="text-sm">No training programs available yet.</p>
+          <Layers size={40} className="mx-auto mb-3 opacity-20" />
+          <p className="text-sm">No training programs available. Contact your admin.</p>
         </div>
       )}
     </div>
