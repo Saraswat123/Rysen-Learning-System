@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Plus, Search, ToggleLeft, ToggleRight, X, Upload, Download, FileSpreadsheet, Trash2 } from 'lucide-react'
+import { Plus, Search, ToggleLeft, ToggleRight, X, Upload, Download, FileSpreadsheet, Trash2, Eye } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Toast from '@/components/Toast'
@@ -12,6 +12,16 @@ interface Educator {
   id: string; name: string; email: string; isActive: boolean
   branch: Branch | null
   progress: { passed: boolean; stage: { number: number; title: string } }[]
+}
+interface TextRow {
+  educator: string; email: string; campus: string; program: string
+  stageNumber: number; stageTitle: string; week: string
+  question: string; response: string; submittedAt: string
+}
+interface McqRow {
+  educator: string; email: string; campus: string; program: string
+  stageNumber: number; stageTitle: string; week: string
+  attempts: number; bestScore: number | string; passed: string; completedAt: string
 }
 
 export default function EducatorsPage() {
@@ -26,6 +36,9 @@ export default function EducatorsPage() {
   const [bulkLoading, setBulkLoading] = useState(false)
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<Educator | null>(null)
+  const [viewResponses, setViewResponses] = useState<Educator | null>(null)
+  const [responsesData, setResponsesData] = useState<{ textRows: TextRow[]; mcqRows: McqRow[] } | null>(null)
+  const [downloading, setDownloading] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
   async function load() {
@@ -121,6 +134,64 @@ export default function EducatorsPage() {
     XLSX.writeFile(wb, 'rysen_educators_template.xlsx')
   }
 
+  async function downloadAllResponses() {
+    setDownloading(true)
+    const data = await fetch('/api/educators/responses').then((r) => r.json())
+    setDownloading(false)
+    const wb = XLSX.utils.book_new()
+
+    // Sheet 1: Text / Reflective Responses
+    const textHeaders = ['Educator', 'Email', 'Campus', 'Program', 'Stage #', 'Stage Title', 'Week', 'Question', 'Response', 'Submitted At']
+    const textData = [textHeaders, ...(data.textRows as TextRow[]).map((r) => [
+      r.educator, r.email, r.campus, r.program,
+      r.stageNumber, r.stageTitle, r.week,
+      r.question, r.response, r.submittedAt,
+    ])]
+    const ws1 = XLSX.utils.aoa_to_sheet(textData)
+    ws1['!cols'] = [20, 28, 20, 20, 8, 25, 12, 40, 60, 22].map((w) => ({ wch: w }))
+    XLSX.utils.book_append_sheet(wb, ws1, 'Text Responses')
+
+    // Sheet 2: MCQ Progress
+    const mcqHeaders = ['Educator', 'Email', 'Campus', 'Program', 'Stage #', 'Stage Title', 'Week', 'Attempts', 'Best Score %', 'Passed', 'Completed At']
+    const mcqData = [mcqHeaders, ...(data.mcqRows as McqRow[]).map((r) => [
+      r.educator, r.email, r.campus, r.program,
+      r.stageNumber, r.stageTitle, r.week,
+      r.attempts, r.bestScore, r.passed, r.completedAt,
+    ])]
+    const ws2 = XLSX.utils.aoa_to_sheet(mcqData)
+    ws2['!cols'] = [20, 28, 20, 20, 8, 25, 12, 10, 12, 8, 22].map((w) => ({ wch: w }))
+    XLSX.utils.book_append_sheet(wb, ws2, 'MCQ Progress')
+
+    XLSX.writeFile(wb, `rysen_responses_${new Date().toISOString().slice(0, 10)}.xlsx`)
+  }
+
+  async function openResponses(educator: Educator) {
+    setViewResponses(educator)
+    if (!responsesData) {
+      const data = await fetch('/api/educators/responses').then((r) => r.json())
+      setResponsesData(data)
+    }
+  }
+
+  function downloadEducatorSheet(educator: Educator) {
+    if (!responsesData) return
+    const wb = XLSX.utils.book_new()
+    const textRows = responsesData.textRows.filter((r) => r.email === educator.email)
+    const mcqRows = responsesData.mcqRows.filter((r) => r.email === educator.email)
+
+    const textHeaders = ['Stage #', 'Stage Title', 'Week', 'Question', 'Response', 'Submitted At']
+    const ws1 = XLSX.utils.aoa_to_sheet([textHeaders, ...textRows.map((r) => [r.stageNumber, r.stageTitle, r.week, r.question, r.response, r.submittedAt])])
+    ws1['!cols'] = [8, 25, 12, 40, 60, 22].map((w) => ({ wch: w }))
+    XLSX.utils.book_append_sheet(wb, ws1, 'Text Responses')
+
+    const mcqHeaders = ['Stage #', 'Stage Title', 'Week', 'Attempts', 'Best Score %', 'Passed', 'Completed At']
+    const ws2 = XLSX.utils.aoa_to_sheet([mcqHeaders, ...mcqRows.map((r) => [r.stageNumber, r.stageTitle, r.week, r.attempts, r.bestScore, r.passed, r.completedAt])])
+    ws2['!cols'] = [8, 25, 12, 10, 12, 8, 22].map((w) => ({ wch: w }))
+    XLSX.utils.book_append_sheet(wb, ws2, 'MCQ Progress')
+
+    XLSX.writeFile(wb, `rysen_${educator.name.replace(/\s+/g, '_')}_responses.xlsx`)
+  }
+
   const filtered = educators.filter(
     (e) => e.name.toLowerCase().includes(search.toLowerCase()) || e.email.toLowerCase().includes(search.toLowerCase())
   )
@@ -137,6 +208,9 @@ export default function EducatorsPage() {
         <div className="flex gap-2">
           <Button variant="ghost" size="sm" onClick={() => setShowBulk(true)}>
             <FileSpreadsheet size={16} /> Bulk Import
+          </Button>
+          <Button variant="ghost" size="sm" onClick={downloadAllResponses} loading={downloading}>
+            <Download size={16} /> Response Sheet
           </Button>
           <Button onClick={() => setShowAdd(true)}><Plus size={16} /> Add Educator</Button>
         </div>
@@ -197,6 +271,9 @@ export default function EducatorsPage() {
                 </td>
                 <td className="px-5 py-3">
                   <div className="flex items-center gap-2">
+                    <button onClick={() => openResponses(e)} className="text-charcoal/30 hover:text-midnight transition-colors" title="View responses">
+                      <Eye size={16} />
+                    </button>
                     <button onClick={() => toggleActive(e.id, e.isActive)} className="text-charcoal/40 hover:text-midnight">
                       {e.isActive ? <ToggleRight size={20} className="text-forest" /> : <ToggleLeft size={20} />}
                     </button>
@@ -262,6 +339,88 @@ export default function EducatorsPage() {
               >
                 Delete
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View Educator Responses Modal */}
+      {viewResponses && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between p-6 border-b border-gray-100">
+              <div>
+                <h2 className="text-lg font-bold text-midnight">{viewResponses.name}</h2>
+                <p className="text-sm text-charcoal/60">{viewResponses.email} · {viewResponses.branch?.name ?? 'No campus'}</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <Button size="sm" variant="ghost" onClick={() => downloadEducatorSheet(viewResponses)}>
+                  <Download size={14} /> Download Sheet
+                </Button>
+                <button onClick={() => setViewResponses(null)}><X size={20} className="text-charcoal/60" /></button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6">
+              {!responsesData ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="w-6 h-6 border-4 border-midnight border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : (() => {
+                const textRows = responsesData.textRows.filter((r) => r.email === viewResponses.email)
+                const mcqRows = responsesData.mcqRows.filter((r) => r.email === viewResponses.email)
+                return (
+                  <div className="flex flex-col gap-6">
+                    {/* MCQ Progress */}
+                    <div>
+                      <h3 className="text-sm font-bold text-midnight mb-3">MCQ Progress</h3>
+                      {mcqRows.length === 0 ? (
+                        <p className="text-sm text-charcoal/40">No stage attempts yet.</p>
+                      ) : (
+                        <div className="flex flex-col gap-2">
+                          {mcqRows.map((r, i) => (
+                            <div key={i} className="flex items-center justify-between bg-cream/50 rounded-xl px-4 py-3">
+                              <div>
+                                <p className="text-sm font-semibold text-midnight">Stage {r.stageNumber}: {r.stageTitle}</p>
+                                {r.week && <p className="text-xs text-charcoal/50">{r.week}</p>}
+                              </div>
+                              <div className="flex items-center gap-4 text-sm">
+                                <span className="text-charcoal/60">{r.attempts} attempt{r.attempts !== 1 ? 's' : ''}</span>
+                                <span className="font-bold text-midnight">{r.bestScore !== '' ? `${r.bestScore}%` : '—'}</span>
+                                <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${r.passed === 'Yes' ? 'bg-forest/10 text-forest' : 'bg-red-100 text-red-600'}`}>
+                                  {r.passed === 'Yes' ? 'Passed' : 'Not Passed'}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Text Responses */}
+                    <div>
+                      <h3 className="text-sm font-bold text-midnight mb-3">Reflective Responses ({textRows.length})</h3>
+                      {textRows.length === 0 ? (
+                        <p className="text-sm text-charcoal/40">No text responses yet.</p>
+                      ) : (
+                        <div className="flex flex-col gap-4">
+                          {textRows.map((r, i) => (
+                            <div key={i} className="bg-white border border-gray-100 rounded-xl p-4">
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className="text-xs font-semibold text-midnight bg-midnight/8 px-2 py-0.5 rounded">Stage {r.stageNumber}: {r.stageTitle}</span>
+                                {r.week && <span className="text-xs text-charcoal/40">{r.week}</span>}
+                              </div>
+                              <p className="text-sm font-medium text-midnight mb-2">{r.question}</p>
+                              <p className="text-sm text-charcoal/70 bg-cream/50 rounded-lg px-3 py-2 leading-relaxed whitespace-pre-wrap">{r.response}</p>
+                              <p className="text-xs text-charcoal/30 mt-2">{new Date(r.submittedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })()}
             </div>
           </div>
         </div>
