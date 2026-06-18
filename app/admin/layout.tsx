@@ -34,8 +34,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }).then(async (d) => {
       if (!d) return
       setUser(d.user)
-      // Wait for DB migration to complete before rendering any child pages
-      try { await fetch('/api/admin/migrate', { method: 'POST' }) } catch {}
+      // Run migration once per browser session; skip if already done
+      if (!sessionStorage.getItem('rysen_migrated')) {
+        try { await fetch('/api/admin/migrate', { method: 'POST' }) } catch {}
+        sessionStorage.setItem('rysen_migrated', '1')
+      }
       setReady(true)
     })
   }, [router])
