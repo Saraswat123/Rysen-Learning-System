@@ -37,19 +37,20 @@ function StagesInner() {
   const [form, setForm] = useState({ title: '', subtitle: '', week: '' })
 
   async function load() {
-    const url = programId ? `/api/stages?programId=${programId}` : '/api/stages'
-    const [s, p] = await Promise.all([
-      fetch(url).then((r) => r.json()),
-      fetch('/api/programs').then((r) => r.json()),
-    ])
-    setStages(s)
-    setPrograms(p)
-    if (programId) {
-      const prog = p.find((x: Program) => x.id === programId) ?? null
-      setActiveProgram(prog)
-    } else {
-      setActiveProgram(null)
-    }
+    try {
+      const url = programId ? `/api/stages?programId=${programId}` : '/api/stages'
+      const [sr, pr] = await Promise.all([fetch(url), fetch('/api/programs')])
+      const s = sr.ok ? await sr.json() : []
+      const p = pr.ok ? await pr.json() : []
+      setStages(Array.isArray(s) ? s : [])
+      setPrograms(Array.isArray(p) ? p : [])
+      if (programId) {
+        const prog = (Array.isArray(p) ? p : []).find((x: Program) => x.id === programId) ?? null
+        setActiveProgram(prog)
+      } else {
+        setActiveProgram(null)
+      }
+    } catch {}
   }
 
   useEffect(() => { load() }, [programId]) // eslint-disable-line
@@ -77,11 +78,9 @@ function StagesInner() {
   async function createStage() {
     if (!form.title.trim()) return
     setCreating(true)
-    const nextNumber = stages.length > 0 ? Math.max(...stages.map((s) => s.number)) + 1 : 1
     const res = await fetch('/api/stages', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        number: nextNumber,
         title: form.title.trim(),
         subtitle: form.subtitle.trim() || null,
         week: form.week.trim() || null,
@@ -99,12 +98,14 @@ function StagesInner() {
       }),
     })
     if (res.ok) {
-      setToast({ msg: `Stage ${nextNumber} created`, type: 'success' })
+      const created = await res.json()
+      setToast({ msg: `Stage ${created.number} created`, type: 'success' })
       setShowCreate(false)
       setForm({ title: '', subtitle: '', week: '' })
       load()
     } else {
-      setToast({ msg: 'Failed to create stage', type: 'error' })
+      const err = await res.json().catch(() => ({}))
+      setToast({ msg: err.error ?? 'Failed to create stage', type: 'error' })
     }
     setCreating(false)
   }
@@ -237,9 +238,7 @@ function StagesInner() {
               {!activeProgram && programs.length > 0 && (
                 <p className="text-xs text-amber-600">Tip: open a specific program first to assign stages to it.</p>
               )}
-              <p className="text-xs text-charcoal/40">
-                Stage #{stages.length > 0 ? Math.max(...stages.map((s) => s.number)) + 1 : 1} auto-assigned.
-              </p>
+              <p className="text-xs text-charcoal/40">Stage number auto-assigned.</p>
             </div>
             <div className="flex gap-3 mt-6">
               <Button variant="ghost" className="flex-1" onClick={() => setShowCreate(false)}>Cancel</Button>

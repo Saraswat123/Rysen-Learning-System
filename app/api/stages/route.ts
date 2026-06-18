@@ -29,7 +29,10 @@ export async function POST(req: NextRequest) {
 
   try {
     const data = await req.json()
-    const stage = await db.stage.create({ data })
+    // Always use global max number so any leftover unique constraint doesn't block new stages
+    const maxNum = await db.stage.aggregate({ _max: { number: true } })
+    const number = (maxNum._max.number ?? 0) + 1
+    const stage = await db.stage.create({ data: { ...data, number } })
     return NextResponse.json(stage, { status: 201 })
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 })
