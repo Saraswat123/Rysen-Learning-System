@@ -28,17 +28,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [ready, setReady] = useState(false)
 
   useEffect(() => {
-    fetch('/api/auth/me').then((r) => {
-      if (!r.ok) { router.push('/admin/login'); return null }
-      return r.json()
-    }).then(async (d) => {
-      if (!d) return
+    fetch('/api/auth/me').then(async (r) => {
+      if (!r.ok) {
+        // Not logged in — show login page immediately, no migration needed
+        setReady(true)
+        router.push('/admin/login')
+        return
+      }
+      const d = await r.json()
       setUser(d.user)
       // Run migration once per browser session; skip if already done
       if (!sessionStorage.getItem('rysen_migrated')) {
         try {
           const ac = new AbortController()
-          const t = setTimeout(() => ac.abort(), 12000) // max 12s wait
+          const t = setTimeout(() => ac.abort(), 12000)
           await fetch('/api/admin/migrate', { method: 'POST', signal: ac.signal })
           clearTimeout(t)
         } catch {}
