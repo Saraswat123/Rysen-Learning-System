@@ -28,8 +28,12 @@ export default function ProgramsPage() {
   const [enrollSearch, setEnrollSearch] = useState('')
 
   async function load() {
-    const data = await fetch('/api/programs').then((r) => r.json())
-    setPrograms(data)
+    try {
+      const r = await fetch('/api/programs')
+      if (!r.ok) return
+      const data = await r.json()
+      setPrograms(Array.isArray(data) ? data : [])
+    } catch {}
   }
 
   useEffect(() => { load() }, [])
@@ -56,7 +60,8 @@ export default function ProgramsPage() {
       setForm({ name: '', description: '', applicableTo: 'BOTH' })
       load()
     } else {
-      setToast({ msg: 'Failed to create', type: 'error' })
+      const err = await res.json().catch(() => ({}))
+      setToast({ msg: err.error ?? 'Failed to create program', type: 'error' })
     }
     setCreating(false)
   }

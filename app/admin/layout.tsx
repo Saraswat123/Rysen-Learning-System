@@ -25,16 +25,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
   const [user, setUser] = useState<{ name: string; role: string } | null>(null)
+  const [ready, setReady] = useState(false)
 
   useEffect(() => {
     fetch('/api/auth/me').then((r) => {
-      if (!r.ok) { router.push('/admin/login'); return }
+      if (!r.ok) { router.push('/admin/login'); return null }
       return r.json()
-    }).then((d) => {
+    }).then(async (d) => {
       if (!d) return
       setUser(d.user)
-      // Auto-run DB migrations silently — idempotent, safe every login
-      fetch('/api/admin/migrate', { method: 'POST' }).catch(() => {})
+      // Wait for DB migration to complete before rendering any child pages
+      try { await fetch('/api/admin/migrate', { method: 'POST' }) } catch {}
+      setReady(true)
     })
   }, [router])
 
@@ -43,52 +45,72 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     router.push('/admin/login')
   }
 
+  const sidebar = (
+    <aside className={`fixed inset-y-0 left-0 z-40 w-60 bg-midnight flex flex-col transform transition-transform lg:relative lg:translate-x-0 ${open ? 'translate-x-0' : '-translate-x-full'}`}>
+      <div className="p-6 border-b border-white/10">
+        <RysenLogo size="sm" light />
+      </div>
+
+      <nav className="flex-1 p-4 flex flex-col gap-1">
+        {NAV.map((item) => {
+          const active = pathname.startsWith(item.href)
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={() => setOpen(false)}
+              className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${active ? 'bg-gold text-midnight' : 'text-white/70 hover:text-white hover:bg-white/10'}`}
+            >
+              <item.icon size={18} />
+              {item.label}
+            </Link>
+          )
+        })}
+      </nav>
+
+      <div className="p-4 border-t border-white/10">
+        {user && (
+          <div className="px-4 py-2 mb-2">
+            <p className="text-white text-sm font-medium truncate">{user.name}</p>
+            <p className="text-white/40 text-xs">{user.role.replace('_', ' ')}</p>
+          </div>
+        )}
+        <button
+          onClick={logout}
+          className="flex items-center gap-3 px-4 py-2.5 w-full rounded-xl text-sm font-medium text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+        >
+          <LogOut size={18} />
+          Sign Out
+        </button>
+      </div>
+    </aside>
+  )
+
+  if (!ready) {
+    return (
+      <div className="min-h-screen flex bg-cream">
+        {sidebar}
+        {open && <div className="fixed inset-0 z-30 bg-black/50 lg:hidden" onClick={() => setOpen(false)} />}
+        <div className="flex-1 flex flex-col min-w-0">
+          <header className="lg:hidden sticky top-0 z-20 bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3">
+            <button onClick={() => setOpen(true)}><Menu size={22} className="text-midnight" /></button>
+            <RysenLogo size="sm" />
+          </header>
+          <main className="flex-1 flex items-center justify-center">
+            <div className="flex flex-col items-center gap-3 text-charcoal/40">
+              <div className="w-8 h-8 border-4 border-midnight border-t-transparent rounded-full animate-spin" />
+              <p className="text-sm">Setting up database…</p>
+            </div>
+          </main>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen flex bg-cream">
-      {/* Sidebar */}
-      <aside className={`fixed inset-y-0 left-0 z-40 w-60 bg-midnight flex flex-col transform transition-transform lg:relative lg:translate-x-0 ${open ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className="p-6 border-b border-white/10">
-          <RysenLogo size="sm" light />
-        </div>
-
-        <nav className="flex-1 p-4 flex flex-col gap-1">
-          {NAV.map((item) => {
-            const active = pathname.startsWith(item.href)
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setOpen(false)}
-                className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${active ? 'bg-gold text-midnight' : 'text-white/70 hover:text-white hover:bg-white/10'}`}
-              >
-                <item.icon size={18} />
-                {item.label}
-              </Link>
-            )
-          })}
-        </nav>
-
-        <div className="p-4 border-t border-white/10">
-          {user && (
-            <div className="px-4 py-2 mb-2">
-              <p className="text-white text-sm font-medium truncate">{user.name}</p>
-              <p className="text-white/40 text-xs">{user.role.replace('_', ' ')}</p>
-            </div>
-          )}
-          <button
-            onClick={logout}
-            className="flex items-center gap-3 px-4 py-2.5 w-full rounded-xl text-sm font-medium text-white/60 hover:text-white hover:bg-white/10 transition-colors"
-          >
-            <LogOut size={18} />
-            Sign Out
-          </button>
-        </div>
-      </aside>
-
-      {/* Mobile overlay */}
+      {sidebar}
       {open && <div className="fixed inset-0 z-30 bg-black/50 lg:hidden" onClick={() => setOpen(false)} />}
-
-      {/* Main */}
       <div className="flex-1 flex flex-col min-w-0">
         <header className="lg:hidden sticky top-0 z-20 bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3">
           <button onClick={() => setOpen(true)}><Menu size={22} className="text-midnight" /></button>

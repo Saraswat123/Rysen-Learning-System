@@ -6,11 +6,15 @@ import { getSession } from '@/lib/auth'
 import { Role } from '@/app/generated/prisma/client'
 
 export async function GET() {
-  const programs = await db.program.findMany({
-    orderBy: { order: 'asc' },
-    include: { _count: { select: { stages: true } } },
-  })
-  return NextResponse.json(programs)
+  try {
+    const programs = await db.program.findMany({
+      orderBy: { order: 'asc' },
+      include: { _count: { select: { stages: true } } },
+    })
+    return NextResponse.json(programs)
+  } catch {
+    return NextResponse.json([])
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -18,10 +22,14 @@ export async function POST(req: NextRequest) {
   if (!user || (user.role !== Role.ADMIN && user.role !== Role.SUPER_ADMIN)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   }
-  const data = await req.json()
-  const maxOrder = await db.program.aggregate({ _max: { order: true } })
-  const program = await db.program.create({
-    data: { ...data, order: (maxOrder._max.order ?? -1) + 1 },
-  })
-  return NextResponse.json(program, { status: 201 })
+  try {
+    const data = await req.json()
+    const maxOrder = await db.program.aggregate({ _max: { order: true } })
+    const program = await db.program.create({
+      data: { ...data, order: (maxOrder._max.order ?? -1) + 1 },
+    })
+    return NextResponse.json(program, { status: 201 })
+  } catch (err) {
+    return NextResponse.json({ error: String(err) }, { status: 500 })
+  }
 }

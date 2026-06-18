@@ -6,15 +6,19 @@ import { getSession } from '@/lib/auth'
 import { Role } from '@/app/generated/prisma/client'
 
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url)
-  const programId = searchParams.get('programId')
+  try {
+    const { searchParams } = new URL(req.url)
+    const programId = searchParams.get('programId')
 
-  const stages = await db.stage.findMany({
-    where: programId ? { programId } : undefined,
-    orderBy: { number: 'asc' },
-    include: { _count: { select: { questions: true } } },
-  })
-  return NextResponse.json(stages)
+    const stages = await db.stage.findMany({
+      where: programId ? { programId } : undefined,
+      orderBy: { number: 'asc' },
+      include: { _count: { select: { questions: true } } },
+    })
+    return NextResponse.json(stages)
+  } catch (err) {
+    return NextResponse.json({ error: String(err) }, { status: 500 })
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -23,7 +27,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   }
 
-  const data = await req.json()
-  const stage = await db.stage.create({ data })
-  return NextResponse.json(stage, { status: 201 })
+  try {
+    const data = await req.json()
+    const stage = await db.stage.create({ data })
+    return NextResponse.json(stage, { status: 201 })
+  } catch (err) {
+    return NextResponse.json({ error: String(err) }, { status: 500 })
+  }
 }
