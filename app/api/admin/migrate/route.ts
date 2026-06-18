@@ -77,7 +77,7 @@ const MIGRATIONS = [
 ]
 
 async function checkPending() {
-  const pool = new Pool({ connectionString: process.env.DATABASE_URL })
+  const pool = new Pool({ connectionString: process.env.DATABASE_URL, connectionTimeoutMillis: 8000 })
   try {
     for (const m of MIGRATIONS) {
       const { rows } = await pool.query(m.check)
@@ -103,7 +103,7 @@ export async function POST() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   }
 
-  const pool = new Pool({ connectionString: process.env.DATABASE_URL })
+  const pool = new Pool({ connectionString: process.env.DATABASE_URL, connectionTimeoutMillis: 8000 })
   const results: string[] = []
 
   try {

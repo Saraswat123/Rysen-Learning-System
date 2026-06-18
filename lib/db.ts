@@ -5,7 +5,12 @@ import { PrismaPg } from '@prisma/adapter-pg'
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient }
 
 function createClient() {
-  const pool = new Pool({ connectionString: process.env.DATABASE_URL })
+  const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    connectionTimeoutMillis: 10000,  // 10s — Neon free tier resumes from sleep
+    idleTimeoutMillis: 30000,
+    max: 5,
+  })
   const adapter = new PrismaPg(pool)
   return new PrismaClient({ adapter })
 }
