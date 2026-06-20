@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Lock, CheckCircle, ChevronRight, BookOpen, Award, Layers, Plus, LogIn } from 'lucide-react'
+import { Lock, CheckCircle, ChevronRight, BookOpen, Award, Layers, Plus, LogIn, GraduationCap } from 'lucide-react'
 
 interface Progress { passed: boolean; bestScore: number | null; attempts: number; docRead: boolean }
 interface StageData {
@@ -77,7 +77,7 @@ export default function EducatorDashboard() {
   const [programs, setPrograms] = useState<ProgramData[]>([])
   const [available, setAvailable] = useState<ProgramData[]>([])
   const [unassigned, setUnassigned] = useState<StageData[]>([])
-  const [user, setUser] = useState<{ name: string } | null>(null)
+  const [user, setUser] = useState<{ name: string; email?: string; branch?: { name: string } | null } | null>(null)
   const [loading, setLoading] = useState(true)
   const [enrolling, setEnrolling] = useState<string | null>(null)
 
@@ -118,8 +118,36 @@ export default function EducatorDashboard() {
     </div>
   )
 
+  const initials = user?.name?.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2) ?? '?'
+
   return (
     <div>
+      {/* Profile Card */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-5 mb-6 flex items-center gap-4">
+        <div className="w-14 h-14 rounded-full bg-midnight flex items-center justify-center text-white text-lg font-bold flex-shrink-0 select-none">
+          {initials}
+        </div>
+        <div className="flex-1 min-w-0">
+          <h2 className="font-bold text-midnight text-lg leading-tight">{user?.name}</h2>
+          {user?.branch?.name && <p className="text-xs text-charcoal/50 mt-0.5">{user.branch.name}</p>}
+          {programs.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-2">
+              {programs.map((p, i) => (
+                <span key={p.id}
+                  className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full text-white"
+                  style={{ backgroundColor: PALETTE[i % PALETTE.length], color: i === 3 ? '#033D4C' : '#fff' }}>
+                  <Layers size={10} /> {p.name}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="text-right flex-shrink-0">
+          <p className="text-2xl font-bold text-midnight">{totalPassed}</p>
+          <p className="text-xs text-charcoal/40">stages passed</p>
+        </div>
+      </div>
+
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-midnight">Welcome, {user?.name?.split(' ')[0]} 👋</h1>
         <p className="text-charcoal/60 text-sm mt-1">Your RYSEN Learning Journey</p>

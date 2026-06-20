@@ -5,9 +5,11 @@ import { db } from '@/lib/db'
 import { getSession } from '@/lib/auth'
 import { Role } from '@/app/generated/prisma/client'
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const published = new URL(req.url).searchParams.get('published') === 'true'
     const programs = await db.program.findMany({
+      where: published ? { isPublished: true } : undefined,
       orderBy: { order: 'asc' },
       include: { _count: { select: { stages: true } } },
     })

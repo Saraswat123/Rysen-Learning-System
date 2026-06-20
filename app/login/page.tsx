@@ -5,22 +5,31 @@ import { useRouter } from 'next/navigation'
 import RysenLogo from '@/components/RysenLogo'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
+import { Layers, CheckCircle } from 'lucide-react'
 
-interface Branch {
-  id: string
-  name: string
-  location: string
-}
+interface Branch { id: string; name: string; location: string }
+interface Program { id: string; name: string; description: string | null; applicableTo: string; _count: { stages: number } }
+
+const PROG_COLORS = ['#033D4C', '#225632', '#7D783E', '#40403E', '#5B4D8A']
 
 export default function EducatorLogin() {
   const router = useRouter()
   const [branches, setBranches] = useState<Branch[]>([])
+  const [programs, setPrograms] = useState<Program[]>([])
   const [form, setForm] = useState({ name: '', email: '', branchId: '' })
+  const [selectedProgramId, setSelectedProgramId] = useState<string>('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    fetch('/api/branches').then((r) => r.json()).then(setBranches)
+    fetch('/api/branches').then((r) => r.json()).then(setBranches).catch(() => {})
+    fetch('/api/programs?published=true').then((r) => r.json()).then((d) => {
+      if (Array.isArray(d)) {
+        const educatorPrograms = d.filter((p: Program) => p.applicableTo === 'BOTH' || p.applicableTo === 'EDUCATOR')
+        setPrograms(educatorPrograms)
+        if (educatorPrograms.length === 1) setSelectedProgramId(educatorPrograms[0].id)
+      }
+    }).catch(() => {})
   }, [])
 
   async function handleSubmit(e: React.FormEvent) {
@@ -35,6 +44,10 @@ export default function EducatorLogin() {
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error); return }
+      // Enroll in selected program after login
+      if (selectedProgramId) {
+        await fetch(`/api/programs/${selectedProgramId}/enroll`, { method: 'POST' }).catch(() => {})
+      }
       router.push('/educator/dashboard')
     } finally {
       setLoading(false)
@@ -57,6 +70,26 @@ export default function EducatorLogin() {
             <p className="text-gold text-xs font-semibold tracking-wide mt-0.5">Run by IITians and Doctors</p>
           </div>
         </div>
+
+        {/* Program badges on left panel */}
+        {programs.length > 0 && (
+          <div className="flex flex-col gap-3">
+            <p className="text-white/50 text-xs font-semibold uppercase tracking-widest mb-1">Active Programs</p>
+            {programs.map((p, i) => (
+              <div key={p.id} className="flex items-center gap-3 bg-white/5 rounded-xl px-4 py-3 border border-white/10">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                  style={{ backgroundColor: PROG_COLORS[i % PROG_COLORS.length] }}>
+                  <Layers size={14} className="text-white" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-white">{p.name}</p>
+                  <p className="text-xs text-white/40">{p._count.stages} stages</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
         <div>
           <h2 className="text-3xl font-bold leading-snug mb-4">
             Every great teacher<br />
@@ -64,12 +97,9 @@ export default function EducatorLogin() {
           </h2>
           <p className="text-white/70 text-sm leading-relaxed">
             Welcome to the RYSEN Learning Centre — your professional development hub.
-            Complete your 5-stage journey and earn your RLC certification.
           </p>
         </div>
-        <div className="text-white/40 text-xs">
-          RYSEN Group of Schools · Rise To Success
-        </div>
+        <div className="text-white/40 text-xs">RYSEN Group of Schools · Rise To Success</div>
       </div>
 
       {/* Right Panel */}
@@ -88,61 +118,67 @@ export default function EducatorLogin() {
             <p className="text-sm text-charcoal/60 mb-6">Sign in to continue your PD journey</p>
 
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-              <Input
-                label="Full Name"
-                placeholder="As registered by admin"
-                value={form.name}
-                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                required
-              />
-              <Input
-                label="Email Address"
-                type="email"
-                placeholder="your@email.com"
-                value={form.email}
-                onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                required
-              />
+              <Input label="Full Name" placeholder="As registered by admin"
+                value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} required />
+              <Input label="Email Address" type="email" placeholder="your@email.com"
+                value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} required />
+
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-semibold text-charcoal">Campus / Branch</label>
-                <select
-                  required
-                  value={form.branchId}
+                <select required value={form.branchId}
                   onChange={(e) => setForm((f) => ({ ...f, branchId: e.target.value }))}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-charcoal bg-white focus:outline-none focus:ring-2 focus:ring-midnight"
-                >
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-charcoal bg-white focus:outline-none focus:ring-2 focus:ring-midnight">
                   <option value="">Select your campus</option>
                   {Object.entries(locationGroups).map(([loc, bs]) => (
                     <optgroup key={loc} label={loc}>
-                      {bs.map((b) => (
-                        <option key={b.id} value={b.id}>{b.name}</option>
-                      ))}
+                      {bs.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
                     </optgroup>
                   ))}
                 </select>
               </div>
 
+              {/* Program selector */}
+              {programs.length > 0 && (
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-semibold text-charcoal">Select Training Program</label>
+                  <div className="flex flex-col gap-2">
+                    {programs.map((p, i) => (
+                      <button key={p.id} type="button"
+                        onClick={() => setSelectedProgramId(p.id)}
+                        className={`flex items-center gap-3 px-4 py-3 rounded-xl border-2 text-left transition-all ${selectedProgramId === p.id ? 'border-midnight bg-midnight/5' : 'border-gray-100 hover:border-gray-200'}`}>
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                          style={{ backgroundColor: PROG_COLORS[i % PROG_COLORS.length] }}>
+                          <Layers size={14} className="text-white" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-midnight">{p.name}</p>
+                          {p.description && <p className="text-xs text-charcoal/50 truncate">{p.description}</p>}
+                          <p className="text-xs text-charcoal/40">{p._count.stages} stages</p>
+                        </div>
+                        {selectedProgramId === p.id && <CheckCircle size={18} className="text-midnight flex-shrink-0" />}
+                      </button>
+                    ))}
+                  </div>
+                  {!selectedProgramId && (
+                    <p className="text-xs text-amber-600">Select a program to join (you can also join more from your dashboard)</p>
+                  )}
+                </div>
+              )}
+
               {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
 
-              <Button type="submit" loading={loading} size="lg" className="mt-2">
-                Sign In
-              </Button>
+              <Button type="submit" loading={loading} size="lg" className="mt-2">Sign In</Button>
             </form>
 
             <p className="text-xs text-center text-charcoal/50 mt-6">
-              Not registered?{' '}
-              <span className="text-midnight font-medium">Contact your Campus Head or Admin.</span>
+              Not registered? <span className="text-midnight font-medium">Contact your Campus Head or Admin.</span>
             </p>
           </div>
 
           <div className="flex items-center justify-center gap-4 mt-4">
-            <a href="/principal/login" className="text-xs text-charcoal/40 hover:text-midnight">
-              Principal / Center Head Login →
-            </a>
+            <a href="/principal/login" className="text-xs text-charcoal/40 hover:text-midnight">Principal / Center Head Login →</a>
             <span className="text-charcoal/20 text-xs">|</span>
-            <a href="/admin/login" className="text-xs text-charcoal/40 hover:text-midnight">
-              Admin Login →
-            </a>
+            <a href="/admin/login" className="text-xs text-charcoal/40 hover:text-midnight">Admin Login →</a>
           </div>
         </div>
       </div>
