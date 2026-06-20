@@ -103,8 +103,7 @@ export default function EducatorLogin() {
                 <div>
                   <p className="text-sm font-semibold text-white">{p.name}</p>
                   <p className="text-xs text-white/40 flex items-center gap-1">
-                    <BookOpen size={10} /> {p._count.stages} stages
-                    {!p.isPublished && <span className="ml-1 text-amber-400">(Soon)</span>}
+                    <BookOpen size={10} /> {p._count.stages > 0 ? `${p._count.stages} stages` : 'Coming soon'}
                   </p>
                 </div>
               </div>
@@ -186,7 +185,7 @@ export default function EducatorLogin() {
                             </div>
                             {p.description && <p className="text-xs text-charcoal/50 truncate">{p.description}</p>}
                             <p className="text-xs text-charcoal/40 mt-0.5 flex items-center gap-1">
-                              <BookOpen size={10} /> {p._count.stages} stages
+                              <BookOpen size={10} /> {p._count.stages > 0 ? `${p._count.stages} stages` : 'Stages coming soon'}
                             </p>
                           </div>
                           <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${selected ? 'border-midnight bg-midnight' : 'border-gray-300'}`}>
