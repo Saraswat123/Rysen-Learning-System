@@ -50,7 +50,13 @@ export default function EducatorLogin() {
     <div className="min-h-screen flex">
       {/* Left Panel */}
       <div className="hidden lg:flex flex-col justify-between w-2/5 bg-midnight p-12 text-white">
-        <RysenLogo size="lg" light />
+        <div className="flex items-center gap-4">
+          <RysenLogo size="md" light />
+          <div>
+            <p className="text-white font-bold text-base leading-tight">Rysen Group of Schools</p>
+            <p className="text-gold text-xs font-semibold tracking-wide mt-0.5">Run by IITians and Doctors</p>
+          </div>
+        </div>
         <div>
           <h2 className="text-3xl font-bold leading-snug mb-4">
             Every great teacher<br />
@@ -69,8 +75,12 @@ export default function EducatorLogin() {
       {/* Right Panel */}
       <div className="flex-1 flex items-center justify-center bg-cream p-8">
         <div className="w-full max-w-md">
-          <div className="lg:hidden mb-8">
-            <RysenLogo size="md" />
+          <div className="lg:hidden mb-8 flex items-center gap-3">
+            <RysenLogo size="sm" />
+            <div>
+              <p className="text-midnight font-bold text-sm leading-tight">Rysen Group of Schools</p>
+              <p className="text-olive text-xs font-medium">Run by IITians and Doctors</p>
+            </div>
           </div>
 
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">

@@ -33,9 +33,15 @@ export default function AdminLogin() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-midnight">
       <div className="w-full max-w-md p-8">
-        <div className="text-center mb-8">
-          <RysenLogo size="lg" light />
-          <p className="text-white/50 text-sm mt-2">Admin Portal</p>
+        <div className="flex flex-col items-center mb-8 gap-3">
+          <div className="flex items-center gap-4">
+            <RysenLogo size="md" light />
+            <div className="text-left">
+              <p className="text-white font-bold text-base leading-tight">Rysen Group of Schools</p>
+              <p className="text-gold text-xs font-semibold tracking-wide mt-0.5">Run by IITians and Doctors</p>
+            </div>
+          </div>
+          <p className="text-white/40 text-xs tracking-widest uppercase">Admin Portal</p>
         </div>
 
         <div className="bg-white rounded-2xl shadow-xl p-8">

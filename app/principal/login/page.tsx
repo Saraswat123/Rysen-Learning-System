@@ -37,10 +37,16 @@ export default function PrincipalLoginPage() {
   return (
     <div className="min-h-screen bg-cream flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="flex justify-center mb-4"><RysenLogo /></div>
-          <h1 className="text-2xl font-bold text-midnight">Principal Portal</h1>
-          <p className="text-sm text-charcoal/60 mt-1">Sign in to your leadership dashboard</p>
+        <div className="flex flex-col items-center mb-8 gap-2">
+          <div className="flex items-center gap-3">
+            <RysenLogo size="sm" />
+            <div className="text-left">
+              <p className="text-midnight font-bold text-sm leading-tight">Rysen Group of Schools</p>
+              <p className="text-olive text-xs font-medium">Run by IITians and Doctors</p>
+            </div>
+          </div>
+          <h1 className="text-2xl font-bold text-midnight mt-2">Principal Portal</h1>
+          <p className="text-sm text-charcoal/60">Sign in to your leadership dashboard</p>
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
