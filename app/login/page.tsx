@@ -8,7 +8,7 @@ import Input from '@/components/ui/Input'
 import { Layers, CheckCircle, BookOpen } from 'lucide-react'
 
 interface Branch { id: string; name: string; location: string }
-interface Program { id: string; name: string; description: string | null; applicableTo: string; _count: { stages: number } }
+interface Program { id: string; name: string; description: string | null; applicableTo: string; isPublished: boolean; _count: { stages: number } }
 
 const PROG_COLORS = ['#033D4C', '#225632', '#7D783E', '#40403E', '#5B4D8A']
 
@@ -23,11 +23,10 @@ export default function EducatorLogin() {
 
   useEffect(() => {
     fetch('/api/branches').then((r) => r.json()).then(setBranches).catch(() => {})
-    fetch('/api/programs?published=true').then((r) => r.json()).then((d) => {
+    fetch('/api/programs').then((r) => r.json()).then((d) => {
       if (Array.isArray(d)) {
         const filtered = d.filter((p: Program) => p.applicableTo === 'BOTH' || p.applicableTo === 'EDUCATOR')
         setPrograms(filtered)
-        // Auto-select all if only one program
         if (filtered.length === 1) setSelectedIds(new Set([filtered[0].id]))
       }
     }).catch(() => {})
@@ -105,6 +104,7 @@ export default function EducatorLogin() {
                   <p className="text-sm font-semibold text-white">{p.name}</p>
                   <p className="text-xs text-white/40 flex items-center gap-1">
                     <BookOpen size={10} /> {p._count.stages} stages
+                    {!p.isPublished && <span className="ml-1 text-amber-400">(Soon)</span>}
                   </p>
                 </div>
               </div>
@@ -180,7 +180,10 @@ export default function EducatorLogin() {
                             <Layers size={15} className="text-white" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-midnight">{p.name}</p>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="text-sm font-semibold text-midnight">{p.name}</p>
+                              {!p.isPublished && <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium">Coming Soon</span>}
+                            </div>
                             {p.description && <p className="text-xs text-charcoal/50 truncate">{p.description}</p>}
                             <p className="text-xs text-charcoal/40 mt-0.5 flex items-center gap-1">
                               <BookOpen size={10} /> {p._count.stages} stages
