@@ -74,6 +74,78 @@ const MIGRATIONS = [
             SELECT 1 FROM "ProgramEnrollment" e WHERE e."userId"=u."id" AND e."programId"='default-orientation'
           )`,
   },
+  {
+    label: 'Student table',
+    check: `SELECT 1 FROM information_schema.tables WHERE table_name='Student'`,
+    sql: `CREATE TABLE IF NOT EXISTS "Student" (
+      "id" TEXT PRIMARY KEY,
+      "name" TEXT NOT NULL,
+      "class" TEXT NOT NULL,
+      "section" TEXT NOT NULL DEFAULT '',
+      "subject" TEXT NOT NULL DEFAULT '',
+      "branchId" TEXT REFERENCES "Branch"("id") ON DELETE SET NULL,
+      "isActive" BOOLEAN NOT NULL DEFAULT true,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`,
+  },
+  {
+    label: 'StudentSession table',
+    check: `SELECT 1 FROM information_schema.tables WHERE table_name='StudentSession'`,
+    sql: `CREATE TABLE IF NOT EXISTS "StudentSession" (
+      "id" TEXT PRIMARY KEY,
+      "studentId" TEXT NOT NULL REFERENCES "Student"("id") ON DELETE CASCADE,
+      "token" TEXT NOT NULL UNIQUE,
+      "expiresAt" TIMESTAMP(3) NOT NULL,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`,
+  },
+  {
+    label: 'StudentTest table',
+    check: `SELECT 1 FROM information_schema.tables WHERE table_name='StudentTest'`,
+    sql: `CREATE TABLE IF NOT EXISTS "StudentTest" (
+      "id" TEXT PRIMARY KEY,
+      "title" TEXT NOT NULL,
+      "description" TEXT,
+      "subject" TEXT NOT NULL DEFAULT '',
+      "targetClass" TEXT NOT NULL DEFAULT '',
+      "timeLimitMinutes" INTEGER NOT NULL DEFAULT 30,
+      "passScore" INTEGER NOT NULL DEFAULT 60,
+      "isPublished" BOOLEAN NOT NULL DEFAULT false,
+      "order" INTEGER NOT NULL DEFAULT 0,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`,
+  },
+  {
+    label: 'StudentQuestion table',
+    check: `SELECT 1 FROM information_schema.tables WHERE table_name='StudentQuestion'`,
+    sql: `CREATE TABLE IF NOT EXISTS "StudentQuestion" (
+      "id" TEXT PRIMARY KEY,
+      "testId" TEXT NOT NULL REFERENCES "StudentTest"("id") ON DELETE CASCADE,
+      "type" TEXT NOT NULL DEFAULT 'MCQ',
+      "text" TEXT NOT NULL,
+      "imageUrl" TEXT,
+      "videoUrl" TEXT,
+      "options" JSONB NOT NULL DEFAULT '[]',
+      "correctId" TEXT NOT NULL DEFAULT '',
+      "explanation" TEXT,
+      "order" INTEGER NOT NULL DEFAULT 0,
+      "marks" INTEGER NOT NULL DEFAULT 1
+    )`,
+  },
+  {
+    label: 'StudentAttempt table',
+    check: `SELECT 1 FROM information_schema.tables WHERE table_name='StudentAttempt'`,
+    sql: `CREATE TABLE IF NOT EXISTS "StudentAttempt" (
+      "id" TEXT PRIMARY KEY,
+      "studentId" TEXT NOT NULL REFERENCES "Student"("id") ON DELETE CASCADE,
+      "testId" TEXT NOT NULL REFERENCES "StudentTest"("id") ON DELETE CASCADE,
+      "score" INTEGER NOT NULL DEFAULT 0,
+      "totalMarks" INTEGER NOT NULL DEFAULT 0,
+      "passed" BOOLEAN NOT NULL DEFAULT false,
+      "answers" JSONB NOT NULL DEFAULT '{}',
+      "completedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`,
+  },
 ]
 
 async function checkPending() {

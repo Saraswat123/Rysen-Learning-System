@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Users, BookOpen, Award, TrendingUp, ChevronRight } from 'lucide-react'
+import { Users, BookOpen, Award, TrendingUp, ChevronRight, School, ExternalLink } from 'lucide-react'
 import Link from 'next/link'
 
 interface StageWithProgress {
@@ -64,6 +64,25 @@ export default function AdminDashboard() {
             <div className="text-sm opacity-75 mt-1">{s.label}</div>
           </div>
         ))}
+      </div>
+
+      {/* Quick Links */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+        <Link href="/admin/students" className="bg-white rounded-2xl border border-gray-100 p-4 flex items-center gap-3 hover:border-midnight/30 transition-colors">
+          <div className="w-10 h-10 rounded-xl bg-midnight/5 flex items-center justify-center flex-shrink-0"><School size={20} className="text-midnight" /></div>
+          <div><p className="font-semibold text-midnight text-sm">Manage Students</p><p className="text-xs text-charcoal/50">Add, view, export</p></div>
+          <ChevronRight size={16} className="text-charcoal/30 ml-auto" />
+        </Link>
+        <Link href="/admin/student-tests" className="bg-white rounded-2xl border border-gray-100 p-4 flex items-center gap-3 hover:border-midnight/30 transition-colors">
+          <div className="w-10 h-10 rounded-xl bg-olive/10 flex items-center justify-center flex-shrink-0"><BookOpen size={20} className="text-olive" /></div>
+          <div><p className="font-semibold text-midnight text-sm">Student Tests</p><p className="text-xs text-charcoal/50">Create Q sets</p></div>
+          <ChevronRight size={16} className="text-charcoal/30 ml-auto" />
+        </Link>
+        <a href="/student/login" target="_blank" rel="noreferrer" className="bg-gold/10 rounded-2xl border border-gold/30 p-4 flex items-center gap-3 hover:bg-gold/20 transition-colors">
+          <div className="w-10 h-10 rounded-xl bg-gold/20 flex items-center justify-center flex-shrink-0"><ExternalLink size={20} className="text-midnight" /></div>
+          <div><p className="font-semibold text-midnight text-sm">Student Portal</p><p className="text-xs text-charcoal/50">Open login page</p></div>
+          <ExternalLink size={14} className="text-charcoal/30 ml-auto" />
+        </a>
       </div>
 
       {/* Stages Overview */}

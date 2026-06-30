@@ -6,7 +6,7 @@ import Link from 'next/link'
 import RysenLogo from '@/components/RysenLogo'
 import {
   LayoutDashboard, Users, BookOpen, BarChart3,
-  UserCog, LogOut, Menu, Trophy, GraduationCap, Layers,
+  UserCog, LogOut, Menu, Trophy, GraduationCap, Layers, School, ClipboardList,
 } from 'lucide-react'
 
 const NAV = [
@@ -15,6 +15,8 @@ const NAV = [
   { href: '/admin/principals', label: 'Principals', icon: GraduationCap },
   { href: '/admin/programs', label: 'Programs', icon: Layers },
   { href: '/admin/stages', label: 'Stages & MCQ', icon: BookOpen },
+  { href: '/admin/students', label: 'Students', icon: School },
+  { href: '/admin/student-tests', label: 'Student Tests', icon: ClipboardList },
   { href: '/admin/analytics', label: 'AI Analytics', icon: BarChart3 },
   { href: '/admin/admins', label: 'Admin Users', icon: UserCog },
   { href: '/leaderboard', label: 'Leaderboard', icon: Trophy },
@@ -38,14 +40,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       const d = await r.json()
       setUser(d.user)
       // Run migration once per browser session; skip if already done
-      if (!sessionStorage.getItem('rysen_migrated')) {
+      if (!sessionStorage.getItem('rysen_migrated_v14')) {
         try {
           const ac = new AbortController()
           const t = setTimeout(() => ac.abort(), 12000)
           await fetch('/api/admin/migrate', { method: 'POST', signal: ac.signal })
           clearTimeout(t)
         } catch {}
-        sessionStorage.setItem('rysen_migrated', '1')
+        sessionStorage.setItem('rysen_migrated_v14', '1')
       }
       setReady(true)
     })
