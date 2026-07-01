@@ -62,6 +62,7 @@ export async function POST(req: NextRequest) {
         passScore: body.passScore ?? 60,
         isPublished: body.isPublished ?? false,
         order: (maxOrder._max.order ?? 0) + 1,
+        createdBy: user.role,
       },
     })
     return NextResponse.json(test, { status: 201 })

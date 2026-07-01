@@ -169,6 +169,7 @@ model StudentTest {
   passScore        Int      @default(60)
   isPublished      Boolean  @default(false)
   order            Int      @default(0)
+  createdBy        String   @default("ADMIN")
   createdAt        DateTime @default(now())
 
   questions StudentQuestion[]

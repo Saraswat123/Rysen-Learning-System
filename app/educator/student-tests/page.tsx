@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, ClipboardList, Users, Clock, Eye, EyeOff, ChevronRight } from 'lucide-react'
+import { Plus, ClipboardList, Users, Clock, Eye, EyeOff, ChevronRight, Shield } from 'lucide-react'
 import Link from 'next/link'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
@@ -10,6 +10,7 @@ interface StudentTest {
   id: string; title: string; description: string | null
   subject: string; targetClass: string; timeLimitMinutes: number
   passScore: number; isPublished: boolean; order: number
+  createdBy: string
   _count: { questions: number; attempts: number }
 }
 
@@ -56,6 +57,57 @@ export default function EducatorStudentTestsPage() {
     load()
   }
 
+  const adminTests = tests.filter((t) => t.createdBy === 'SUPER_ADMIN' || t.createdBy === 'ADMIN')
+  const myTests = tests.filter((t) => t.createdBy === 'EDUCATOR')
+
+  function TestCard({ test, editable }: { test: StudentTest; editable: boolean }) {
+    return (
+      <div className="bg-white rounded-2xl border border-gray-100 p-5 flex items-center gap-4">
+        <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${editable ? 'bg-midnight/5' : 'bg-forest/5'}`}>
+          {editable
+            ? <ClipboardList size={22} className="text-midnight" />
+            : <Shield size={22} className="text-forest" />}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className="font-bold text-midnight">{test.title}</h3>
+            {!editable && (
+              <span className="text-xs bg-forest/10 text-forest px-2 py-0.5 rounded-full font-semibold flex items-center gap-1">
+                <Shield size={10} /> Admin
+              </span>
+            )}
+            <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${test.isPublished ? 'bg-forest/10 text-forest' : 'bg-amber-100 text-amber-700'}`}>
+              {test.isPublished ? 'Published' : 'Draft'}
+            </span>
+            {test.targetClass && <span className="text-xs bg-midnight/5 text-midnight px-2 py-0.5 rounded-full">Class {test.targetClass}</span>}
+            {test.subject && <span className="text-xs bg-olive/10 text-olive px-2 py-0.5 rounded-full">{test.subject}</span>}
+          </div>
+          {test.description && <p className="text-sm text-charcoal/60 mt-0.5 truncate">{test.description}</p>}
+          <div className="flex items-center gap-4 mt-1.5 text-xs text-charcoal/50">
+            <span className="flex items-center gap-1"><ClipboardList size={11} /> {test._count.questions} questions</span>
+            <span className="flex items-center gap-1"><Clock size={11} /> {test.timeLimitMinutes} min</span>
+            <span className="flex items-center gap-1"><Users size={11} /> {test._count.attempts} attempts</span>
+            <span>Pass: {test.passScore}%</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {editable && (
+            <button onClick={() => togglePublish(test)}
+              className="p-2 rounded-lg hover:bg-gray-100 text-charcoal/40 hover:text-charcoal transition-colors"
+              title={test.isPublished ? 'Unpublish' : 'Publish'}>
+              {test.isPublished ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          )}
+          <Link href={`/educator/student-tests/${test.id}`}>
+            <button className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl transition-colors ${editable ? 'bg-midnight text-white hover:bg-midnight/80' : 'bg-forest/10 text-forest hover:bg-forest/20 border border-forest/20'}`}>
+              {editable ? 'Edit' : 'View'} <ChevronRight size={14} />
+            </button>
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -63,7 +115,7 @@ export default function EducatorStudentTestsPage() {
           <h1 className="text-2xl font-bold text-midnight flex items-center gap-2">
             <ClipboardList size={24} /> Student Tests
           </h1>
-          <p className="text-sm text-charcoal/60 mt-0.5">{tests.length} test sets · create, edit, publish</p>
+          <p className="text-sm text-charcoal/60 mt-0.5">{adminTests.length} from admin · {myTests.length} created by you</p>
         </div>
         <Button onClick={() => setShowAdd(true)} className="flex items-center gap-2">
           <Plus size={15} /> Create Test
@@ -86,13 +138,13 @@ export default function EducatorStudentTestsPage() {
                   <label className="text-sm font-semibold text-charcoal">Time Limit (min)</label>
                   <input type="number" min="5" max="180" value={form.timeLimitMinutes}
                     onChange={(e) => setForm((f) => ({ ...f, timeLimitMinutes: e.target.value }))}
-                    className="px-4 py-2.5 border border-gray-300 rounded-lg text-sm text-charcoal focus:outline-none focus:ring-2 focus:ring-midnight" />
+                    className="px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-midnight" />
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className="text-sm font-semibold text-charcoal">Pass Score (%)</label>
                   <input type="number" min="0" max="100" value={form.passScore}
                     onChange={(e) => setForm((f) => ({ ...f, passScore: e.target.value }))}
-                    className="px-4 py-2.5 border border-gray-300 rounded-lg text-sm text-charcoal focus:outline-none focus:ring-2 focus:ring-midnight" />
+                    className="px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-midnight" />
                 </div>
               </div>
               {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
@@ -110,49 +162,41 @@ export default function EducatorStudentTestsPage() {
           <div className="w-8 h-8 border-4 border-midnight border-t-transparent rounded-full animate-spin" />
         </div>
       ) : (
-        <div className="flex flex-col gap-3">
-          {tests.map((test) => (
-            <div key={test.id} className="bg-white rounded-2xl border border-gray-100 p-5 flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-midnight/5 flex items-center justify-center flex-shrink-0">
-                <ClipboardList size={22} className="text-midnight" />
+        <div className="flex flex-col gap-8">
+          {/* Admin-scheduled tests */}
+          {adminTests.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <Shield size={16} className="text-forest" />
+                <h2 className="font-bold text-midnight">Scheduled by Admin</h2>
+                <span className="text-xs text-charcoal/40 bg-gray-100 px-2 py-0.5 rounded-full">All locations · {adminTests.length} tests</span>
               </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="font-bold text-midnight">{test.title}</h3>
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${test.isPublished ? 'bg-forest/10 text-forest' : 'bg-amber-100 text-amber-700'}`}>
-                    {test.isPublished ? 'Published' : 'Draft'}
-                  </span>
-                  {test.targetClass && <span className="text-xs bg-midnight/5 text-midnight px-2 py-0.5 rounded-full">Class {test.targetClass}</span>}
-                  {test.subject && <span className="text-xs bg-olive/10 text-olive px-2 py-0.5 rounded-full">{test.subject}</span>}
-                </div>
-                {test.description && <p className="text-sm text-charcoal/60 mt-0.5 truncate">{test.description}</p>}
-                <div className="flex items-center gap-4 mt-1.5 text-xs text-charcoal/50">
-                  <span className="flex items-center gap-1"><ClipboardList size={11} /> {test._count.questions} questions</span>
-                  <span className="flex items-center gap-1"><Clock size={11} /> {test.timeLimitMinutes} min</span>
-                  <span className="flex items-center gap-1"><Users size={11} /> {test._count.attempts} attempts</span>
-                  <span>Pass: {test.passScore}%</span>
-                </div>
+              <div className="flex flex-col gap-3">
+                {adminTests.map((test) => <TestCard key={test.id} test={test} editable={false} />)}
               </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <button onClick={() => togglePublish(test)}
-                  className="p-2 rounded-lg hover:bg-gray-100 text-charcoal/40 hover:text-charcoal transition-colors"
-                  title={test.isPublished ? 'Unpublish' : 'Publish'}>
-                  {test.isPublished ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-                <Link href={`/educator/student-tests/${test.id}`}>
-                  <button className="flex items-center gap-1.5 px-3 py-2 bg-midnight text-white text-xs font-semibold rounded-xl hover:bg-midnight/80 transition-colors">
-                    Edit <ChevronRight size={14} />
-                  </button>
-                </Link>
-              </div>
-            </div>
-          ))}
-          {tests.length === 0 && (
-            <div className="text-center py-16 text-charcoal/40">
-              <ClipboardList size={40} className="mx-auto mb-3 opacity-20" />
-              <p className="text-sm">No tests yet. Create your first test.</p>
             </div>
           )}
+
+          {/* Educator's own tests */}
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <ClipboardList size={16} className="text-midnight" />
+              <h2 className="font-bold text-midnight">My Tests</h2>
+              <span className="text-xs text-charcoal/40 bg-gray-100 px-2 py-0.5 rounded-full">Created by you · {myTests.length} tests</span>
+            </div>
+            <div className="flex flex-col gap-3">
+              {myTests.map((test) => <TestCard key={test.id} test={test} editable={true} />)}
+              {myTests.length === 0 && (
+                <div className="text-center py-10 border-2 border-dashed border-gray-200 rounded-2xl text-charcoal/40">
+                  <ClipboardList size={32} className="mx-auto mb-2 opacity-30" />
+                  <p className="text-sm">No tests created yet.</p>
+                  <button onClick={() => setShowAdd(true)} className="mt-2 text-xs text-midnight font-semibold underline underline-offset-2">
+                    Create your first test
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>
