@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
     }
 
     const user = await getSession()
-    if (!user || (user.role !== Role.SUPER_ADMIN && user.role !== Role.ADMIN)) {
+    if (!user || (user.role !== Role.SUPER_ADMIN && user.role !== Role.ADMIN && user.role !== Role.EDUCATOR)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
     const tests = await db.studentTest.findMany({
@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const user = await getSession()
-    if (!user || (user.role !== Role.SUPER_ADMIN && user.role !== Role.ADMIN)) {
+    if (!user || (user.role !== Role.SUPER_ADMIN && user.role !== Role.ADMIN && user.role !== Role.EDUCATOR)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
     const body = await req.json()

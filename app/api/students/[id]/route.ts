@@ -5,12 +5,14 @@ import { db } from '@/lib/db'
 import { getSession } from '@/lib/auth'
 import { Role } from '@/app/generated/prisma/client'
 
+function isStaff(role: Role) {
+  return role === Role.SUPER_ADMIN || role === Role.ADMIN || role === Role.EDUCATOR
+}
+
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const user = await getSession()
-    if (!user || (user.role !== Role.SUPER_ADMIN && user.role !== Role.ADMIN)) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
-    }
+    if (!user || !isStaff(user.role)) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     const { id } = await params
     const student = await db.student.findUnique({
       where: { id },
@@ -29,9 +31,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const user = await getSession()
-    if (!user || (user.role !== Role.SUPER_ADMIN && user.role !== Role.ADMIN)) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
-    }
+    if (!user || !isStaff(user.role)) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     const { id } = await params
     const body = await req.json()
     const student = await db.student.update({
@@ -55,9 +55,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const user = await getSession()
-    if (!user || (user.role !== Role.SUPER_ADMIN && user.role !== Role.ADMIN)) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
-    }
+    if (!user || !isStaff(user.role)) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     const { id } = await params
     await db.student.delete({ where: { id } })
     return NextResponse.json({ ok: true })

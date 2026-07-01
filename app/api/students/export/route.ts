@@ -8,7 +8,7 @@ import { Role } from '@/app/generated/prisma/client'
 export async function GET() {
   try {
     const user = await getSession()
-    if (!user || (user.role !== Role.SUPER_ADMIN && user.role !== Role.ADMIN)) {
+    if (!user || (user.role !== Role.SUPER_ADMIN && user.role !== Role.ADMIN && user.role !== Role.EDUCATOR)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 
