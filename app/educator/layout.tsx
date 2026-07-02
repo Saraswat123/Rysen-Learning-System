@@ -87,6 +87,10 @@ export default function EducatorLayout({ children }: { children: React.ReactNode
                 <p className="text-white/40 text-xs">{user.branch?.name}</p>
               </div>
             )}
+            {/* Mobile: Students shortcut */}
+            <Link href="/educator/student-tests" className="sm:hidden text-white/70 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition-colors" title="Student Tests">
+              <ClipboardList size={18} />
+            </Link>
             <button onClick={logout} className="text-white/50 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition-colors">
               <LogOut size={18} />
             </button>

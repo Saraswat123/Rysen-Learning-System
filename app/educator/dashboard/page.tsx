@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Lock, CheckCircle, ChevronRight, BookOpen, Award, Layers, Plus, LogIn, GraduationCap } from 'lucide-react'
+import { Lock, CheckCircle, ChevronRight, BookOpen, Award, Layers, Plus, LogIn, GraduationCap, School, ClipboardList, Trophy } from 'lucide-react'
 
 interface Progress { passed: boolean; bestScore: number | null; attempts: number; docRead: boolean }
 interface StageData {
@@ -148,9 +148,43 @@ export default function EducatorDashboard() {
         </div>
       </div>
 
-      <div className="mb-8">
+      <div className="mb-6">
         <h1 className="text-2xl font-bold text-midnight">Welcome, {user?.name?.split(' ')[0]} 👋</h1>
         <p className="text-charcoal/60 text-sm mt-1">Your RYSEN Learning Journey</p>
+      </div>
+
+      {/* Student Management Quick Access */}
+      <div className="mb-8">
+        <h2 className="text-sm font-semibold text-charcoal/50 uppercase tracking-wide mb-3">Student Management</h2>
+        <div className="grid grid-cols-3 gap-3">
+          <Link href="/educator/students">
+            <div className="bg-white rounded-2xl border border-gray-100 p-4 flex flex-col items-center gap-2 hover:shadow-md hover:border-midnight/20 transition-all cursor-pointer text-center">
+              <div className="w-10 h-10 rounded-xl bg-midnight flex items-center justify-center">
+                <School size={20} className="text-gold" />
+              </div>
+              <p className="text-sm font-semibold text-midnight">Manage Students</p>
+              <p className="text-xs text-charcoal/50">Add &amp; view students</p>
+            </div>
+          </Link>
+          <Link href="/educator/student-tests">
+            <div className="bg-white rounded-2xl border border-gray-100 p-4 flex flex-col items-center gap-2 hover:shadow-md hover:border-midnight/20 transition-all cursor-pointer text-center">
+              <div className="w-10 h-10 rounded-xl bg-forest flex items-center justify-center">
+                <ClipboardList size={20} className="text-white" />
+              </div>
+              <p className="text-sm font-semibold text-midnight">Student Tests</p>
+              <p className="text-xs text-charcoal/50">Create &amp; manage tests</p>
+            </div>
+          </Link>
+          <a href="/student/leaderboard" target="_blank" rel="noreferrer">
+            <div className="bg-white rounded-2xl border border-gray-100 p-4 flex flex-col items-center gap-2 hover:shadow-md hover:border-gold/30 transition-all cursor-pointer text-center">
+              <div className="w-10 h-10 rounded-xl bg-gold flex items-center justify-center">
+                <Trophy size={20} className="text-midnight" />
+              </div>
+              <p className="text-sm font-semibold text-midnight">Leaderboard</p>
+              <p className="text-xs text-charcoal/50">Student rankings ↗</p>
+            </div>
+          </a>
+        </div>
       </div>
 
       {totalVisible > 0 && (
