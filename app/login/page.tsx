@@ -127,9 +127,9 @@ export default function EducatorLogin() {
       <div className="flex-1 flex items-center justify-center bg-cream p-8">
         <div className="w-full max-w-md">
           <div className="lg:hidden mb-8 flex items-center gap-3">
-            <RysenLogo size="sm" />
+            <RysenLogo size="md" />
             <div>
-              <p className="text-midnight font-bold text-sm leading-tight">Rysen Group of Schools</p>
+              <p className="text-midnight font-bold text-base leading-tight">Rysen Group of Schools</p>
               <p className="text-olive text-xs font-medium">Run by IITians and Doctors</p>
             </div>
           </div>
@@ -214,12 +214,12 @@ export default function EducatorLogin() {
             </p>
           </div>
 
-          <div className="flex items-center justify-center gap-4 mt-4 flex-wrap">
-            <a href="/student/login" className="text-xs text-charcoal/40 hover:text-midnight">Student Portal →</a>
-            <span className="text-charcoal/20 text-xs">|</span>
-            <a href="/principal/login" className="text-xs text-charcoal/40 hover:text-midnight">Principal / Center Head Login →</a>
-            <span className="text-charcoal/20 text-xs">|</span>
-            <a href="/admin/login" className="text-xs text-charcoal/40 hover:text-midnight">Admin Login →</a>
+          <div className="flex items-center justify-center gap-4 mt-5 flex-wrap">
+            <a href="/student/login" className="text-sm font-semibold text-midnight/70 hover:text-midnight transition-colors">Student Portal →</a>
+            <span className="text-charcoal/30 text-sm">|</span>
+            <a href="/principal/login" className="text-sm font-semibold text-midnight/70 hover:text-midnight transition-colors">Principal / Center Head Login →</a>
+            <span className="text-charcoal/30 text-sm">|</span>
+            <a href="/admin/login" className="text-sm font-semibold text-midnight/70 hover:text-midnight transition-colors">Admin Login →</a>
           </div>
         </div>
       </div>

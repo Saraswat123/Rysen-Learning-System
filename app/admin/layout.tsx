@@ -6,7 +6,7 @@ import Link from 'next/link'
 import RysenLogo from '@/components/RysenLogo'
 import {
   LayoutDashboard, Users, BookOpen, BarChart3,
-  UserCog, LogOut, Menu, Trophy, GraduationCap, Layers, School, ClipboardList,
+  UserCog, LogOut, Menu, Trophy, GraduationCap, Layers, School, ClipboardList, FileSpreadsheet,
 } from 'lucide-react'
 
 const NAV = [
@@ -17,6 +17,7 @@ const NAV = [
   { href: '/admin/stages', label: 'Stages & MCQ', icon: BookOpen },
   { href: '/admin/students', label: 'Students', icon: School },
   { href: '/admin/student-tests', label: 'Student Tests', icon: ClipboardList },
+  { href: '/admin/test-results', label: 'Results Sheet', icon: FileSpreadsheet },
   { href: '/admin/analytics', label: 'AI Analytics', icon: BarChart3 },
   { href: '/admin/admins', label: 'Admin Users', icon: UserCog },
   { href: '/leaderboard', label: 'Leaderboard', icon: Trophy },
