@@ -14,8 +14,15 @@ export async function GET(req: NextRequest) {
     if (forStudent) {
       const student = await getStudentSession()
       if (!student) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      // Show published tests where branchId is null (all branches) OR matches student's branch
       const tests = await db.studentTest.findMany({
-        where: { isPublished: true },
+        where: {
+          isPublished: true,
+          OR: [
+            { branchId: null },
+            { branchId: student.branchId ?? undefined },
+          ],
+        },
         include: { _count: { select: { questions: true } } },
         orderBy: { order: 'asc' },
       })
@@ -34,8 +41,18 @@ export async function GET(req: NextRequest) {
     if (!user || (user.role !== Role.SUPER_ADMIN && user.role !== Role.ADMIN && user.role !== Role.EDUCATOR)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
+
+    // Educators see: their own branch tests + all-branch tests (branchId null)
+    const where = user.role === Role.EDUCATOR && user.branchId
+      ? { OR: [{ branchId: null }, { branchId: user.branchId }] }
+      : {}
+
     const tests = await db.studentTest.findMany({
-      include: { _count: { select: { questions: true, attempts: true } } },
+      where,
+      include: {
+        _count: { select: { questions: true, attempts: true } },
+        branch: { select: { id: true, name: true, location: true } },
+      },
       orderBy: { order: 'asc' },
     })
     return NextResponse.json(tests)
@@ -51,6 +68,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
     const body = await req.json()
+
+    // Educators: always their own branchId. Admins: body.branchId (null = all branches)
+    const branchId = user.role === Role.EDUCATOR
+      ? (user.branchId ?? null)
+      : (body.branchId || null)
+
     const maxOrder = await db.studentTest.aggregate({ _max: { order: true } })
     const test = await db.studentTest.create({
       data: {
@@ -63,7 +86,9 @@ export async function POST(req: NextRequest) {
         isPublished: body.isPublished ?? false,
         order: (maxOrder._max.order ?? 0) + 1,
         createdBy: user.role,
+        branchId,
       },
+      include: { branch: { select: { id: true, name: true } } },
     })
     return NextResponse.json(test, { status: 201 })
   } catch (err) {

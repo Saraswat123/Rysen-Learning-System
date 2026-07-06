@@ -20,12 +20,13 @@ enum QuestionType {
 }
 
 model Branch {
-  id        String   @id @default(cuid())
-  name      String
-  location  String
-  createdAt DateTime @default(now())
-  users     User[]
-  students  Student[]
+  id           String        @id @default(cuid())
+  name         String
+  location     String
+  createdAt    DateTime      @default(now())
+  users        User[]
+  students     Student[]
+  studentTests StudentTest[]
 }
 
 model User {
@@ -170,6 +171,8 @@ model StudentTest {
   isPublished      Boolean  @default(false)
   order            Int      @default(0)
   createdBy        String   @default("ADMIN")
+  branchId         String?
+  branch           Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
   createdAt        DateTime @default(now())
 
   questions StudentQuestion[]

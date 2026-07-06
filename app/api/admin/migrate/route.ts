@@ -138,6 +138,11 @@ const MIGRATIONS = [
     sql: `ALTER TABLE "StudentTest" ADD COLUMN IF NOT EXISTS "createdBy" TEXT NOT NULL DEFAULT 'ADMIN'`,
   },
   {
+    label: 'StudentTest.branchId column',
+    check: `SELECT 1 FROM information_schema.columns WHERE table_name='StudentTest' AND column_name='branchId'`,
+    sql: `ALTER TABLE "StudentTest" ADD COLUMN IF NOT EXISTS "branchId" TEXT REFERENCES "Branch"("id") ON DELETE SET NULL`,
+  },
+  {
     label: 'StudentAttempt table',
     check: `SELECT 1 FROM information_schema.tables WHERE table_name='StudentAttempt'`,
     sql: `CREATE TABLE IF NOT EXISTS "StudentAttempt" (

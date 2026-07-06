@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, ClipboardList, Users, Clock, Eye, EyeOff, ChevronRight, Shield, Trash2 } from 'lucide-react'
+import { Plus, ClipboardList, Users, Clock, Eye, EyeOff, ChevronRight, Shield, Trash2, MapPin, Globe } from 'lucide-react'
 import Link from 'next/link'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
@@ -10,7 +10,8 @@ interface StudentTest {
   id: string; title: string; description: string | null
   subject: string; targetClass: string; timeLimitMinutes: number
   passScore: number; isPublished: boolean; order: number
-  createdBy: string
+  createdBy: string; branchId: string | null
+  branch: { id: string; name: string } | null
   _count: { questions: number; attempts: number }
 }
 
@@ -85,6 +86,15 @@ export default function EducatorStudentTestsPage() {
             <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${test.isPublished ? 'bg-forest/10 text-forest' : 'bg-amber-100 text-amber-700'}`}>
               {test.isPublished ? 'Published' : 'Draft'}
             </span>
+            {test.branch ? (
+              <span className="text-xs bg-midnight/5 text-midnight px-2 py-0.5 rounded-full flex items-center gap-1">
+                <MapPin size={10} /> {test.branch.name}
+              </span>
+            ) : (
+              <span className="text-xs bg-forest/5 text-forest px-2 py-0.5 rounded-full flex items-center gap-1">
+                <Globe size={10} /> All Branches
+              </span>
+            )}
             {test.targetClass && <span className="text-xs bg-midnight/5 text-midnight px-2 py-0.5 rounded-full">Class {test.targetClass}</span>}
             {test.subject && <span className="text-xs bg-olive/10 text-olive px-2 py-0.5 rounded-full">{test.subject}</span>}
           </div>

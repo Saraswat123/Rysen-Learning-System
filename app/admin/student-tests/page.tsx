@@ -1,30 +1,38 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, ClipboardList, Users, Clock, Eye, EyeOff, ChevronRight, Trash2 } from 'lucide-react'
+import { Plus, ClipboardList, Users, Clock, Eye, EyeOff, ChevronRight, Trash2, MapPin, Globe } from 'lucide-react'
 import Link from 'next/link'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 
+interface Branch { id: string; name: string; location: string }
 interface StudentTest {
   id: string; title: string; description: string | null
   subject: string; targetClass: string; timeLimitMinutes: number
   passScore: number; isPublished: boolean; order: number
+  branchId: string | null
+  branch: { id: string; name: string; location: string } | null
   _count: { questions: number; attempts: number }
 }
 
 export default function StudentTestsPage() {
   const [tests, setTests] = useState<StudentTest[]>([])
+  const [branches, setBranches] = useState<Branch[]>([])
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
-  const [form, setForm] = useState({ title: '', description: '', subject: '', targetClass: '', timeLimitMinutes: '30', passScore: '60' })
+  const [form, setForm] = useState({ title: '', description: '', subject: '', targetClass: '', timeLimitMinutes: '30', passScore: '60', branchId: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
   async function load() {
     setLoading(true)
-    const data = await fetch('/api/student-tests').then((r) => r.json())
+    const [data, b] = await Promise.all([
+      fetch('/api/student-tests').then((r) => r.json()),
+      fetch('/api/branches').then((r) => r.json()),
+    ])
     setTests(Array.isArray(data) ? data : [])
+    setBranches(Array.isArray(b) ? b : [])
     setLoading(false)
   }
 
@@ -32,8 +40,7 @@ export default function StudentTestsPage() {
 
   async function createTest(e: React.FormEvent) {
     e.preventDefault()
-    setSaving(true)
-    setError('')
+    setSaving(true); setError('')
     const res = await fetch('/api/student-tests', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -41,19 +48,14 @@ export default function StudentTestsPage() {
         ...form,
         timeLimitMinutes: parseInt(form.timeLimitMinutes),
         passScore: parseInt(form.passScore),
+        branchId: form.branchId || null,
       }),
     })
     const data = await res.json()
     setSaving(false)
     if (!res.ok) { setError(data.error); return }
     setShowAdd(false)
-    setForm({ title: '', description: '', subject: '', targetClass: '', timeLimitMinutes: '30', passScore: '60' })
-    load()
-  }
-
-  async function deleteTest(id: string) {
-    if (!confirm('Delete this test? All student attempts for this test will also be deleted.')) return
-    await fetch(`/api/student-tests/${id}`, { method: 'DELETE' })
+    setForm({ title: '', description: '', subject: '', targetClass: '', timeLimitMinutes: '30', passScore: '60', branchId: '' })
     load()
   }
 
@@ -65,6 +67,17 @@ export default function StudentTestsPage() {
     })
     load()
   }
+
+  async function deleteTest(id: string) {
+    if (!confirm('Delete this test? All student attempts for this test will also be deleted.')) return
+    await fetch(`/api/student-tests/${id}`, { method: 'DELETE' })
+    load()
+  }
+
+  const locationGroups = branches.reduce<Record<string, Branch[]>>((acc, b) => {
+    acc[b.location] = [...(acc[b.location] ?? []), b]
+    return acc
+  }, {})
 
   return (
     <div>
@@ -80,7 +93,7 @@ export default function StudentTestsPage() {
 
       {showAdd && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md mx-4">
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
             <h2 className="text-lg font-bold text-midnight mb-4">Create Test</h2>
             <form onSubmit={createTest} className="flex flex-col gap-3">
               <Input label="Test Title" value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} required />
@@ -103,6 +116,22 @@ export default function StudentTestsPage() {
                     className="px-4 py-2.5 border border-gray-300 rounded-lg text-sm text-charcoal focus:outline-none focus:ring-2 focus:ring-midnight" />
                 </div>
               </div>
+
+              {/* Branch selector */}
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-semibold text-charcoal">Visibility</label>
+                <select value={form.branchId} onChange={(e) => setForm((f) => ({ ...f, branchId: e.target.value }))}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm text-charcoal bg-white focus:outline-none focus:ring-2 focus:ring-midnight">
+                  <option value="">🌐 All Branches (visible to everyone)</option>
+                  {Object.entries(locationGroups).map(([loc, bs]) => (
+                    <optgroup key={loc} label={loc}>
+                      {bs.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+                    </optgroup>
+                  ))}
+                </select>
+                <p className="text-xs text-charcoal/40">Leave as "All Branches" to show to all students, or pick a branch to restrict visibility.</p>
+              </div>
+
               {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
               <div className="flex gap-3 mt-2">
                 <Button type="button" onClick={() => setShowAdd(false)} className="flex-1 bg-gray-100 text-charcoal hover:bg-gray-200">Cancel</Button>
@@ -130,6 +159,16 @@ export default function StudentTestsPage() {
                   <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${test.isPublished ? 'bg-forest/10 text-forest' : 'bg-amber-100 text-amber-700'}`}>
                     {test.isPublished ? 'Published' : 'Draft'}
                   </span>
+                  {/* Branch badge */}
+                  {test.branch ? (
+                    <span className="text-xs bg-midnight/5 text-midnight px-2 py-0.5 rounded-full flex items-center gap-1">
+                      <MapPin size={10} /> {test.branch.name}
+                    </span>
+                  ) : (
+                    <span className="text-xs bg-forest/5 text-forest px-2 py-0.5 rounded-full flex items-center gap-1">
+                      <Globe size={10} /> All Branches
+                    </span>
+                  )}
                   {test.targetClass && <span className="text-xs bg-midnight/5 text-midnight px-2 py-0.5 rounded-full">Class {test.targetClass}</span>}
                   {test.subject && <span className="text-xs bg-olive/10 text-olive px-2 py-0.5 rounded-full">{test.subject}</span>}
                 </div>
