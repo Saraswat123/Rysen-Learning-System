@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, ClipboardList, Users, Clock, Eye, EyeOff, ChevronRight, Shield } from 'lucide-react'
+import { Plus, ClipboardList, Users, Clock, Eye, EyeOff, ChevronRight, Shield, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
@@ -45,6 +45,12 @@ export default function EducatorStudentTestsPage() {
     if (!res.ok) { setError(data.error); return }
     setShowAdd(false)
     setForm({ title: '', description: '', subject: '', targetClass: '', timeLimitMinutes: '30', passScore: '60' })
+    load()
+  }
+
+  async function deleteTest(id: string) {
+    if (!confirm('Delete this test? All student attempts will also be deleted.')) return
+    await fetch(`/api/student-tests/${id}`, { method: 'DELETE' })
     load()
   }
 
@@ -92,11 +98,17 @@ export default function EducatorStudentTestsPage() {
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           {editable && (
-            <button onClick={() => togglePublish(test)}
-              className="p-2 rounded-lg hover:bg-gray-100 text-charcoal/40 hover:text-charcoal transition-colors"
-              title={test.isPublished ? 'Unpublish' : 'Publish'}>
-              {test.isPublished ? <EyeOff size={16} /> : <Eye size={16} />}
-            </button>
+            <>
+              <button onClick={() => togglePublish(test)}
+                className="p-2 rounded-lg hover:bg-gray-100 text-charcoal/40 hover:text-charcoal transition-colors"
+                title={test.isPublished ? 'Unpublish' : 'Publish'}>
+                {test.isPublished ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+              <button onClick={() => deleteTest(test.id)}
+                className="p-2 rounded-lg hover:bg-red-50 text-charcoal/40 hover:text-red-600 transition-colors" title="Delete test">
+                <Trash2 size={16} />
+              </button>
+            </>
           )}
           <Link href={`/educator/student-tests/${test.id}`}>
             <button className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl transition-colors ${editable ? 'bg-midnight text-white hover:bg-midnight/80' : 'bg-forest/10 text-forest hover:bg-forest/20 border border-forest/20'}`}>

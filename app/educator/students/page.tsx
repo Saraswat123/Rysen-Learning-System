@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Download, Plus, Search, Trash2, UserCheck, UserX, School } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Download, Plus, Search, Trash2, UserCheck, UserX, School, Upload, X, CheckCircle, AlertCircle, FileText } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 
@@ -10,6 +10,24 @@ interface Student {
   id: string; name: string; class: string; section: string
   subject: string; isActive: boolean; createdAt: string
   branch: Branch | null; _count: { attempts: number }
+}
+
+interface ParsedRow { name: string; class: string; section: string; subject: string; valid: boolean; error?: string }
+
+function parseCSV(text: string): ParsedRow[] {
+  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
+  if (lines.length === 0) return []
+  // Detect header row
+  const first = lines[0].toLowerCase()
+  const hasHeader = first.includes('name') || first.includes('class') || first.includes('student')
+  const dataLines = hasHeader ? lines.slice(1) : lines
+  return dataLines.map((line) => {
+    // Support comma or tab separated
+    const cols = line.includes('\t') ? line.split('\t') : line.split(',')
+    const [name, cls, section, subject] = cols.map((c) => c.trim().replace(/^"|"$/g, ''))
+    const valid = !!(name && cls)
+    return { name: name ?? '', class: cls ?? '', section: section ?? '', subject: subject ?? '', valid, error: valid ? undefined : 'Name and Class required' }
+  })
 }
 
 export default function EducatorStudentsPage() {
@@ -21,6 +39,13 @@ export default function EducatorStudentsPage() {
   const [form, setForm] = useState({ name: '', class: '', section: '', subject: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+
+  // Bulk import state
+  const [showImport, setShowImport] = useState(false)
+  const [parsedRows, setParsedRows] = useState<ParsedRow[]>([])
+  const [importing, setImporting] = useState(false)
+  const [importResult, setImportResult] = useState<{ added: number; skipped: number; errors: string[] } | null>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
 
   async function load() {
     setLoading(true)
@@ -65,24 +90,65 @@ export default function EducatorStudentsPage() {
     load()
   }
 
+  function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      const text = ev.target?.result as string
+      setParsedRows(parseCSV(text))
+      setImportResult(null)
+    }
+    reader.readAsText(file)
+  }
+
+  async function runImport() {
+    const valid = parsedRows.filter((r) => r.valid)
+    if (valid.length === 0) return
+    setImporting(true)
+    const res = await fetch('/api/students/bulk', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ students: valid }),
+    })
+    const data = await res.json()
+    setImporting(false)
+    setImportResult(data)
+    if (data.added > 0) { load(); setParsedRows([]) }
+  }
+
+  function downloadTemplate() {
+    const csv = 'Name,Class,Section,Subject\nArjun Sharma,10,A,Science\nPriya Verma,9,B,Maths'
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url; a.download = 'students-template.csv'; a.click()
+    URL.revokeObjectURL(url)
+  }
+
   const filtered = students.filter((s) =>
     search ? s.name.toLowerCase().includes(search.toLowerCase()) || s.class.includes(search) : true
   )
   const classes = [...new Set(students.map((s) => s.class))].sort()
+  const validCount = parsedRows.filter((r) => r.valid).length
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-midnight flex items-center gap-2">
             <School size={24} /> My Students
           </h1>
           <p className="text-sm text-charcoal/60 mt-0.5">{students.length} students in your branch</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Button onClick={() => window.open('/api/students/export', '_blank')} size="sm"
             className="bg-forest text-white flex items-center gap-2">
             <Download size={15} /> Export CSV
+          </Button>
+          <Button onClick={() => { setShowImport(true); setImportResult(null); setParsedRows([]) }} size="sm"
+            className="bg-olive/90 text-white flex items-center gap-2">
+            <Upload size={15} /> Bulk Import
           </Button>
           <Button onClick={() => setShowAdd(true)} size="sm" className="flex items-center gap-2">
             <Plus size={15} /> Add Student
@@ -90,7 +156,7 @@ export default function EducatorStudentsPage() {
         </div>
       </div>
 
-      {/* Add Modal */}
+      {/* Single Add Modal */}
       {showAdd && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md mx-4">
@@ -108,6 +174,110 @@ export default function EducatorStudentsPage() {
                 <Button type="submit" loading={saving} className="flex-1">Add Student</Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Import Modal */}
+      {showImport && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl mx-auto flex flex-col max-h-[90vh]">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <h2 className="text-lg font-bold text-midnight">Bulk Import Students</h2>
+              <button onClick={() => setShowImport(false)} className="text-charcoal/40 hover:text-charcoal transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-4">
+              {/* Template download */}
+              <div className="bg-midnight/5 rounded-xl p-4 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <FileText size={20} className="text-midnight/50" />
+                  <div>
+                    <p className="text-sm font-semibold text-midnight">CSV Format</p>
+                    <p className="text-xs text-charcoal/50">Columns: Name, Class, Section, Subject. First row can be header.</p>
+                  </div>
+                </div>
+                <button onClick={downloadTemplate}
+                  className="flex items-center gap-1.5 text-xs font-semibold text-midnight hover:underline underline-offset-2 whitespace-nowrap">
+                  <Download size={13} /> Download Template
+                </button>
+              </div>
+
+              {/* File upload */}
+              <div
+                onClick={() => fileRef.current?.click()}
+                className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center cursor-pointer hover:border-midnight/30 hover:bg-midnight/5 transition-all">
+                <Upload size={28} className="mx-auto mb-2 text-charcoal/30" />
+                <p className="text-sm font-semibold text-midnight">Click to upload CSV file</p>
+                <p className="text-xs text-charcoal/40 mt-0.5">.csv files only</p>
+                <input ref={fileRef} type="file" accept=".csv,text/csv" className="hidden" onChange={handleFile} />
+              </div>
+
+              {/* Import result */}
+              {importResult && (
+                <div className={`rounded-xl p-4 flex items-start gap-3 ${importResult.added > 0 ? 'bg-forest/10' : 'bg-amber-50'}`}>
+                  {importResult.added > 0
+                    ? <CheckCircle size={18} className="text-forest flex-shrink-0 mt-0.5" />
+                    : <AlertCircle size={18} className="text-amber-600 flex-shrink-0 mt-0.5" />}
+                  <div>
+                    <p className="text-sm font-semibold text-midnight">
+                      {importResult.added} added · {importResult.skipped} skipped
+                    </p>
+                    {importResult.errors.length > 0 && (
+                      <p className="text-xs text-red-600 mt-0.5">Failed: {importResult.errors.join(', ')}</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Preview table */}
+              {parsedRows.length > 0 && !importResult && (
+                <div>
+                  <p className="text-sm font-semibold text-midnight mb-2">
+                    Preview — {validCount} valid · {parsedRows.length - validCount} invalid
+                  </p>
+                  <div className="border border-gray-100 rounded-xl overflow-hidden max-h-64 overflow-y-auto">
+                    <table className="w-full text-xs">
+                      <thead className="bg-gray-50 sticky top-0">
+                        <tr>
+                          <th className="text-left px-3 py-2 text-charcoal/50 font-semibold">Name</th>
+                          <th className="text-left px-3 py-2 text-charcoal/50 font-semibold">Class</th>
+                          <th className="text-left px-3 py-2 text-charcoal/50 font-semibold">Section</th>
+                          <th className="text-left px-3 py-2 text-charcoal/50 font-semibold">Subject</th>
+                          <th className="px-3 py-2" />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {parsedRows.map((r, i) => (
+                          <tr key={i} className={`border-t border-gray-50 ${r.valid ? '' : 'bg-red-50'}`}>
+                            <td className="px-3 py-2 font-medium text-midnight">{r.name || <span className="text-red-500 italic">missing</span>}</td>
+                            <td className="px-3 py-2 text-charcoal/70">{r.class || <span className="text-red-500 italic">missing</span>}</td>
+                            <td className="px-3 py-2 text-charcoal/50">{r.section || '—'}</td>
+                            <td className="px-3 py-2 text-charcoal/50">{r.subject || '—'}</td>
+                            <td className="px-3 py-2 text-center">
+                              {r.valid
+                                ? <CheckCircle size={13} className="text-forest mx-auto" />
+                                : <X size={13} className="text-red-500 mx-auto" />}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="px-6 py-4 border-t border-gray-100 flex gap-3">
+              <Button onClick={() => setShowImport(false)} className="flex-1 bg-gray-100 text-charcoal hover:bg-gray-200">Close</Button>
+              {parsedRows.length > 0 && !importResult && (
+                <Button onClick={runImport} loading={importing} disabled={validCount === 0} className="flex-1">
+                  Import {validCount} Students
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -174,7 +344,7 @@ export default function EducatorStudentsPage() {
               ))}
               {filtered.length === 0 && (
                 <tr><td colSpan={6} className="text-center py-12 text-charcoal/40 text-sm">
-                  {students.length === 0 ? 'No students added yet. Click "Add Student" to start.' : 'No students match your search.'}
+                  {students.length === 0 ? 'No students added yet. Click "Add Student" or "Bulk Import" to start.' : 'No students match your search.'}
                 </td></tr>
               )}
             </tbody>

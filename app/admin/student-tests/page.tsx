@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, ClipboardList, Users, Clock, Eye, EyeOff, ChevronRight } from 'lucide-react'
+import { Plus, ClipboardList, Users, Clock, Eye, EyeOff, ChevronRight, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
@@ -48,6 +48,12 @@ export default function StudentTestsPage() {
     if (!res.ok) { setError(data.error); return }
     setShowAdd(false)
     setForm({ title: '', description: '', subject: '', targetClass: '', timeLimitMinutes: '30', passScore: '60' })
+    load()
+  }
+
+  async function deleteTest(id: string) {
+    if (!confirm('Delete this test? All student attempts for this test will also be deleted.')) return
+    await fetch(`/api/student-tests/${id}`, { method: 'DELETE' })
     load()
   }
 
@@ -139,6 +145,10 @@ export default function StudentTestsPage() {
                 <button onClick={() => togglePublish(test)}
                   className="p-2 rounded-lg hover:bg-gray-100 text-charcoal/40 hover:text-charcoal transition-colors" title={test.isPublished ? 'Unpublish' : 'Publish'}>
                   {test.isPublished ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+                <button onClick={() => deleteTest(test.id)}
+                  className="p-2 rounded-lg hover:bg-red-50 text-charcoal/40 hover:text-red-600 transition-colors" title="Delete test">
+                  <Trash2 size={16} />
                 </button>
                 <Link href={`/admin/student-tests/${test.id}`}>
                   <button className="flex items-center gap-1.5 px-3 py-2 bg-midnight text-white text-xs font-semibold rounded-xl hover:bg-midnight/80 transition-colors">
