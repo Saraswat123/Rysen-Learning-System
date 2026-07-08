@@ -22,9 +22,9 @@ export async function GET(req: NextRequest) {
             subtasks: { orderBy: { order: 'asc' } },
             resources: true,
             _count: { select: { comments: true } },
-            progress: { where: { userId: user.id }, select: { completed: true, subtaskId: true } },
           },
         },
+        progress: { select: { completed: true, subtaskId: true } },
       },
       orderBy: { createdAt: 'desc' },
     })
