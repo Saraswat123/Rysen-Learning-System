@@ -44,14 +44,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       const d = await r.json()
       setUser(d.user)
       // Run migration once per browser session; skip if already done
-      if (!sessionStorage.getItem('rysen_migrated_v17')) {
+      if (!sessionStorage.getItem('rysen_migrated_v18')) {
         try {
           const ac = new AbortController()
           const t = setTimeout(() => ac.abort(), 12000)
           await fetch('/api/admin/migrate', { method: 'POST', signal: ac.signal })
           clearTimeout(t)
         } catch {}
-        sessionStorage.setItem('rysen_migrated_v17', '1')
+        sessionStorage.setItem('rysen_migrated_v18', '1')
       }
       setReady(true)
     })

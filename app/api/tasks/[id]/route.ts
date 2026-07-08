@@ -45,6 +45,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     data: {
       ...(body.title !== undefined && { title: body.title }),
       ...(body.description !== undefined && { description: body.description }),
+      ...(body.notes !== undefined && { notes: body.notes }),
       ...(body.deadline !== undefined && { deadline: body.deadline ? new Date(body.deadline) : null }),
       ...(body.priority !== undefined && { priority: body.priority }),
       ...(body.groupId !== undefined && { groupId: body.groupId || null }),

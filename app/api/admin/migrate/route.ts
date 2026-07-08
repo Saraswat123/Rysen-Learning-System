@@ -255,6 +255,21 @@ const MIGRATIONS = [
       "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`,
   },
+  {
+    label: 'Task.notes column',
+    check: `SELECT 1 FROM information_schema.columns WHERE table_name='Task' AND column_name='notes'`,
+    sql: `ALTER TABLE "Task" ADD COLUMN IF NOT EXISTS "notes" TEXT`,
+  },
+  {
+    label: 'SubTask.deadline column',
+    check: `SELECT 1 FROM information_schema.columns WHERE table_name='SubTask' AND column_name='deadline'`,
+    sql: `ALTER TABLE "SubTask" ADD COLUMN IF NOT EXISTS "deadline" TIMESTAMP(3)`,
+  },
+  {
+    label: 'TaskResource.description column',
+    check: `SELECT 1 FROM information_schema.columns WHERE table_name='TaskResource' AND column_name='description'`,
+    sql: `ALTER TABLE "TaskResource" ADD COLUMN IF NOT EXISTS "description" TEXT`,
+  },
 ]
 
 async function checkPending() {

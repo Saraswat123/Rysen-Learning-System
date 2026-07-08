@@ -8,9 +8,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const user = await getSession()
   if (!user || (user.role !== Role.ADMIN && user.role !== Role.SUPER_ADMIN)) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   const { id: taskId } = await params
-  const { type, title, url } = await req.json()
+  const { type, title, url, description } = await req.json()
   if (!title || !url) return NextResponse.json({ error: 'Title and URL required' }, { status: 400 })
-  const res = await db.taskResource.create({ data: { taskId, type: type ?? 'URL', title, url } })
+  const res = await db.taskResource.create({ data: { taskId, type: type ?? 'URL', title, url, description: description ?? null } })
   return NextResponse.json(res, { status: 201 })
 }
 

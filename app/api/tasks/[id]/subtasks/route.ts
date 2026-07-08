@@ -8,10 +8,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const user = await getSession()
   if (!user || (user.role !== Role.ADMIN && user.role !== Role.SUPER_ADMIN)) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   const { id: taskId } = await params
-  const { title } = await req.json()
+  const { title, deadline } = await req.json()
   if (!title) return NextResponse.json({ error: 'Title required' }, { status: 400 })
   const max = await db.subTask.aggregate({ where: { taskId }, _max: { order: true } })
-  const sub = await db.subTask.create({ data: { taskId, title, order: (max._max.order ?? 0) + 1 } })
+  const sub = await db.subTask.create({ data: { taskId, title, deadline: deadline ? new Date(deadline) : null, order: (max._max.order ?? 0) + 1 } })
   return NextResponse.json(sub, { status: 201 })
 }
 

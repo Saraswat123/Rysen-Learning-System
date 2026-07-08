@@ -229,6 +229,7 @@ model Task {
   group       TaskGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
   title       String
   description String?
+  notes       String?
   deadline    DateTime?
   priority    String    @default("NORMAL")
   createdById String
@@ -247,19 +248,21 @@ model SubTask {
   taskId    String
   task      Task              @relation(fields: [taskId], references: [id], onDelete: Cascade)
   title     String
+  deadline  DateTime?
   order     Int               @default(0)
   createdAt DateTime          @default(now())
   progress  SubTaskProgress[]
 }
 
 model TaskResource {
-  id        String   @id @default(cuid())
-  taskId    String
-  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  type      String   @default("URL")
-  title     String
-  url       String
-  createdAt DateTime @default(now())
+  id          String   @id @default(cuid())
+  taskId      String
+  task        Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  type        String   @default("URL")
+  title       String
+  url         String
+  description String?
+  createdAt   DateTime @default(now())
 }
 
 model TaskAssignment {
