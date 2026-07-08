@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Brain, RefreshCw, TrendingUp, Users, Award, CheckCircle, GraduationCap, School, ClipboardList, Trophy } from 'lucide-react'
+import { Brain, RefreshCw, TrendingUp, Users, Award, CheckCircle, GraduationCap, School, ClipboardList, Trophy, Download } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -44,6 +44,7 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
 function EducatorAnalytics() {
   const [data, setData] = useState<EducatorData | null>(null)
   const [loading, setLoading] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const [error, setError] = useState('')
 
   async function load() {
@@ -54,6 +55,41 @@ function EducatorAnalytics() {
       setData(await res.json())
     } catch { setError('AI service unavailable.') }
     finally { setLoading(false) }
+  }
+
+  async function exportExcel() {
+    setExporting(true)
+    try {
+      const res = await fetch('/api/admin/educator-export')
+      const { rows, summary } = await res.json()
+
+      const XLSX = await import('xlsx')
+      const wb = XLSX.utils.book_new()
+
+      // Sheet 1: Summary per educator
+      const summaryHeaders = ['Name','Email','Branch','Location','Stages Attempted','Stages Passed','Total Stages','Avg Score (%)','Completion (%)','Fully Certified']
+      const summaryData = summary.map((r: Record<string,unknown>) => [
+        r.Name, r.Email, r.Branch, r.Location,
+        r.StagesAttempted, r.StagesPassed, r.TotalStages,
+        r.AvgScore, r.CompletionPct, r.FullyCertified,
+      ])
+      const ws1 = XLSX.utils.aoa_to_sheet([summaryHeaders, ...summaryData])
+      ws1['!cols'] = [20,28,18,18,14,14,12,14,14,14].map((w) => ({ wch: w }))
+      XLSX.utils.book_append_sheet(wb, ws1, 'Educator Summary')
+
+      // Sheet 2: Detail per educator per stage
+      const detailHeaders = ['Name','Email','Branch','Location','Stage No','Stage','Attempts','Best Score (%)','Passed']
+      const detailData = rows.map((r: Record<string,unknown>) => [
+        r.Name, r.Email, r.Branch, r.Location,
+        r.StageNo, r.Stage, r.Attempts, r.BestScore, r.Passed,
+      ])
+      const ws2 = XLSX.utils.aoa_to_sheet([detailHeaders, ...detailData])
+      ws2['!cols'] = [20,28,18,18,10,26,10,14,14].map((w) => ({ wch: w }))
+      XLSX.utils.book_append_sheet(wb, ws2, 'Stage Detail')
+
+      XLSX.writeFile(wb, `rysen-educator-training-${new Date().toISOString().slice(0,10)}.xlsx`)
+    } catch (e) { console.error(e) }
+    finally { setExporting(false) }
   }
 
   useEffect(() => { load() }, [])
@@ -69,7 +105,10 @@ function EducatorAnalytics() {
 
   return (
     <div>
-      <div className="flex justify-end mb-4">
+      <div className="flex justify-end gap-2 mb-4">
+        <Button onClick={exportExcel} loading={exporting} variant="ghost" size="sm" className="border border-forest/30 text-forest hover:bg-forest/5">
+          <Download size={14} /> Export Excel
+        </Button>
         <Button onClick={load} loading={loading} variant="ghost" size="sm"><RefreshCw size={14} /> Refresh</Button>
       </div>
       {loading && <div className="flex flex-col items-center py-16 gap-3"><div className="w-10 h-10 border-4 border-midnight border-t-transparent rounded-full animate-spin" /><p className="text-sm text-charcoal/60">Analyzing educator data…</p></div>}
