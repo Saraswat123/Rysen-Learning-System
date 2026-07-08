@@ -1,9 +1,8 @@
 'use client'
-import { useState, useEffect, use } from 'react'
-import { ArrowLeft, Plus, Trash2, Link2, FileText, Users, CheckSquare, Square, Calendar, MessageSquare, Send, X, CheckCircle, StickyNote, Sparkles, AlertCircle, Clock } from 'lucide-react'
+import { useState, useEffect, use, useRef } from 'react'
+import { ArrowLeft, Plus, Trash2, Link2, FileText, Users, CheckSquare, Square, Calendar, MessageSquare, Send, X, CheckCircle, StickyNote, Sparkles, AlertCircle, Clock, Bot, User } from 'lucide-react'
 import Link from 'next/link'
 import Button from '@/components/ui/Button'
-import Input from '@/components/ui/Input'
 
 interface SubTask { id: string; title: string; order: number; deadline: string | null }
 interface Resource { id: string; type: string; title: string; url: string; description: string | null }
@@ -15,6 +14,7 @@ interface Task {
   subtasks: SubTask[]; resources: Resource[]; assignments: Assignee[]; comments: Comment[]
 }
 interface Educator { id: string; name: string; branch: { name: string } | null }
+interface ChatMessage { role: 'user' | 'ai'; text: string }
 
 const ROLE_BADGE: Record<string, string> = { ADMIN: 'text-gold', SUPER_ADMIN: 'text-gold', EDUCATOR: 'text-midnight/50', PRINCIPAL: 'text-forest' }
 
@@ -42,6 +42,10 @@ export default function AdminTaskDetailPage({ params }: { params: Promise<{ id: 
   const [saving, setSaving] = useState<string | null>(null)
   const [aiSuggest, setAiSuggest] = useState('')
   const [aiLoading, setAiLoading] = useState(false)
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
+  const [chatInput, setChatInput] = useState('')
+  const [chatLoading, setChatLoading] = useState(false)
+  const chatEndRef = useRef<HTMLDivElement>(null)
 
   async function load() {
     const [t, e] = await Promise.all([
@@ -58,6 +62,7 @@ export default function AdminTaskDetailPage({ params }: { params: Promise<{ id: 
   }
 
   useEffect(() => { load() }, [id]) // eslint-disable-line
+  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [chatMessages])
 
   async function addSubtask(e: React.FormEvent) {
     e.preventDefault(); if (!subtaskForm.title.trim()) return
@@ -100,6 +105,22 @@ export default function AdminTaskDetailPage({ params }: { params: Promise<{ id: 
     setSaving('comment')
     await fetch(`/api/tasks/${id}/comments`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: commentText }) })
     setCommentText(''); setSaving(null); load()
+  }
+
+  async function sendChat(e: React.FormEvent) {
+    e.preventDefault(); if (!chatInput.trim() || chatLoading) return
+    const msg = chatInput.trim()
+    setChatMessages((prev) => [...prev, { role: 'user', text: msg }])
+    setChatInput('')
+    setChatLoading(true)
+    try {
+      const res = await fetch(`/api/tasks/${id}/ai-chat`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: msg }) })
+      const data = await res.json()
+      setChatMessages((prev) => [...prev, { role: 'ai', text: data.reply ?? 'No response.' }])
+    } catch {
+      setChatMessages((prev) => [...prev, { role: 'ai', text: 'Failed to get response. Please try again.' }])
+    }
+    setChatLoading(false)
   }
 
   async function askAI() {
@@ -267,6 +288,55 @@ export default function AdminTaskDetailPage({ params }: { params: Promise<{ id: 
               <input value={commentText} onChange={(e) => setCommentText(e.target.value)} placeholder="Reply or answer a doubt…"
                 className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-midnight" />
               <Button type="submit" size="sm" loading={saving === 'comment'} className="flex items-center gap-1"><Send size={13} /></Button>
+            </form>
+          </div>
+          {/* AI Assistant */}
+          <div className="bg-midnight rounded-2xl p-5">
+            <h2 className="font-bold text-white mb-1 flex items-center gap-2"><Bot size={16} className="text-gold" /> AI Task Assistant</h2>
+            <p className="text-xs text-white/40 mb-4">Ask AI about this task — get help with task planning, notes, or educator guidance</p>
+            <div className="flex flex-col gap-3 max-h-56 overflow-y-auto mb-3 pr-1">
+              {chatMessages.length === 0 && (
+                <div className="text-center py-3">
+                  <p className="text-xs text-white/30 mb-2">Quick actions:</p>
+                  <div className="flex flex-wrap gap-2 justify-center">
+                    {['Suggest completion steps', 'Write educator guidance', 'List key milestones'].map((q) => (
+                      <button key={q} onClick={() => setChatInput(q)}
+                        className="text-xs px-3 py-1.5 rounded-full bg-white/10 text-white/60 hover:bg-white/20 hover:text-white transition-colors">
+                        {q}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {chatMessages.map((m, i) => (
+                <div key={i} className={`flex gap-2.5 ${m.role === 'user' ? 'flex-row-reverse' : ''}`}>
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${m.role === 'ai' ? 'bg-gold' : 'bg-white/10'}`}>
+                    {m.role === 'ai' ? <Bot size={14} className="text-midnight" /> : <User size={14} className="text-white/70" />}
+                  </div>
+                  <div className={`max-w-xs rounded-xl px-3 py-2 text-sm leading-relaxed ${m.role === 'ai' ? 'bg-white/10 text-white' : 'bg-gold text-midnight font-medium'}`}>
+                    {m.text}
+                  </div>
+                </div>
+              ))}
+              {chatLoading && (
+                <div className="flex gap-2.5">
+                  <div className="w-7 h-7 rounded-full bg-gold flex items-center justify-center flex-shrink-0"><Bot size={14} className="text-midnight" /></div>
+                  <div className="bg-white/10 rounded-xl px-4 py-3 flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-white/50 animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <span className="w-1.5 h-1.5 rounded-full bg-white/50 animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <span className="w-1.5 h-1.5 rounded-full bg-white/50 animate-bounce" style={{ animationDelay: '300ms' }} />
+                  </div>
+                </div>
+              )}
+              <div ref={chatEndRef} />
+            </div>
+            <form onSubmit={sendChat} className="flex gap-2">
+              <input value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder="Ask AI about this task…"
+                className="flex-1 px-3 py-2 bg-white/10 border border-white/10 rounded-xl text-sm text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-gold" />
+              <button type="submit" disabled={chatLoading || !chatInput.trim()}
+                className="px-4 py-2 bg-gold text-midnight rounded-xl font-semibold text-sm hover:bg-yellow-400 disabled:opacity-40 transition-colors flex-shrink-0">
+                <Send size={14} />
+              </button>
             </form>
           </div>
         </div>
