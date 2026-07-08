@@ -40,6 +40,7 @@ export default function AdminTaskDetailPage({ params }: { params: Promise<{ id: 
   const [notesSaved, setNotesSaved] = useState(false)
   const [selectedAssignees, setSelectedAssignees] = useState<Set<string>>(new Set())
   const [saving, setSaving] = useState<string | null>(null)
+  const [educatorSearch, setEducatorSearch] = useState('')
   const [aiSuggest, setAiSuggest] = useState('')
   const [aiLoading, setAiLoading] = useState(false)
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
@@ -345,8 +346,20 @@ export default function AdminTaskDetailPage({ params }: { params: Promise<{ id: 
         <div className="flex flex-col gap-6">
           <div className="bg-white rounded-2xl border border-gray-100 p-5">
             <h2 className="font-bold text-midnight mb-3 flex items-center gap-2"><Users size={16} /> Assign Educators</h2>
+            <input
+              value={educatorSearch}
+              onChange={(e) => setEducatorSearch(e.target.value)}
+              placeholder="Search by name or branch…"
+              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-midnight"
+            />
+            {selectedAssignees.size > 0 && (
+              <p className="text-xs text-charcoal/50 mb-2">{selectedAssignees.size} selected</p>
+            )}
             <div className="flex flex-col gap-2 max-h-72 overflow-y-auto mb-3">
-              {educators.map((e) => (
+              {educators.filter((e) => {
+                const q = educatorSearch.toLowerCase()
+                return !q || e.name.toLowerCase().includes(q) || (e.branch?.name ?? '').toLowerCase().includes(q)
+              }).map((e) => (
                 <button key={e.id} onClick={() => toggleAssignee(e.id)}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition-all ${selectedAssignees.has(e.id) ? 'border-midnight bg-midnight/5' : 'border-gray-100 hover:border-gray-200'}`}>
                   <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${selectedAssignees.has(e.id) ? 'border-midnight bg-midnight' : 'border-gray-300'}`}>
@@ -358,7 +371,9 @@ export default function AdminTaskDetailPage({ params }: { params: Promise<{ id: 
                   </div>
                 </button>
               ))}
-              {educators.length === 0 && <p className="text-sm text-charcoal/40">No educators found.</p>}
+              {educators.filter((e) => { const q = educatorSearch.toLowerCase(); return !q || e.name.toLowerCase().includes(q) || (e.branch?.name ?? '').toLowerCase().includes(q) }).length === 0 && (
+                <p className="text-sm text-charcoal/40">{educatorSearch ? `No results for "${educatorSearch}"` : 'No educators found.'}</p>
+              )}
             </div>
             <Button onClick={saveAssignees} loading={saving === 'assign'} size="sm" className="w-full">
               Save Assignments ({selectedAssignees.size})
