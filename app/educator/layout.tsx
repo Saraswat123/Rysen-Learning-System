@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import RysenLogo from '@/components/RysenLogo'
-import { LayoutDashboard, Award, Trophy, LogOut, School, ClipboardList, ChevronDown } from 'lucide-react'
+import { LayoutDashboard, Award, Trophy, LogOut, School, ClipboardList, ChevronDown, ListTodo } from 'lucide-react'
+import NotificationBell from '@/components/NotificationBell'
 
 export default function EducatorLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
@@ -69,6 +70,11 @@ export default function EducatorLayout({ children }: { children: React.ReactNode
                 )}
               </div>
 
+              <Link href="/educator/tasks"
+                className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg transition-colors ${pathname.startsWith('/educator/tasks') ? 'bg-white/15 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
+                <ListTodo size={15} /> My Tasks
+              </Link>
+
               <Link href="/educator/certificate"
                 className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg transition-colors ${pathname === '/educator/certificate' ? 'bg-white/15 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
                 <Award size={15} /> Certificate
@@ -87,10 +93,11 @@ export default function EducatorLayout({ children }: { children: React.ReactNode
                 <p className="text-white/40 text-xs">{user.branch?.name}</p>
               </div>
             )}
-            {/* Mobile: Students shortcut */}
-            <Link href="/educator/student-tests" className="sm:hidden text-white/70 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition-colors" title="Student Tests">
-              <ClipboardList size={18} />
+            {/* Mobile: Tasks shortcut */}
+            <Link href="/educator/tasks" className="sm:hidden text-white/70 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition-colors" title="My Tasks">
+              <ListTodo size={18} />
             </Link>
+            <NotificationBell taskPath="/educator/tasks" />
             <button onClick={logout} className="text-white/50 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition-colors">
               <LogOut size={18} />
             </button>

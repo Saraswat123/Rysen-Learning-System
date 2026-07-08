@@ -156,6 +156,105 @@ const MIGRATIONS = [
       "completedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`,
   },
+  {
+    label: 'TaskGroup table',
+    check: `SELECT 1 FROM information_schema.tables WHERE table_name='TaskGroup'`,
+    sql: `CREATE TABLE IF NOT EXISTS "TaskGroup" (
+      "id" TEXT PRIMARY KEY,
+      "title" TEXT NOT NULL,
+      "description" TEXT,
+      "color" TEXT NOT NULL DEFAULT '#033D4C',
+      "createdById" TEXT NOT NULL REFERENCES "User"("id") ON DELETE CASCADE,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`,
+  },
+  {
+    label: 'Task table',
+    check: `SELECT 1 FROM information_schema.tables WHERE table_name='Task'`,
+    sql: `CREATE TABLE IF NOT EXISTS "Task" (
+      "id" TEXT PRIMARY KEY,
+      "groupId" TEXT REFERENCES "TaskGroup"("id") ON DELETE SET NULL,
+      "title" TEXT NOT NULL,
+      "description" TEXT,
+      "deadline" TIMESTAMP(3),
+      "priority" TEXT NOT NULL DEFAULT 'NORMAL',
+      "createdById" TEXT NOT NULL REFERENCES "User"("id") ON DELETE CASCADE,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`,
+  },
+  {
+    label: 'SubTask table',
+    check: `SELECT 1 FROM information_schema.tables WHERE table_name='SubTask'`,
+    sql: `CREATE TABLE IF NOT EXISTS "SubTask" (
+      "id" TEXT PRIMARY KEY,
+      "taskId" TEXT NOT NULL REFERENCES "Task"("id") ON DELETE CASCADE,
+      "title" TEXT NOT NULL,
+      "order" INTEGER NOT NULL DEFAULT 0,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`,
+  },
+  {
+    label: 'TaskResource table',
+    check: `SELECT 1 FROM information_schema.tables WHERE table_name='TaskResource'`,
+    sql: `CREATE TABLE IF NOT EXISTS "TaskResource" (
+      "id" TEXT PRIMARY KEY,
+      "taskId" TEXT NOT NULL REFERENCES "Task"("id") ON DELETE CASCADE,
+      "type" TEXT NOT NULL DEFAULT 'URL',
+      "title" TEXT NOT NULL,
+      "url" TEXT NOT NULL,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`,
+  },
+  {
+    label: 'TaskAssignment table',
+    check: `SELECT 1 FROM information_schema.tables WHERE table_name='TaskAssignment'`,
+    sql: `CREATE TABLE IF NOT EXISTS "TaskAssignment" (
+      "id" TEXT PRIMARY KEY,
+      "taskId" TEXT NOT NULL REFERENCES "Task"("id") ON DELETE CASCADE,
+      "userId" TEXT NOT NULL REFERENCES "User"("id") ON DELETE CASCADE,
+      "completedAt" TIMESTAMP(3),
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE("taskId","userId")
+    )`,
+  },
+  {
+    label: 'SubTaskProgress table',
+    check: `SELECT 1 FROM information_schema.tables WHERE table_name='SubTaskProgress'`,
+    sql: `CREATE TABLE IF NOT EXISTS "SubTaskProgress" (
+      "id" TEXT PRIMARY KEY,
+      "assignmentId" TEXT NOT NULL REFERENCES "TaskAssignment"("id") ON DELETE CASCADE,
+      "subtaskId" TEXT NOT NULL REFERENCES "SubTask"("id") ON DELETE CASCADE,
+      "completed" BOOLEAN NOT NULL DEFAULT false,
+      "completedAt" TIMESTAMP(3),
+      UNIQUE("assignmentId","subtaskId")
+    )`,
+  },
+  {
+    label: 'TaskComment table',
+    check: `SELECT 1 FROM information_schema.tables WHERE table_name='TaskComment'`,
+    sql: `CREATE TABLE IF NOT EXISTS "TaskComment" (
+      "id" TEXT PRIMARY KEY,
+      "taskId" TEXT NOT NULL REFERENCES "Task"("id") ON DELETE CASCADE,
+      "userId" TEXT NOT NULL REFERENCES "User"("id") ON DELETE CASCADE,
+      "text" TEXT NOT NULL,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`,
+  },
+  {
+    label: 'Notification table',
+    check: `SELECT 1 FROM information_schema.tables WHERE table_name='Notification'`,
+    sql: `CREATE TABLE IF NOT EXISTS "Notification" (
+      "id" TEXT PRIMARY KEY,
+      "userId" TEXT NOT NULL REFERENCES "User"("id") ON DELETE CASCADE,
+      "title" TEXT NOT NULL,
+      "message" TEXT NOT NULL,
+      "type" TEXT NOT NULL DEFAULT 'TASK',
+      "read" BOOLEAN NOT NULL DEFAULT false,
+      "relatedId" TEXT,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`,
+  },
 ]
 
 async function checkPending() {

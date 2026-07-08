@@ -41,10 +41,15 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  progress      StageProgress[]
-  sessions      Session[]
-  textResponses TextResponse[]
-  enrollments   ProgramEnrollment[]
+  progress          StageProgress[]
+  sessions          Session[]
+  textResponses     TextResponse[]
+  enrollments       ProgramEnrollment[]
+  createdTaskGroups TaskGroup[]          @relation("TaskGroupCreator")
+  createdTasks      Task[]               @relation("TaskCreator")
+  taskAssignments   TaskAssignment[]     @relation("TaskAssignee")
+  taskComments      TaskComment[]        @relation("TaskCommenter")
+  notifications     Notification[]       @relation("NotificationRecipient")
 }
 
 model Session {
@@ -205,6 +210,103 @@ model StudentAttempt {
   passed      Boolean     @default(false)
   answers     Json        @default("{}")
   completedAt DateTime    @default(now())
+}
+
+model TaskGroup {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  color       String   @default("#033D4C")
+  createdById String
+  createdBy   User     @relation("TaskGroupCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  tasks       Task[]
+}
+
+model Task {
+  id          String    @id @default(cuid())
+  groupId     String?
+  group       TaskGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  title       String
+  description String?
+  deadline    DateTime?
+  priority    String    @default("NORMAL")
+  createdById String
+  createdBy   User      @relation("TaskCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  subtasks    SubTask[]
+  resources   TaskResource[]
+  assignments TaskAssignment[]
+  comments    TaskComment[]
+}
+
+model SubTask {
+  id        String            @id @default(cuid())
+  taskId    String
+  task      Task              @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  title     String
+  order     Int               @default(0)
+  createdAt DateTime          @default(now())
+  progress  SubTaskProgress[]
+}
+
+model TaskResource {
+  id        String   @id @default(cuid())
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  type      String   @default("URL")
+  title     String
+  url       String
+  createdAt DateTime @default(now())
+}
+
+model TaskAssignment {
+  id          String            @id @default(cuid())
+  taskId      String
+  task        Task              @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User              @relation("TaskAssignee", fields: [userId], references: [id], onDelete: Cascade)
+  completedAt DateTime?
+  createdAt   DateTime          @default(now())
+  progress    SubTaskProgress[]
+
+  @@unique([taskId, userId])
+}
+
+model SubTaskProgress {
+  id           String         @id @default(cuid())
+  assignmentId String
+  assignment   TaskAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  subtaskId    String
+  subtask      SubTask        @relation(fields: [subtaskId], references: [id], onDelete: Cascade)
+  completed    Boolean        @default(false)
+  completedAt  DateTime?
+
+  @@unique([assignmentId, subtaskId])
+}
+
+model TaskComment {
+  id        String   @id @default(cuid())
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation("TaskCommenter", fields: [userId], references: [id], onDelete: Cascade)
+  text      String
+  createdAt DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation("NotificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  type      String   @default("TASK")
+  read      Boolean  @default(false)
+  relatedId String?
+  createdAt DateTime @default(now())
 }
 
 model StageProgress {

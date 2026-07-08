@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Lock, CheckCircle, ChevronRight, BookOpen, Award, Layers, Plus, LogIn, GraduationCap, School, ClipboardList, Trophy } from 'lucide-react'
+import { Lock, CheckCircle, ChevronRight, BookOpen, Award, Layers, Plus, LogIn, GraduationCap, School, ClipboardList, Trophy, ListTodo } from 'lucide-react'
 
 interface Progress { passed: boolean; bestScore: number | null; attempts: number; docRead: boolean }
 interface StageData {
@@ -175,15 +175,15 @@ export default function EducatorDashboard() {
               <p className="text-xs text-charcoal/50">Create &amp; manage tests</p>
             </div>
           </Link>
-          <a href="/student/leaderboard" target="_blank" rel="noreferrer">
-            <div className="bg-white rounded-2xl border border-gray-100 p-4 flex flex-col items-center gap-2 hover:shadow-md hover:border-gold/30 transition-all cursor-pointer text-center">
-              <div className="w-10 h-10 rounded-xl bg-gold flex items-center justify-center">
-                <Trophy size={20} className="text-midnight" />
+          <Link href="/educator/tasks">
+            <div className="bg-white rounded-2xl border border-gray-100 p-4 flex flex-col items-center gap-2 hover:shadow-md hover:border-midnight/20 transition-all cursor-pointer text-center">
+              <div className="w-10 h-10 rounded-xl bg-olive/80 flex items-center justify-center">
+                <ListTodo size={20} className="text-white" />
               </div>
-              <p className="text-sm font-semibold text-midnight">Leaderboard</p>
-              <p className="text-xs text-charcoal/50">Student rankings ↗</p>
+              <p className="text-sm font-semibold text-midnight">My Tasks</p>
+              <p className="text-xs text-charcoal/50">View assigned tasks</p>
             </div>
-          </a>
+          </Link>
         </div>
       </div>
 

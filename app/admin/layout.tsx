@@ -6,8 +6,9 @@ import Link from 'next/link'
 import RysenLogo from '@/components/RysenLogo'
 import {
   LayoutDashboard, Users, BookOpen, BarChart3,
-  UserCog, LogOut, Menu, Trophy, GraduationCap, Layers, School, ClipboardList, FileSpreadsheet,
+  UserCog, LogOut, Menu, Trophy, GraduationCap, Layers, School, ClipboardList, FileSpreadsheet, ListTodo,
 } from 'lucide-react'
+import NotificationBell from '@/components/NotificationBell'
 
 const NAV = [
   { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -18,6 +19,7 @@ const NAV = [
   { href: '/admin/students', label: 'Students', icon: School },
   { href: '/admin/student-tests', label: 'Student Tests', icon: ClipboardList },
   { href: '/admin/test-results', label: 'Results Sheet', icon: FileSpreadsheet },
+  { href: '/admin/tasks', label: 'Task Directory', icon: ListTodo },
   { href: '/admin/analytics', label: 'AI Analytics', icon: BarChart3 },
   { href: '/admin/admins', label: 'Admin Users', icon: UserCog },
   { href: '/leaderboard', label: 'Leaderboard', icon: Trophy },
@@ -41,14 +43,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       const d = await r.json()
       setUser(d.user)
       // Run migration once per browser session; skip if already done
-      if (!sessionStorage.getItem('rysen_migrated_v16')) {
+      if (!sessionStorage.getItem('rysen_migrated_v17')) {
         try {
           const ac = new AbortController()
           const t = setTimeout(() => ac.abort(), 12000)
           await fetch('/api/admin/migrate', { method: 'POST', signal: ac.signal })
           clearTimeout(t)
         } catch {}
-        sessionStorage.setItem('rysen_migrated_v16', '1')
+        sessionStorage.setItem('rysen_migrated_v17', '1')
       }
       setReady(true)
     })
@@ -126,9 +128,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {sidebar}
       {open && <div className="fixed inset-0 z-30 bg-black/50 lg:hidden" onClick={() => setOpen(false)} />}
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="lg:hidden sticky top-0 z-20 bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3">
-          <button onClick={() => setOpen(true)}><Menu size={22} className="text-midnight" /></button>
-          <RysenLogo size="sm" />
+        <header className="sticky top-0 z-20 bg-midnight border-b border-white/10 px-4 py-3 flex items-center gap-3">
+          <button onClick={() => setOpen(true)} className="lg:hidden"><Menu size={22} className="text-white" /></button>
+          <div className="lg:hidden"><RysenLogo size="sm" light /></div>
+          <div className="flex-1" />
+          <NotificationBell taskPath="/admin/tasks" />
         </header>
         <main className="flex-1 p-6 lg:p-8">{children}</main>
       </div>
