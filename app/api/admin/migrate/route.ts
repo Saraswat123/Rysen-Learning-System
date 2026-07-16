@@ -270,6 +270,11 @@ const MIGRATIONS = [
     check: `SELECT 1 FROM information_schema.columns WHERE table_name='TaskResource' AND column_name='description'`,
     sql: `ALTER TABLE "TaskResource" ADD COLUMN IF NOT EXISTS "description" TEXT`,
   },
+  {
+    label: 'User.phone column',
+    check: `SELECT 1 FROM information_schema.columns WHERE table_name='User' AND column_name='phone'`,
+    sql: `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "phone" TEXT`,
+  },
 ]
 
 async function checkPending() {

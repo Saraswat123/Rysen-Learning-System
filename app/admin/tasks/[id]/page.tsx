@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, use, useRef } from 'react'
-import { ArrowLeft, Plus, Trash2, Link2, FileText, Users, CheckSquare, Square, Calendar, MessageSquare, Send, X, CheckCircle, StickyNote, Sparkles, AlertCircle, Clock, Bot, User } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, Link2, FileText, Users, CheckSquare, Square, Calendar, MessageSquare, Send, X, CheckCircle, StickyNote, Sparkles, AlertCircle, Clock, Bot, User, Bell, Mail, Phone, ExternalLink } from 'lucide-react'
 import Link from 'next/link'
 import Button from '@/components/ui/Button'
 
@@ -15,6 +15,7 @@ interface Task {
 }
 interface Educator { id: string; name: string; branch: { name: string } | null }
 interface ChatMessage { role: 'user' | 'ai'; text: string }
+interface RemindResult { userId: string; name: string; email?: string; emailSent?: boolean; emailError?: string; whatsappLink?: string; whatsapp?: string }
 
 const ROLE_BADGE: Record<string, string> = { ADMIN: 'text-gold', SUPER_ADMIN: 'text-gold', EDUCATOR: 'text-midnight/50', PRINCIPAL: 'text-forest' }
 
@@ -47,6 +48,11 @@ export default function AdminTaskDetailPage({ params }: { params: Promise<{ id: 
   const [chatInput, setChatInput] = useState('')
   const [chatLoading, setChatLoading] = useState(false)
   const chatEndRef = useRef<HTMLDivElement>(null)
+  const [showRemind, setShowRemind] = useState(false)
+  const [remindTargets, setRemindTargets] = useState<Map<string, Set<'email' | 'whatsapp'>>>(new Map())
+  const [remindMsg, setRemindMsg] = useState('')
+  const [reminding, setReminding] = useState(false)
+  const [remindResults, setRemindResults] = useState<RemindResult[]>([])
 
   async function load() {
     const [t, e] = await Promise.all([
@@ -106,6 +112,43 @@ export default function AdminTaskDetailPage({ params }: { params: Promise<{ id: 
     setSaving('comment')
     await fetch(`/api/tasks/${id}/comments`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: commentText }) })
     setCommentText(''); setSaving(null); load()
+  }
+
+  function toggleRemindChannel(userId: string, channel: 'email' | 'whatsapp') {
+    setRemindTargets((prev) => {
+      const n = new Map(prev)
+      if (!n.has(userId)) n.set(userId, new Set())
+      const ch = new Set(n.get(userId)!)
+      ch.has(channel) ? ch.delete(channel) : ch.add(channel)
+      n.set(userId, ch)
+      return n
+    })
+  }
+
+  function selectAllRemind(channel: 'email' | 'whatsapp') {
+    setRemindTargets((prev) => {
+      const n = new Map(prev)
+      task?.assignments.forEach((a) => {
+        if (!n.has(a.user.id)) n.set(a.user.id, new Set())
+        n.get(a.user.id)!.add(channel)
+      })
+      return n
+    })
+  }
+
+  async function sendReminders() {
+    const targets = [...remindTargets.entries()]
+      .filter(([, ch]) => ch.size > 0)
+      .map(([userId, ch]) => ({ userId, channels: [...ch] }))
+    if (!targets.length) return
+    setReminding(true)
+    const res = await fetch(`/api/tasks/${id}/remind`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ targets, customMessage: remindMsg || undefined }),
+    })
+    const data = await res.json()
+    setRemindResults(data.results ?? [])
+    setReminding(false)
   }
 
   async function sendChat(e: React.FormEvent) {
@@ -408,6 +451,86 @@ export default function AdminTaskDetailPage({ params }: { params: Promise<{ id: 
                   )
                 })}
               </div>
+            </div>
+          )}
+
+          {/* Send Reminder */}
+          {task.assignments.length > 0 && (
+            <div className="bg-white rounded-2xl border border-gray-100 p-5">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="font-bold text-midnight flex items-center gap-2"><Bell size={16} /> Send Reminder</h2>
+                {!showRemind && (
+                  <Button size="sm" onClick={() => { setShowRemind(true); setRemindResults([]); setRemindTargets(new Map()) }} className="bg-olive/80 text-white hover:bg-olive text-xs">
+                    <Bell size={12} /> Remind
+                  </Button>
+                )}
+              </div>
+              {showRemind && (
+                <div className="flex flex-col gap-3">
+                  {remindResults.length === 0 ? (
+                    <>
+                      <div className="flex gap-2 mb-1">
+                        <button onClick={() => selectAllRemind('email')} className="text-xs px-2.5 py-1 rounded-lg bg-midnight/5 text-midnight hover:bg-midnight/10 transition-colors flex items-center gap-1"><Mail size={11} /> All Email</button>
+                        <button onClick={() => selectAllRemind('whatsapp')} className="text-xs px-2.5 py-1 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 transition-colors flex items-center gap-1"><Phone size={11} /> All WhatsApp</button>
+                      </div>
+                      {task.assignments.map((a) => {
+                        const ch = remindTargets.get(a.user.id) ?? new Set()
+                        return (
+                          <div key={a.user.id} className="flex items-center gap-2 py-2 border-b border-gray-50 last:border-0">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-midnight truncate">{a.user.name}</p>
+                              {a.user.branch && <p className="text-xs text-charcoal/40">{a.user.branch.name}</p>}
+                            </div>
+                            <button onClick={() => toggleRemindChannel(a.user.id, 'email')}
+                              className={`flex items-center gap-1 text-xs px-2 py-1 rounded-lg border transition-all ${ch.has('email') ? 'bg-midnight text-white border-midnight' : 'border-gray-200 text-charcoal/50 hover:border-midnight/30'}`}>
+                              <Mail size={11} /> Email
+                            </button>
+                            <button onClick={() => toggleRemindChannel(a.user.id, 'whatsapp')}
+                              className={`flex items-center gap-1 text-xs px-2 py-1 rounded-lg border transition-all ${ch.has('whatsapp') ? 'bg-green-600 text-white border-green-600' : 'border-gray-200 text-charcoal/50 hover:border-green-400'}`}>
+                              <Phone size={11} /> WA
+                            </button>
+                          </div>
+                        )
+                      })}
+                      <textarea value={remindMsg} onChange={(e) => setRemindMsg(e.target.value)} rows={2}
+                        placeholder="Custom message (optional — leave blank for default)"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-midnight resize-none" />
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="ghost" onClick={() => setShowRemind(false)} className="flex-1 text-xs">Cancel</Button>
+                        <Button size="sm" loading={reminding} onClick={sendReminders}
+                          disabled={[...remindTargets.values()].every((ch) => ch.size === 0)}
+                          className="flex-1 bg-midnight text-white text-xs">
+                          <Send size={12} /> Send
+                        </Button>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      <p className="text-xs font-semibold text-midnight mb-1">Results</p>
+                      {remindResults.map((r) => (
+                        <div key={r.userId} className="text-xs border border-gray-100 rounded-xl p-3 flex flex-col gap-1.5">
+                          <p className="font-semibold text-midnight">{r.name}</p>
+                          {r.email && (
+                            <p className={`flex items-center gap-1 ${r.emailSent ? 'text-forest' : 'text-red-500'}`}>
+                              <Mail size={11} /> {r.emailSent ? `Email sent to ${r.email}` : `Email failed: ${r.emailError}`}
+                            </p>
+                          )}
+                          {r.whatsappLink && (
+                            <a href={r.whatsappLink} target="_blank" rel="noreferrer"
+                              className="flex items-center gap-1 text-green-600 font-semibold hover:underline">
+                              <Phone size={11} /> Open WhatsApp <ExternalLink size={10} />
+                            </a>
+                          )}
+                          {r.whatsapp === 'no_phone' && (
+                            <p className="text-amber-500 flex items-center gap-1"><Phone size={11} /> No phone number saved</p>
+                          )}
+                        </div>
+                      ))}
+                      <Button size="sm" variant="ghost" onClick={() => { setShowRemind(false); setRemindResults([]) }} className="text-xs mt-1">Close</Button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>

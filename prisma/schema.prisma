@@ -33,6 +33,7 @@ model User {
   id        String   @id @default(cuid())
   name      String
   email     String   @unique
+  phone     String?
   role      Role     @default(EDUCATOR)
   branchId  String?
   branch    Branch?  @relation(fields: [branchId], references: [id])

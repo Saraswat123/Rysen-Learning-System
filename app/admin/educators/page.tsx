@@ -30,7 +30,7 @@ export default function EducatorsPage() {
   const [search, setSearch] = useState('')
   const [showAdd, setShowAdd] = useState(false)
   const [showBulk, setShowBulk] = useState(false)
-  const [form, setForm] = useState({ name: '', email: '', branchId: '' })
+  const [form, setForm] = useState({ name: '', email: '', phone: '', branchId: '' })
   const [loading, setLoading] = useState(false)
   const [bulkRows, setBulkRows] = useState<{ name: string; email: string }[]>([])
   const [bulkLoading, setBulkLoading] = useState(false)
@@ -64,7 +64,7 @@ export default function EducatorsPage() {
     setLoading(false)
     if (!res.ok) { setToast({ msg: data.error, type: 'error' }); return }
     setToast({ msg: 'Educator added successfully', type: 'success' })
-    setForm({ name: '', email: '', branchId: '' })
+    setForm({ name: '', email: '', phone: '', branchId: '' })
     setShowAdd(false)
     load()
   }
@@ -304,6 +304,8 @@ export default function EducatorsPage() {
                 onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} required />
               <Input label="Email" type="email" placeholder="teacher@email.com" value={form.email}
                 onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} required />
+              <Input label="WhatsApp / Phone" type="tel" placeholder="+91 9876543210 (with country code)" value={form.phone}
+                onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-semibold text-charcoal">Campus <span className="font-normal text-charcoal/40">(optional — assign later)</span></label>
                 <select value={form.branchId}
