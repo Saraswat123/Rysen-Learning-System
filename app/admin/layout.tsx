@@ -6,7 +6,7 @@ import Link from 'next/link'
 import RysenLogo from '@/components/RysenLogo'
 import {
   LayoutDashboard, Users, BookOpen, BarChart3,
-  UserCog, LogOut, Menu, Trophy, GraduationCap, Layers, School, ClipboardList, FileSpreadsheet, ListTodo, PieChart,
+  UserCog, LogOut, Menu, Trophy, GraduationCap, Layers, School, ClipboardList, FileSpreadsheet, ListTodo, PieChart, Sparkles,
 } from 'lucide-react'
 import NotificationBell from '@/components/NotificationBell'
 
@@ -20,6 +20,7 @@ const NAV = [
   { href: '/admin/student-tests', label: 'Student Tests', icon: ClipboardList },
   { href: '/admin/test-results', label: 'Results Sheet', icon: FileSpreadsheet },
   { href: '/admin/tasks', label: 'Task Directory', icon: ListTodo },
+  { href: '/admin/ai-assistant', label: 'RYSEN AI', icon: Sparkles },
   { href: '/admin/reports', label: 'Branch Reports', icon: PieChart },
   { href: '/admin/analytics', label: 'AI Analytics', icon: BarChart3 },
   { href: '/admin/admins', label: 'Admin Users', icon: UserCog },

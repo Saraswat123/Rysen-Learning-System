@@ -1,0 +1,374 @@
+export const dynamic = 'force-dynamic'
+import { NextRequest, NextResponse } from 'next/server'
+import { db } from '@/lib/db'
+import { getSession } from '@/lib/auth'
+import { Role } from '@/app/generated/prisma/client'
+import Groq from 'groq-sdk'
+
+// ── Tool definitions ──────────────────────────────────────────────────────────
+const TOOLS: Groq.Chat.Completions.ChatCompletionTool[] = [
+  {
+    type: 'function',
+    function: {
+      name: 'list_tasks',
+      description: 'List all tasks, optionally filtered by group',
+      parameters: {
+        type: 'object',
+        properties: {
+          groupId: { type: 'string', description: 'Filter by task group ID (optional)' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'list_task_groups',
+      description: 'List all task groups',
+      parameters: { type: 'object', properties: {} },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'list_educators',
+      description: 'List all educators with their branch info',
+      parameters: {
+        type: 'object',
+        properties: {
+          search: { type: 'string', description: 'Search by name or branch (optional)' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_task',
+      description: 'Get full details of a specific task by ID',
+      parameters: {
+        type: 'object',
+        properties: { id: { type: 'string', description: 'Task ID' } },
+        required: ['id'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'create_task',
+      description: 'Create a new task in the task directory',
+      parameters: {
+        type: 'object',
+        properties: {
+          title: { type: 'string', description: 'Task title' },
+          description: { type: 'string', description: 'Task description (optional)' },
+          notes: { type: 'string', description: 'Admin notes for educators (optional)' },
+          priority: { type: 'string', enum: ['LOW', 'NORMAL', 'HIGH'], description: 'Priority level' },
+          deadline: { type: 'string', description: 'Deadline as ISO date string e.g. 2026-08-01 (optional)' },
+          groupId: { type: 'string', description: 'Task group ID (optional)' },
+          assigneeIds: { type: 'array', items: { type: 'string' }, description: 'List of educator user IDs to assign (optional)' },
+        },
+        required: ['title'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'update_task',
+      description: 'Update an existing task fields',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'Task ID to update' },
+          title: { type: 'string', description: 'New title (optional)' },
+          description: { type: 'string', description: 'New description (optional)' },
+          notes: { type: 'string', description: 'New admin notes (optional)' },
+          priority: { type: 'string', enum: ['LOW', 'NORMAL', 'HIGH'], description: 'New priority (optional)' },
+          deadline: { type: 'string', description: 'New deadline ISO date or null to clear (optional)' },
+        },
+        required: ['id'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'delete_task',
+      description: 'Permanently delete a task',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'Task ID to delete' },
+        },
+        required: ['id'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'assign_educators',
+      description: 'Assign or update educator assignments for a task',
+      parameters: {
+        type: 'object',
+        properties: {
+          taskId: { type: 'string', description: 'Task ID' },
+          userIds: { type: 'array', items: { type: 'string' }, description: 'Array of educator user IDs (replaces existing assignments)' },
+        },
+        required: ['taskId', 'userIds'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'add_subtask',
+      description: 'Add a subtask/checklist item to a task',
+      parameters: {
+        type: 'object',
+        properties: {
+          taskId: { type: 'string', description: 'Parent task ID' },
+          title: { type: 'string', description: 'Subtask title' },
+          deadline: { type: 'string', description: 'Subtask deadline ISO date (optional)' },
+        },
+        required: ['taskId', 'title'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'add_resource',
+      description: 'Add a resource (URL or document) to a task',
+      parameters: {
+        type: 'object',
+        properties: {
+          taskId: { type: 'string', description: 'Parent task ID' },
+          type: { type: 'string', enum: ['URL', 'DOCUMENT'], description: 'Resource type' },
+          title: { type: 'string', description: 'Resource title' },
+          url: { type: 'string', description: 'Resource URL' },
+          description: { type: 'string', description: 'Key points about this resource (optional)' },
+        },
+        required: ['taskId', 'title', 'url'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'create_task_group',
+      description: 'Create a new task group/category',
+      parameters: {
+        type: 'object',
+        properties: {
+          title: { type: 'string', description: 'Group name' },
+          description: { type: 'string', description: 'Group description (optional)' },
+          color: { type: 'string', description: 'Hex color code e.g. #033D4C (optional)' },
+        },
+        required: ['title'],
+      },
+    },
+  },
+]
+
+// ── Tool executors ────────────────────────────────────────────────────────────
+async function executeTool(name: string, args: Record<string, unknown>, userId: string): Promise<unknown> {
+  switch (name) {
+    case 'list_tasks': {
+      const groupId = args.groupId as string | undefined
+      const tasks = await db.task.findMany({
+        where: groupId ? { groupId } : {},
+        include: {
+          group: { select: { title: true, color: true } },
+          assignments: { include: { user: { select: { name: true } } } },
+          _count: { select: { subtasks: true, comments: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+      })
+      return tasks.map((t) => ({
+        id: t.id, title: t.title, priority: t.priority,
+        deadline: t.deadline, group: t.group?.title,
+        assignees: t.assignments.map((a) => a.user.name),
+        subtasks: t._count.subtasks, comments: t._count.comments,
+      }))
+    }
+    case 'list_task_groups': {
+      const groups = await db.taskGroup.findMany({ include: { _count: { select: { tasks: true } } }, orderBy: { createdAt: 'asc' } })
+      return groups.map((g) => ({ id: g.id, title: g.title, description: g.description, tasks: g._count.tasks }))
+    }
+    case 'list_educators': {
+      const search = (args.search as string | undefined)?.toLowerCase()
+      const educators = await db.user.findMany({
+        where: { role: { in: [Role.EDUCATOR, Role.PRINCIPAL] }, isActive: true },
+        select: { id: true, name: true, email: true, branch: { select: { name: true } } },
+        orderBy: { name: 'asc' },
+      })
+      const filtered = search
+        ? educators.filter((e) => e.name.toLowerCase().includes(search) || (e.branch?.name ?? '').toLowerCase().includes(search))
+        : educators
+      return filtered.map((e) => ({ id: e.id, name: e.name, branch: e.branch?.name }))
+    }
+    case 'get_task': {
+      const task = await db.task.findUnique({
+        where: { id: args.id as string },
+        include: {
+          group: { select: { title: true } },
+          subtasks: { orderBy: { order: 'asc' } },
+          resources: true,
+          assignments: { include: { user: { select: { name: true } }, progress: { select: { completed: true } } } },
+          _count: { select: { comments: true } },
+        },
+      })
+      if (!task) return { error: 'Task not found' }
+      return {
+        id: task.id, title: task.title, description: task.description, notes: task.notes,
+        priority: task.priority, deadline: task.deadline, group: task.group?.title,
+        subtasks: task.subtasks.map((s) => ({ id: s.id, title: s.title, deadline: s.deadline })),
+        resources: task.resources.map((r) => ({ id: r.id, title: r.title, type: r.type, url: r.url })),
+        assignees: task.assignments.map((a) => ({ name: a.user.name, completed: !!a.completedAt, subtasksDone: a.progress.filter((p) => p.completed).length })),
+        comments: task._count.comments,
+      }
+    }
+    case 'create_task': {
+      const { title, description, notes, priority, deadline, groupId, assigneeIds } = args as {
+        title: string; description?: string; notes?: string; priority?: string
+        deadline?: string; groupId?: string; assigneeIds?: string[]
+      }
+      const task = await db.task.create({
+        data: {
+          title, description: description ?? null, notes: notes ?? null,
+          priority: priority ?? 'NORMAL', deadline: deadline ? new Date(deadline) : null,
+          groupId: groupId || null, createdById: userId,
+          assignments: assigneeIds?.length ? { create: assigneeIds.map((uid) => ({ userId: uid })) } : undefined,
+        },
+      })
+      if (assigneeIds?.length) {
+        await db.notification.createMany({
+          data: assigneeIds.map((uid) => ({ userId: uid, title: 'New Task Assigned', message: `You have been assigned: "${title}"`, type: 'TASK', relatedId: task.id })),
+        })
+      }
+      return { success: true, id: task.id, title: task.title, message: `Task "${title}" created successfully${assigneeIds?.length ? ` and assigned to ${assigneeIds.length} educator(s)` : ''}.` }
+    }
+    case 'update_task': {
+      const { id, title, description, notes, priority, deadline } = args as { id: string; title?: string; description?: string; notes?: string; priority?: string; deadline?: string | null }
+      const task = await db.task.update({
+        where: { id },
+        data: {
+          ...(title !== undefined && { title }),
+          ...(description !== undefined && { description }),
+          ...(notes !== undefined && { notes }),
+          ...(priority !== undefined && { priority }),
+          ...(deadline !== undefined && { deadline: deadline ? new Date(deadline) : null }),
+        },
+      })
+      return { success: true, id: task.id, title: task.title, message: `Task "${task.title}" updated successfully.` }
+    }
+    case 'delete_task': {
+      const task = await db.task.findUnique({ where: { id: args.id as string }, select: { title: true } })
+      if (!task) return { error: 'Task not found' }
+      await db.task.delete({ where: { id: args.id as string } })
+      return { success: true, message: `Task "${task.title}" deleted successfully.` }
+    }
+    case 'assign_educators': {
+      const { taskId, userIds } = args as { taskId: string; userIds: string[] }
+      const existing = await db.taskAssignment.findMany({ where: { taskId }, select: { userId: true } })
+      const existingIds = new Set(existing.map((a) => a.userId))
+      const toAdd = userIds.filter((id) => !existingIds.has(id))
+      const toRemove = [...existingIds].filter((id) => !userIds.includes(id))
+      if (toRemove.length) await db.taskAssignment.deleteMany({ where: { taskId, userId: { in: toRemove } } })
+      if (toAdd.length) {
+        await db.taskAssignment.createMany({ data: toAdd.map((uid) => ({ taskId, userId: uid })) })
+        const task = await db.task.findUnique({ where: { id: taskId }, select: { title: true } })
+        await db.notification.createMany({ data: toAdd.map((uid) => ({ userId: uid, title: 'New Task Assigned', message: `You have been assigned: "${task?.title}"`, type: 'TASK', relatedId: taskId })) })
+      }
+      return { success: true, message: `Assignments updated: ${toAdd.length} added, ${toRemove.length} removed.` }
+    }
+    case 'add_subtask': {
+      const { taskId, title, deadline } = args as { taskId: string; title: string; deadline?: string }
+      const max = await db.subTask.aggregate({ where: { taskId }, _max: { order: true } })
+      const sub = await db.subTask.create({ data: { taskId, title, deadline: deadline ? new Date(deadline) : null, order: (max._max.order ?? 0) + 1 } })
+      return { success: true, id: sub.id, title: sub.title, message: `Subtask "${title}" added.` }
+    }
+    case 'add_resource': {
+      const { taskId, type, title, url, description } = args as { taskId: string; type?: string; title: string; url: string; description?: string }
+      const res = await db.taskResource.create({ data: { taskId, type: type ?? 'URL', title, url, description: description ?? null } })
+      return { success: true, id: res.id, title: res.title, message: `Resource "${title}" added.` }
+    }
+    case 'create_task_group': {
+      const { title, description, color } = args as { title: string; description?: string; color?: string }
+      const COLORS = ['#033D4C', '#225632', '#7D783E', '#40403E', '#5B4D8A', '#9E4A3A', '#FECB08']
+      const group = await db.taskGroup.create({ data: { title, description: description ?? null, color: color ?? COLORS[Math.floor(Math.random() * COLORS.length)], createdById: userId } })
+      return { success: true, id: group.id, title: group.title, message: `Task group "${title}" created.` }
+    }
+    default:
+      return { error: `Unknown tool: ${name}` }
+  }
+}
+
+// ── Main handler ──────────────────────────────────────────────────────────────
+export async function POST(req: NextRequest) {
+  const user = await getSession()
+  if (!user || (user.role !== Role.ADMIN && user.role !== Role.SUPER_ADMIN)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+  }
+
+  const apiKey = process.env.GROQ_API_KEY
+  if (!apiKey) return NextResponse.json({ reply: 'AI not configured. Set GROQ_API_KEY.', actions: [] })
+
+  const { messages } = await req.json() as { messages: Groq.Chat.Completions.ChatCompletionMessageParam[] }
+
+  const groq = new Groq({ apiKey })
+  const systemPrompt = `You are RYSEN AI — an intelligent task management assistant for RYSEN Learning Centre admin team.
+
+You can create, update, delete, and manage tasks, subtasks, resources, and educator assignments through natural language commands.
+
+Current date: ${new Date().toLocaleDateString('en-IN', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
+
+Guidelines:
+- Be concise and action-oriented
+- When creating tasks, always confirm what was created
+- When listing tasks, format them clearly
+- If user asks to assign educators, first list educators if you don't know their IDs
+- For deadlines, interpret natural language like "next Friday", "end of month" into proper dates
+- Always confirm before deleting
+- After actions, briefly summarize what was done`
+
+  const msgHistory: Groq.Chat.Completions.ChatCompletionMessageParam[] = [
+    { role: 'system', content: systemPrompt },
+    ...messages,
+  ]
+
+  const actions: { tool: string; args: Record<string, unknown>; result: unknown }[] = []
+
+  // Agentic loop — run until no more tool calls
+  for (let i = 0; i < 5; i++) {
+    const response = await groq.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      messages: msgHistory,
+      tools: TOOLS,
+      tool_choice: 'auto',
+      max_tokens: 2000,
+    })
+
+    const msg = response.choices[0].message
+    msgHistory.push(msg as Groq.Chat.Completions.ChatCompletionMessageParam)
+
+    if (!msg.tool_calls?.length) {
+      return NextResponse.json({ reply: msg.content ?? 'Done.', actions })
+    }
+
+    // Execute all tool calls
+    const toolResults: Groq.Chat.Completions.ChatCompletionToolMessageParam[] = []
+    for (const call of msg.tool_calls) {
+      const args = JSON.parse(call.function.arguments) as Record<string, unknown>
+      const result = await executeTool(call.function.name, args, user.id)
+      actions.push({ tool: call.function.name, args, result })
+      toolResults.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify(result) })
+    }
+    msgHistory.push(...toolResults)
+  }
+
+  return NextResponse.json({ reply: 'Done processing your request.', actions })
+}
