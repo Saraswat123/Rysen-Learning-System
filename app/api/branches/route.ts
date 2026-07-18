@@ -5,8 +5,12 @@ import { db } from '@/lib/db'
 import { getSession } from '@/lib/auth'
 import { Role } from '@/app/generated/prisma/client'
 
-export async function GET() {
-  const branches = await db.branch.findMany({ orderBy: { location: 'asc' } })
+export async function GET(req: Request) {
+  const withCounts = new URL(req.url).searchParams.get('counts') === '1'
+  const branches = await db.branch.findMany({
+    orderBy: { location: 'asc' },
+    include: withCounts ? { _count: { select: { users: true, students: true } } } : undefined,
+  })
   return NextResponse.json(branches)
 }
 

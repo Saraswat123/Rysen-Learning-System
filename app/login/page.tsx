@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import RysenLogo from '@/components/RysenLogo'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
-import { Layers, CheckCircle, BookOpen } from 'lucide-react'
+import { Layers, CheckCircle, BookOpen, ChevronDown, X, ArrowRight } from 'lucide-react'
 
 interface Branch { id: string; name: string; location: string }
 interface Program { id: string; name: string; description: string | null; applicableTo: string; isPublished: boolean; _count: { stages: number } }
@@ -18,8 +18,10 @@ export default function EducatorLogin() {
   const [programs, setPrograms] = useState<Program[]>([])
   const [form, setForm] = useState({ name: '', email: '', branchId: '' })
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [dropdownOpen, setDropdownOpen] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     fetch('/api/branches').then((r) => r.json()).then(setBranches).catch(() => {})
@@ -27,9 +29,19 @@ export default function EducatorLogin() {
       if (Array.isArray(d)) {
         const filtered = d.filter((p: Program) => p.applicableTo === 'BOTH' || p.applicableTo === 'EDUCATOR')
         setPrograms(filtered)
-        if (filtered.length === 1) setSelectedIds(new Set([filtered[0].id]))
       }
     }).catch(() => {})
+  }, [])
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handle(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handle)
+    return () => document.removeEventListener('mousedown', handle)
   }, [])
 
   function toggleProgram(id: string) {
@@ -40,18 +52,9 @@ export default function EducatorLogin() {
     })
   }
 
-  function selectAll() {
-    setSelectedIds(new Set(programs.map((p) => p.id)))
-  }
+  function clearAll() { setSelectedIds(new Set()) }
 
-  function clearAll() {
-    setSelectedIds(new Set())
-  }
-
-  const allSelected = programs.length > 0 && selectedIds.size === programs.length
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
+  async function submit(skipPrograms = false) {
     setError('')
     setLoading(true)
     try {
@@ -62,22 +65,35 @@ export default function EducatorLogin() {
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error); return }
-      // Enroll in all selected programs
-      await Promise.all(
-        [...selectedIds].map((id) =>
-          fetch(`/api/programs/${id}/enroll`, { method: 'POST' }).catch(() => {})
+      if (!skipPrograms && selectedIds.size > 0) {
+        await Promise.all(
+          [...selectedIds].map((id) =>
+            fetch(`/api/programs/${id}/enroll`, { method: 'POST' }).catch(() => {})
+          )
         )
-      )
+      }
       router.push('/educator/dashboard')
     } finally {
       setLoading(false)
     }
   }
 
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    await submit(false)
+  }
+
   const locationGroups = branches.reduce<Record<string, Branch[]>>((acc, b) => {
     acc[b.location] = [...(acc[b.location] ?? []), b]
     return acc
   }, {})
+
+  const selectedPrograms = programs.filter((p) => selectedIds.has(p.id))
+  const dropdownLabel = selectedIds.size === 0
+    ? 'Select programs (optional)'
+    : selectedIds.size === 1
+      ? selectedPrograms[0]?.name
+      : `${selectedIds.size} programs selected`
 
   return (
     <div className="min-h-screen flex">
@@ -148,7 +164,7 @@ export default function EducatorLogin() {
                 <label className="text-sm font-semibold text-charcoal">Campus / Branch</label>
                 <select required value={form.branchId}
                   onChange={(e) => setForm((f) => ({ ...f, branchId: e.target.value }))}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-charcoal bg-white focus:outline-none focus:ring-2 focus:ring-midnight">
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-charcoal bg-white focus:outline-none focus:ring-2 focus:ring-midnight text-sm">
                   <option value="">Select your campus</option>
                   {Object.entries(locationGroups).map(([loc, bs]) => (
                     <optgroup key={loc} label={loc}>
@@ -158,48 +174,68 @@ export default function EducatorLogin() {
                 </select>
               </div>
 
-              {/* Multi-select Program Cards */}
+              {/* Program multi-select dropdown */}
               {programs.length > 0 && (
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-1">
                   <div className="flex items-center justify-between">
-                    <label className="text-sm font-semibold text-charcoal">Select Training Program(s)</label>
-                    <button type="button" onClick={allSelected ? clearAll : selectAll}
-                      className="text-xs font-semibold text-midnight underline underline-offset-2 hover:text-forest transition-colors">
-                      {allSelected ? 'Deselect All' : 'Select All'}
+                    <label className="text-sm font-semibold text-charcoal">
+                      Training Program <span className="text-charcoal/40 font-normal">(optional)</span>
+                    </label>
+                    {selectedIds.size > 0 && (
+                      <button type="button" onClick={clearAll}
+                        className="text-xs text-charcoal/40 hover:text-charcoal flex items-center gap-1 transition-colors">
+                        <X size={11} /> Clear
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Dropdown trigger */}
+                  <div ref={dropdownRef} className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setDropdownOpen((v) => !v)}
+                      className="w-full flex items-center justify-between px-4 py-2.5 border border-gray-300 rounded-lg text-sm bg-white hover:border-midnight/40 focus:outline-none focus:ring-2 focus:ring-midnight transition-colors"
+                    >
+                      <span className={selectedIds.size === 0 ? 'text-charcoal/40' : 'text-charcoal font-medium'}>
+                        {dropdownLabel}
+                      </span>
+                      <ChevronDown size={15} className={`text-charcoal/40 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
                     </button>
+
+                    {dropdownOpen && (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-20 overflow-hidden">
+                        {programs.map((p, i) => {
+                          const selected = selectedIds.has(p.id)
+                          return (
+                            <button
+                              key={p.id}
+                              type="button"
+                              onClick={() => toggleProgram(p.id)}
+                              className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0 ${selected ? 'bg-midnight/3' : ''}`}
+                            >
+                              <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+                                style={{ backgroundColor: PROG_COLORS[i % PROG_COLORS.length] }}>
+                                <Layers size={12} className="text-white" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-midnight truncate">{p.name}</p>
+                                <p className="text-xs text-charcoal/40">
+                                  {p._count.stages > 0 ? `${p._count.stages} stages` : 'Coming soon'}
+                                  {!p.isPublished && ' · Coming Soon'}
+                                </p>
+                              </div>
+                              <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all ${selected ? 'border-midnight bg-midnight' : 'border-gray-300'}`}>
+                                {selected && <CheckCircle size={10} className="text-white" />}
+                              </div>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )}
                   </div>
-                  <div className="flex flex-col gap-2">
-                    {programs.map((p, i) => {
-                      const selected = selectedIds.has(p.id)
-                      return (
-                        <button key={p.id} type="button" onClick={() => toggleProgram(p.id)}
-                          className={`flex items-center gap-3 px-4 py-3 rounded-xl border-2 text-left transition-all ${selected ? 'border-midnight bg-midnight/5' : 'border-gray-100 hover:border-gray-200 bg-white'}`}>
-                          <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                            style={{ backgroundColor: PROG_COLORS[i % PROG_COLORS.length] }}>
-                            <Layers size={15} className="text-white" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <p className="text-sm font-semibold text-midnight">{p.name}</p>
-                              {!p.isPublished && <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium">Coming Soon</span>}
-                            </div>
-                            {p.description && <p className="text-xs text-charcoal/50 truncate">{p.description}</p>}
-                            <p className="text-xs text-charcoal/40 mt-0.5 flex items-center gap-1">
-                              <BookOpen size={10} /> {p._count.stages > 0 ? `${p._count.stages} stages` : 'Stages coming soon'}
-                            </p>
-                          </div>
-                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${selected ? 'border-midnight bg-midnight' : 'border-gray-300'}`}>
-                            {selected && <CheckCircle size={14} className="text-white" />}
-                          </div>
-                        </button>
-                      )
-                    })}
-                  </div>
-                  {selectedIds.size === 0 && (
-                    <p className="text-xs text-amber-600">Select at least one program to join</p>
-                  )}
+
                   {selectedIds.size > 0 && (
-                    <p className="text-xs text-forest font-medium">{selectedIds.size} program{selectedIds.size > 1 ? 's' : ''} selected</p>
+                    <p className="text-xs text-forest font-medium">{selectedIds.size} program{selectedIds.size > 1 ? 's' : ''} selected — will enroll on sign in</p>
                   )}
                 </div>
               )}
@@ -209,7 +245,21 @@ export default function EducatorLogin() {
               <Button type="submit" loading={loading} size="lg" className="mt-2">Sign In</Button>
             </form>
 
-            <p className="text-xs text-center text-charcoal/50 mt-6">
+            {/* Skip programs — go straight to tasks */}
+            <div className="mt-4 pt-4 border-t border-gray-100">
+              <button
+                type="button"
+                onClick={() => submit(true)}
+                disabled={loading || !form.name || !form.email || !form.branchId}
+                className="w-full flex items-center justify-center gap-2 text-sm text-charcoal/50 hover:text-midnight transition-colors py-2 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Skip training — go to Task Dashboard
+                <ArrowRight size={14} />
+              </button>
+              <p className="text-xs text-center text-charcoal/30 mt-1">Fill name, email and campus above first</p>
+            </div>
+
+            <p className="text-xs text-center text-charcoal/50 mt-4">
               Not registered? <span className="text-midnight font-medium">Contact your Campus Head or Admin.</span>
             </p>
           </div>
@@ -217,7 +267,7 @@ export default function EducatorLogin() {
           <div className="flex items-center justify-center gap-4 mt-5 flex-wrap">
             <a href="/student/login" className="text-sm font-semibold text-midnight/70 hover:text-midnight transition-colors">Student Portal →</a>
             <span className="text-charcoal/30 text-sm">|</span>
-            <a href="/principal/login" className="text-sm font-semibold text-midnight/70 hover:text-midnight transition-colors">Principal / Center Head Login →</a>
+            <a href="/principal/login" className="text-sm font-semibold text-midnight/70 hover:text-midnight transition-colors">Principal Login →</a>
             <span className="text-charcoal/30 text-sm">|</span>
             <a href="/admin/login" className="text-sm font-semibold text-midnight/70 hover:text-midnight transition-colors">Admin Login →</a>
           </div>

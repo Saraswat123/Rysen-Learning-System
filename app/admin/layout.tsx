@@ -6,12 +6,13 @@ import Link from 'next/link'
 import RysenLogo from '@/components/RysenLogo'
 import {
   LayoutDashboard, Users, BookOpen, BarChart3,
-  UserCog, LogOut, Menu, Trophy, GraduationCap, Layers, School, ClipboardList, FileSpreadsheet, ListTodo, PieChart, Sparkles,
+  UserCog, LogOut, Menu, Trophy, GraduationCap, Layers, School, ClipboardList, FileSpreadsheet, ListTodo, PieChart, Sparkles, Building2,
 } from 'lucide-react'
 import NotificationBell from '@/components/NotificationBell'
 
 const NAV = [
   { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/admin/campuses', label: 'Campuses', icon: Building2 },
   { href: '/admin/educators', label: 'Educators', icon: Users },
   { href: '/admin/principals', label: 'Principals', icon: GraduationCap },
   { href: '/admin/programs', label: 'Programs', icon: Layers },

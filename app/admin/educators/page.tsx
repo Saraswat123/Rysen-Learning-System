@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Plus, Search, ToggleLeft, ToggleRight, X, Upload, Download, FileSpreadsheet, Trash2, Eye } from 'lucide-react'
+import { Plus, Search, ToggleLeft, ToggleRight, X, Upload, Download, FileSpreadsheet, Trash2, Eye, Pencil, Phone } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Toast from '@/components/Toast'
@@ -9,7 +9,7 @@ import * as XLSX from 'xlsx'
 
 interface Branch { id: string; name: string; location: string }
 interface Educator {
-  id: string; name: string; email: string; isActive: boolean
+  id: string; name: string; email: string; phone: string | null; isActive: boolean
   branch: Branch | null
   progress: { passed: boolean; stage: { number: number; title: string } }[]
 }
@@ -36,6 +36,9 @@ export default function EducatorsPage() {
   const [bulkLoading, setBulkLoading] = useState(false)
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<Educator | null>(null)
+  const [editEducator, setEditEducator] = useState<Educator | null>(null)
+  const [editForm, setEditForm] = useState({ name: '', phone: '', branchId: '' })
+  const [editLoading, setEditLoading] = useState(false)
   const [viewResponses, setViewResponses] = useState<Educator | null>(null)
   const [responsesData, setResponsesData] = useState<{ textRows: TextRow[]; mcqRows: McqRow[] } | null>(null)
   const [downloading, setDownloading] = useState(false)
@@ -76,6 +79,25 @@ export default function EducatorsPage() {
     if (!res.ok) { setToast({ msg: data.error ?? 'Delete failed', type: 'error' }); return }
     setToast({ msg: 'Educator deleted', type: 'success' })
     load()
+  }
+
+  function openEdit(e: Educator) {
+    setEditEducator(e)
+    setEditForm({ name: e.name, phone: e.phone ?? '', branchId: e.branch?.id ?? '' })
+  }
+
+  async function saveEdit(ev: React.FormEvent) {
+    ev.preventDefault()
+    if (!editEducator) return
+    setEditLoading(true)
+    const res = await fetch(`/api/educators/${editEducator.id}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: editForm.name, phone: editForm.phone || null, branchId: editForm.branchId || null }),
+    })
+    setEditLoading(false)
+    if (!res.ok) { setToast({ msg: 'Update failed', type: 'error' }); return }
+    setToast({ msg: 'Educator updated', type: 'success' })
+    setEditEducator(null); load()
   }
 
   async function toggleActive(id: string, current: boolean) {
@@ -271,6 +293,12 @@ export default function EducatorsPage() {
                 </td>
                 <td className="px-5 py-3">
                   <div className="flex items-center gap-2">
+                    {e.phone && (
+                      <span className="text-[10px] text-charcoal/40 flex items-center gap-0.5" title={e.phone}><Phone size={10} /></span>
+                    )}
+                    <button onClick={() => openEdit(e)} className="text-charcoal/30 hover:text-midnight transition-colors" title="Edit">
+                      <Pencil size={15} />
+                    </button>
                     <button onClick={() => openResponses(e)} className="text-charcoal/30 hover:text-midnight transition-colors" title="View responses">
                       <Eye size={16} />
                     </button>
@@ -318,6 +346,38 @@ export default function EducatorsPage() {
               <div className="flex gap-3 mt-2">
                 <Button type="button" variant="ghost" onClick={() => setShowAdd(false)} className="flex-1">Cancel</Button>
                 <Button type="submit" loading={loading} className="flex-1">Add Educator</Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Educator Modal */}
+      {editEducator && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h2 className="text-lg font-bold text-midnight">Edit Educator</h2>
+                <p className="text-xs text-charcoal/50 mt-0.5">{editEducator.email}</p>
+              </div>
+              <button onClick={() => setEditEducator(null)}><X size={20} className="text-charcoal/60" /></button>
+            </div>
+            <form onSubmit={saveEdit} className="flex flex-col gap-4">
+              <Input label="Full Name" value={editForm.name} onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} required />
+              <Input label="WhatsApp / Phone" type="tel" placeholder="+91 9876543210 (with country code)"
+                value={editForm.phone} onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))} />
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-semibold text-charcoal">Campus</label>
+                <select value={editForm.branchId} onChange={(e) => setEditForm((f) => ({ ...f, branchId: e.target.value }))}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-midnight">
+                  <option value="">No campus</option>
+                  {branches.map((b) => <option key={b.id} value={b.id}>{b.name} — {b.location}</option>)}
+                </select>
+              </div>
+              <div className="flex gap-3 mt-2">
+                <Button type="button" variant="ghost" onClick={() => setEditEducator(null)} className="flex-1">Cancel</Button>
+                <Button type="submit" loading={editLoading} className="flex-1">Save Changes</Button>
               </div>
             </form>
           </div>

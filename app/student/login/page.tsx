@@ -124,10 +124,12 @@ export default function StudentLoginPage() {
             </p>
           </div>
 
-          <div className="flex items-center justify-center gap-4 mt-4">
-            <a href="/login" className="text-xs text-charcoal/40 hover:text-midnight">Educator Login →</a>
-            <span className="text-charcoal/20 text-xs">|</span>
-            <a href="/admin/login" className="text-xs text-charcoal/40 hover:text-midnight">Admin Login →</a>
+          <div className="flex items-center justify-center gap-4 mt-5 flex-wrap">
+            <a href="/login" className="text-sm font-semibold text-midnight/70 hover:text-midnight transition-colors">Educator Login →</a>
+            <span className="text-charcoal/30 text-sm">|</span>
+            <a href="/principal/login" className="text-sm font-semibold text-midnight/70 hover:text-midnight transition-colors">Principal Login →</a>
+            <span className="text-charcoal/30 text-sm">|</span>
+            <a href="/admin/login" className="text-sm font-semibold text-midnight/70 hover:text-midnight transition-colors">Admin Login →</a>
           </div>
         </div>
       </div>
