@@ -1,14 +1,14 @@
 'use client'
 
 import { useState, useEffect, Suspense } from 'react'
-import { useSearchParams, useRouter } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ChevronRight, CheckCircle, Circle, Settings, Plus, X, Trash2, ArrowLeft } from 'lucide-react'
+import { ChevronRight, CheckCircle, Circle, Settings, Plus, X, Trash2, ChevronDown, Layers, BookOpen } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Toast from '@/components/Toast'
 
-interface Program { id: string; name: string; applicableTo: string }
+interface Program { id: string; name: string; applicableTo: string; isPublished: boolean; order: number }
 interface Stage {
   id: string; number: number; title: string; subtitle: string
   week: string; docUrl: string | null; timeLimitMinutes: number
@@ -17,43 +17,42 @@ interface Stage {
   _count: { questions: number }
 }
 
-const PALETTE = ['bg-midnight', 'bg-forest', 'bg-olive', 'bg-gold', 'bg-charcoal']
-const PALETTE_TEXT = ['text-white', 'text-white', 'text-white', 'text-midnight', 'text-white']
-const stageColor = (i: number) => PALETTE[i % PALETTE.length]
-const stageText = (i: number) => PALETTE_TEXT[i % PALETTE_TEXT.length]
+const PALETTE = ['#033D4C', '#225632', '#7D783E', '#FECB08', '#40403E']
+const PALETTE_TEXT = ['#fff', '#fff', '#fff', '#033D4C', '#fff']
 
 function StagesInner() {
-  const searchParams = useSearchParams()
   const router = useRouter()
-  const programId = searchParams.get('programId')
-
   const [stages, setStages] = useState<Stage[]>([])
   const [programs, setPrograms] = useState<Program[]>([])
-  const [activeProgram, setActiveProgram] = useState<Program | null>(null)
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null)
   const [showCreate, setShowCreate] = useState(false)
+  const [createProgramId, setCreateProgramId] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<Stage | null>(null)
   const [form, setForm] = useState({ title: '', subtitle: '', week: '' })
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
 
   async function load() {
     try {
-      const url = programId ? `/api/stages?programId=${programId}` : '/api/stages'
-      const [sr, pr] = await Promise.all([fetch(url), fetch('/api/programs')])
+      const [sr, pr] = await Promise.all([fetch('/api/stages'), fetch('/api/programs')])
       const s = sr.ok ? await sr.json() : []
       const p = pr.ok ? await pr.json() : []
       setStages(Array.isArray(s) ? s : [])
       setPrograms(Array.isArray(p) ? p : [])
-      if (programId) {
-        const prog = (Array.isArray(p) ? p : []).find((x: Program) => x.id === programId) ?? null
-        setActiveProgram(prog)
-      } else {
-        setActiveProgram(null)
-      }
     } catch {}
   }
 
-  useEffect(() => { load() }, [programId]) // eslint-disable-line
+  useEffect(() => { load() }, [])
+
+  async function assignProgram(stage: Stage, programId: string | null) {
+    await fetch(`/api/stages/${stage.id}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ programId }),
+    })
+    const name = programId ? programs.find((p) => p.id === programId)?.name ?? 'program' : 'Unassigned'
+    setToast({ msg: `"${stage.title}" moved to ${name}`, type: 'success' })
+    load()
+  }
 
   async function togglePublish(stage: Stage) {
     await fetch(`/api/stages/${stage.id}`, {
@@ -84,7 +83,7 @@ function StagesInner() {
         title: form.title.trim(),
         subtitle: form.subtitle.trim() || null,
         week: form.week.trim() || null,
-        programId: programId ?? null,
+        programId: createProgramId ?? null,
         timeLimitMinutes: 30,
         passScore: 80,
         maxAttempts: 3,
@@ -92,9 +91,7 @@ function StagesInner() {
         badgeTitle: null,
         badgeColor: '#033D4C',
         applicableTo: 'BOTH',
-        docUrl: null,
-        docs: [],
-        weeks: [],
+        docUrl: null, docs: [], weeks: [],
       }),
     })
     if (res.ok) {
@@ -110,135 +107,240 @@ function StagesInner() {
     setCreating(false)
   }
 
+  function toggleCollapse(id: string) {
+    setCollapsed((prev) => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  // Group stages by program
+  const stagesByProgram = new Map<string | null, Stage[]>()
+  stagesByProgram.set(null, [])
+  for (const p of programs) stagesByProgram.set(p.id, [])
+  for (const s of stages) {
+    const key = s.programId ?? null
+    if (!stagesByProgram.has(key)) stagesByProgram.set(key, [])
+    stagesByProgram.get(key)!.push(s)
+  }
+
+  const unassigned = stagesByProgram.get(null) ?? []
+
+  function StageRow({ stage, i }: { stage: Stage; i: number }) {
+    return (
+      <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+        <div className="flex items-stretch">
+          <div className="w-1.5 rounded-l-xl flex-shrink-0" style={{ backgroundColor: PALETTE[i % PALETTE.length] }} />
+          <div className="flex-1 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0"
+                  style={{ backgroundColor: PALETTE[i % PALETTE.length], color: PALETTE_TEXT[i % PALETTE_TEXT.length] }}>
+                  {stage.number}
+                </div>
+                <div className="min-w-0">
+                  <h3 className="font-bold text-midnight text-sm truncate">{stage.title}</h3>
+                  <p className="text-xs text-charcoal/50 truncate">{stage.subtitle}{stage.week ? ` · ${stage.week}` : ''}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <button onClick={() => togglePublish(stage)}
+                  className={`flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full transition-colors ${stage.isPublished ? 'bg-forest/10 text-forest' : 'bg-gray-100 text-gray-400'}`}>
+                  {stage.isPublished ? <CheckCircle size={11} /> : <Circle size={11} />}
+                  {stage.isPublished ? 'Published' : 'Draft'}
+                </button>
+                <Link href={`/admin/stages/${stage.id}`}>
+                  <button className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-lg bg-midnight/5 text-midnight hover:bg-midnight/10 transition-colors">
+                    <Settings size={11} /> Configure
+                  </button>
+                </Link>
+                <button onClick={() => setConfirmDelete(stage)}
+                  className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                  <Trash2 size={13} />
+                </button>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 mt-2.5 flex-wrap">
+              <span className={`text-xs ${stage.docUrl ? 'text-forest' : 'text-red-400'}`}>
+                {stage.docUrl ? '✓ Doc linked' : '✗ No doc link'}
+              </span>
+              <span className="text-xs text-charcoal/50 flex items-center gap-1"><BookOpen size={10} /> {stage._count.questions} questions</span>
+              <span className="text-xs text-charcoal/50">{stage.timeLimitMinutes} min</span>
+              <span className="text-xs text-charcoal/50">{stage.passScore}% pass</span>
+              {stage.badgeTitle && <span className="text-xs text-gold font-medium">🏅 {stage.badgeTitle}</span>}
+              <select
+                value={stage.programId ?? ''}
+                onChange={(e) => assignProgram(stage, e.target.value || null)}
+                onClick={(e) => e.stopPropagation()}
+                className="ml-auto text-xs border border-gray-200 rounded-lg px-2 py-1 text-charcoal focus:outline-none focus:ring-1 focus:ring-midnight/30 bg-gray-50">
+                <option value="">— No program —</option>
+                {programs.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-4xl mx-auto space-y-6">
       {toast && <Toast message={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
 
       {/* Header */}
-      <div className="mb-6">
-        {activeProgram ? (
-          <div className="flex items-center gap-2 mb-3">
-            <button onClick={() => router.push('/admin/programs')} className="flex items-center gap-1.5 text-sm text-charcoal/50 hover:text-midnight transition-colors">
-              <ArrowLeft size={15} /> All Programs
-            </button>
-          </div>
-        ) : null}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-midnight">
-              {activeProgram ? activeProgram.name : 'All Stages'}
-            </h1>
-            <p className="text-sm text-charcoal/60">
-              {activeProgram ? 'Stages in this program' : 'All stages across all programs'}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            {!activeProgram && programs.length > 0 && (
-              <Link href="/admin/programs">
-                <Button variant="ghost" size="sm">Manage Programs</Button>
-              </Link>
-            )}
-            <Button onClick={() => setShowCreate(true)} size="sm"><Plus size={14} /> New Stage</Button>
-          </div>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-midnight">Stages & MCQ</h1>
+          <p className="text-sm text-charcoal/60 mt-0.5">{stages.length} stages across {programs.length} programs</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Link href="/admin/programs">
+            <Button variant="ghost" size="sm"><Layers size={14} /> Manage Programs</Button>
+          </Link>
+          <Button onClick={() => { setCreateProgramId(null); setShowCreate(true) }} size="sm">
+            <Plus size={14} /> New Stage
+          </Button>
         </div>
       </div>
 
-      {/* Program tabs (when showing all) */}
-      {!activeProgram && programs.length > 0 && (
-        <div className="flex gap-2 mb-6 flex-wrap">
-          <button onClick={() => router.push('/admin/stages')}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${!programId ? 'bg-midnight text-white' : 'bg-gray-100 text-charcoal/60 hover:bg-gray-200'}`}>
-            All
-          </button>
-          {programs.map((p) => (
-            <button key={p.id} onClick={() => router.push(`/admin/stages?programId=${p.id}`)}
-              className="px-3 py-1.5 rounded-full text-xs font-medium transition-colors bg-gray-100 text-charcoal/60 hover:bg-gray-200">
-              {p.name}
-            </button>
-          ))}
+      {/* Programs with stages nested */}
+      {programs.length === 0 ? (
+        <div className="text-center py-12 text-charcoal/40">
+          <Layers size={36} className="mx-auto mb-3 opacity-20" />
+          <p className="text-sm">No programs yet. <Link href="/admin/programs" className="text-midnight underline">Create a program first</Link>.</p>
+        </div>
+      ) : (
+        programs.map((program, pi) => {
+          const progStages = stagesByProgram.get(program.id) ?? []
+          const isOpen = !collapsed.has(program.id)
+          return (
+            <div key={program.id} className="border border-gray-200 rounded-2xl overflow-hidden">
+              {/* Program header */}
+              <div
+                className="flex items-center justify-between px-5 py-4 cursor-pointer select-none hover:bg-gray-50 transition-colors"
+                style={{ background: isOpen ? PALETTE[pi % PALETTE.length] : undefined }}
+                onClick={() => toggleCollapse(program.id)}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                    style={{ background: isOpen ? 'rgba(255,255,255,0.15)' : PALETTE[pi % PALETTE.length] }}>
+                    <Layers size={15} style={{ color: isOpen ? PALETTE_TEXT[pi % PALETTE_TEXT.length] : '#fff' }} />
+                  </div>
+                  <div>
+                    <h2 className="font-bold text-sm" style={{ color: isOpen ? PALETTE_TEXT[pi % PALETTE_TEXT.length] : '#033D4C' }}>
+                      {program.name}
+                    </h2>
+                    <p className="text-xs" style={{ color: isOpen ? 'rgba(255,255,255,0.6)' : '#6b6a67' }}>
+                      {progStages.length} stage{progStages.length !== 1 ? 's' : ''}
+                      {' · '}
+                      {program.applicableTo === 'BOTH' ? 'Educators + Principals' : program.applicableTo}
+                      {!program.isPublished && ' · Draft'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setCreateProgramId(program.id); setShowCreate(true) }}
+                    className="flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
+                    style={{ background: isOpen ? 'rgba(255,255,255,0.2)' : 'rgba(3,61,76,0.08)', color: isOpen ? PALETTE_TEXT[pi % PALETTE_TEXT.length] : '#033D4C' }}>
+                    <Plus size={12} /> Add Stage
+                  </button>
+                  <ChevronDown size={16}
+                    style={{ color: isOpen ? PALETTE_TEXT[pi % PALETTE_TEXT.length] : '#6b6a67', transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+                </div>
+              </div>
+
+              {/* Stages list */}
+              {isOpen && (
+                <div className="p-4 flex flex-col gap-3 bg-white">
+                  {progStages.length === 0 ? (
+                    <div className="text-center py-8 text-charcoal/30">
+                      <p className="text-sm">No stages in this program yet.</p>
+                      <button
+                        onClick={() => { setCreateProgramId(program.id); setShowCreate(true) }}
+                        className="mt-2 text-xs font-semibold text-midnight underline">
+                        Add first stage
+                      </button>
+                    </div>
+                  ) : (
+                    progStages.map((stage, i) => <StageRow key={stage.id} stage={stage} i={i} />)
+                  )}
+                </div>
+              )}
+            </div>
+          )
+        })
+      )}
+
+      {/* Unassigned stages */}
+      {unassigned.length > 0 && (
+        <div className="border border-dashed border-gray-300 rounded-2xl overflow-hidden">
+          <div
+            className="flex items-center justify-between px-5 py-4 cursor-pointer select-none hover:bg-gray-50 transition-colors"
+            onClick={() => toggleCollapse('__unassigned__')}>
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-charcoal/10 flex items-center justify-center">
+                <Layers size={15} className="text-charcoal/50" />
+              </div>
+              <div>
+                <h2 className="font-bold text-sm text-charcoal/70">Unassigned Stages</h2>
+                <p className="text-xs text-charcoal/40">{unassigned.length} stages not linked to a program</p>
+              </div>
+            </div>
+            <ChevronDown size={16} className={`text-charcoal/40 transition-transform ${collapsed.has('__unassigned__') ? '' : 'rotate-180'}`} />
+          </div>
+          {!collapsed.has('__unassigned__') && (
+            <div className="p-4 flex flex-col gap-3 bg-white">
+              {unassigned.map((stage, i) => <StageRow key={stage.id} stage={stage} i={i} />)}
+            </div>
+          )}
         </div>
       )}
 
-      <div className="flex flex-col gap-4">
-        {stages.map((stage, i) => (
-          <div key={stage.id} className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-            <div className="flex items-stretch">
-              <div className={`${stageColor(i)} w-2`} />
-              <div className="flex-1 p-5">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-center gap-4">
-                    <div className={`${stageColor(i)} ${stageText(i)} w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold flex-shrink-0`}>
-                      {stage.number}
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-midnight">{stage.title}</h3>
-                      <p className="text-sm text-charcoal/60">
-                        {stage.subtitle}{stage.week ? ` · ${stage.week}` : ''}
-                        {!activeProgram && stage.programId && (
-                          <span className="ml-2 text-xs bg-midnight/5 text-midnight px-1.5 py-0.5 rounded">
-                            {programs.find((p) => p.id === stage.programId)?.name ?? 'Program'}
-                          </span>
-                        )}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <button onClick={() => togglePublish(stage)}
-                      className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full transition-colors ${stage.isPublished ? 'bg-forest/10 text-forest hover:bg-forest/20' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
-                      {stage.isPublished ? <CheckCircle size={14} /> : <Circle size={14} />}
-                      {stage.isPublished ? 'Published' : 'Draft'}
-                    </button>
-                    <Link href={`/admin/stages/${stage.id}`}>
-                      <Button variant="ghost" size="sm"><Settings size={14} /> Configure</Button>
-                    </Link>
-                    <button onClick={() => setConfirmDelete(stage)}
-                      className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors">
-                      <Trash2 size={15} />
-                    </button>
-                  </div>
-                </div>
-                <div className="flex items-center gap-6 mt-4 text-xs text-charcoal/60">
-                  <span className={`font-medium ${stage.docUrl ? 'text-forest' : 'text-red-500'}`}>
-                    {stage.docUrl ? '✓ Doc linked' : '✗ No doc link'}
-                  </span>
-                  <span>{stage._count.questions} questions</span>
-                  <span>{stage.timeLimitMinutes} min limit</span>
-                  <span>{stage.passScore}% pass score</span>
-                  <span>{stage.maxAttempts} attempts</span>
-                  {stage.badgeTitle && <span className="text-gold font-medium">🏅 {stage.badgeTitle}</span>}
-                </div>
-              </div>
-            </div>
-          </div>
-        ))}
-        {stages.length === 0 && (
-          <div className="text-center py-16 text-charcoal/40">
-            <p className="text-sm">No stages yet. Create the first stage{activeProgram ? ` for ${activeProgram.name}` : ''}.</p>
-          </div>
-        )}
-      </div>
+      {stages.length === 0 && programs.length > 0 && (
+        <div className="text-center py-12 text-charcoal/40">
+          <p className="text-sm">No stages yet. Click "Add Stage" inside a program to get started.</p>
+        </div>
+      )}
 
       {/* Create stage modal */}
       {showCreate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
             <div className="flex items-center justify-between mb-5">
-              <h3 className="text-lg font-bold text-midnight">
-                New Stage{activeProgram ? ` — ${activeProgram.name}` : ''}
-              </h3>
+              <div>
+                <h3 className="text-lg font-bold text-midnight">New Stage</h3>
+                {createProgramId && (
+                  <p className="text-xs text-charcoal/50 mt-0.5">
+                    Adding to: <span className="font-semibold text-midnight">{programs.find((p) => p.id === createProgramId)?.name}</span>
+                  </p>
+                )}
+                {!createProgramId && (
+                  <p className="text-xs text-amber-600 mt-0.5">Not assigned to any program</p>
+                )}
+              </div>
               <button onClick={() => setShowCreate(false)} className="text-charcoal/40 hover:text-midnight"><X size={20} /></button>
             </div>
+            {!createProgramId && programs.length > 0 && (
+              <div className="mb-4">
+                <label className="text-sm font-semibold text-charcoal mb-1 block">Assign to Program</label>
+                <select
+                  onChange={(e) => setCreateProgramId(e.target.value || null)}
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-midnight/30">
+                  <option value="">No program (unassigned)</option>
+                  {programs.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+              </div>
+            )}
             <div className="flex flex-col gap-4">
-              <Input label="Stage Title *" placeholder="e.g. Foundations of Teaching"
+              <Input label="Stage Title *" placeholder="e.g. Welcome Week"
                 value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} />
-              <Input label="Subtitle" placeholder="e.g. Core pedagogy concepts"
+              <Input label="Subtitle" placeholder="e.g. RYSEN Story & Culture"
                 value={form.subtitle} onChange={(e) => setForm((f) => ({ ...f, subtitle: e.target.value }))} />
-              <Input label="Period Label" placeholder="e.g. Weeks 1–4"
+              <Input label="Period / Week Label" placeholder="e.g. Week 1"
                 value={form.week} onChange={(e) => setForm((f) => ({ ...f, week: e.target.value }))} />
-              {!activeProgram && programs.length > 0 && (
-                <p className="text-xs text-amber-600">Tip: open a specific program first to assign stages to it.</p>
-              )}
-              <p className="text-xs text-charcoal/40">Stage number auto-assigned.</p>
+              <p className="text-xs text-charcoal/40">Stage number auto-assigned within program.</p>
             </div>
             <div className="flex gap-3 mt-6">
               <Button variant="ghost" className="flex-1" onClick={() => setShowCreate(false)}>Cancel</Button>
@@ -250,7 +352,7 @@ function StagesInner() {
         </div>
       )}
 
-      {/* Delete confirm modal */}
+      {/* Delete confirm */}
       {confirmDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
@@ -258,7 +360,7 @@ function StagesInner() {
             <p className="text-sm text-charcoal/60 mb-1">
               <strong className="text-midnight">Stage {confirmDelete.number}: {confirmDelete.title}</strong>
             </p>
-            <p className="text-sm text-red-500 mb-6">All questions and educator progress for this stage will be permanently deleted.</p>
+            <p className="text-sm text-red-500 mb-6">All questions and educator progress will be permanently deleted.</p>
             <div className="flex gap-3">
               <Button variant="ghost" className="flex-1" onClick={() => setConfirmDelete(null)}>Cancel</Button>
               <button onClick={() => deleteStage(confirmDelete)}
