@@ -31,6 +31,8 @@ function StagesInner() {
   const [confirmDelete, setConfirmDelete] = useState<Stage | null>(null)
   const [form, setForm] = useState({ title: '', subtitle: '', week: '' })
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
+  const [bulkProgramId, setBulkProgramId] = useState<string>('')
+  const [bulkAssigning, setBulkAssigning] = useState(false)
 
   async function load() {
     try {
@@ -43,6 +45,26 @@ function StagesInner() {
   }
 
   useEffect(() => { load() }, [])
+
+  async function bulkAssign() {
+    if (!bulkProgramId) return
+    const unassignedStages = stages.filter((s) => s.programId === null)
+    if (unassignedStages.length === 0) return
+    setBulkAssigning(true)
+    await Promise.all(
+      unassignedStages.map((s) =>
+        fetch(`/api/stages/${s.id}`, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ programId: bulkProgramId }),
+        })
+      )
+    )
+    const name = programs.find((p) => p.id === bulkProgramId)?.name ?? 'program'
+    setToast({ msg: `${unassignedStages.length} stages moved to ${name}`, type: 'success' })
+    setBulkProgramId('')
+    setBulkAssigning(false)
+    load()
+  }
 
   async function assignProgram(stage: Stage, programId: string | null) {
     await fetch(`/api/stages/${stage.id}`, {
@@ -275,23 +297,40 @@ function StagesInner() {
 
       {/* Unassigned stages */}
       {unassigned.length > 0 && (
-        <div className="border border-dashed border-gray-300 rounded-2xl overflow-hidden">
-          <div
-            className="flex items-center justify-between px-5 py-4 cursor-pointer select-none hover:bg-gray-50 transition-colors"
-            onClick={() => toggleCollapse('__unassigned__')}>
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-charcoal/10 flex items-center justify-center">
-                <Layers size={15} className="text-charcoal/50" />
+        <div className="border border-dashed border-amber-300 rounded-2xl overflow-hidden bg-amber-50/30">
+          <div className="px-5 py-4">
+            <div className="flex items-center justify-between cursor-pointer select-none" onClick={() => toggleCollapse('__unassigned__')}>
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center">
+                  <Layers size={15} className="text-amber-600" />
+                </div>
+                <div>
+                  <h2 className="font-bold text-sm text-amber-700">Unassigned Stages ({unassigned.length})</h2>
+                  <p className="text-xs text-amber-500">These stages won't appear in any program until assigned</p>
+                </div>
               </div>
-              <div>
-                <h2 className="font-bold text-sm text-charcoal/70">Unassigned Stages</h2>
-                <p className="text-xs text-charcoal/40">{unassigned.length} stages not linked to a program</p>
-              </div>
+              <ChevronDown size={16} className={`text-amber-400 transition-transform ${collapsed.has('__unassigned__') ? '' : 'rotate-180'}`} />
             </div>
-            <ChevronDown size={16} className={`text-charcoal/40 transition-transform ${collapsed.has('__unassigned__') ? '' : 'rotate-180'}`} />
+            {/* Bulk assign bar */}
+            <div className="flex items-center gap-2 mt-3 pt-3 border-t border-amber-200" onClick={(e) => e.stopPropagation()}>
+              <span className="text-xs font-semibold text-amber-700 whitespace-nowrap">Move all to:</span>
+              <select
+                value={bulkProgramId}
+                onChange={(e) => setBulkProgramId(e.target.value)}
+                className="flex-1 text-xs border border-amber-200 rounded-lg px-2.5 py-1.5 bg-white text-charcoal focus:outline-none focus:ring-1 focus:ring-amber-400">
+                <option value="">— Select program —</option>
+                {programs.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+              <button
+                onClick={bulkAssign}
+                disabled={!bulkProgramId || bulkAssigning}
+                className="text-xs font-bold px-3 py-1.5 rounded-lg bg-midnight text-white disabled:opacity-40 hover:bg-midnight/80 transition-colors whitespace-nowrap">
+                {bulkAssigning ? 'Moving…' : `Move all ${unassigned.length}`}
+              </button>
+            </div>
           </div>
           {!collapsed.has('__unassigned__') && (
-            <div className="p-4 flex flex-col gap-3 bg-white">
+            <div className="px-4 pb-4 flex flex-col gap-3">
               {unassigned.map((stage, i) => <StageRow key={stage.id} stage={stage} i={i} />)}
             </div>
           )}
