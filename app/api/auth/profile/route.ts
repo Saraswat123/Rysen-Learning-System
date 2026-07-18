@@ -23,13 +23,13 @@ export async function GET() {
     db.taskAssignment.findMany({
       where: { userId: user.id },
       include: {
-        task: { select: { title: true, status: true } },
+        task: { select: { title: true } },
         progress: { select: { completed: true } },
       },
     }),
-    db.stageResult.findMany({
+    db.stageProgress.findMany({
       where: { userId: user.id },
-      select: { passed: true, score: true, stageId: true },
+      select: { passed: true, bestScore: true, stageId: true },
     }),
   ])
 
@@ -37,16 +37,16 @@ export async function GET() {
 
   const stagesPassed = stageResults.filter((r) => r.passed).length
   const totalStages = new Set(stageResults.map((r) => r.stageId)).size
-  const avgScore = stageResults.length
-    ? Math.round(stageResults.reduce((s, r) => s + r.score, 0) / stageResults.length)
+  const scoresWithValue = stageResults.filter((r) => r.bestScore !== null)
+  const avgScore = scoresWithValue.length
+    ? Math.round(scoresWithValue.reduce((s, r) => s + (r.bestScore ?? 0), 0) / scoresWithValue.length)
     : 0
 
   const tasksTotal = assignments.length
   const tasksCompleted = assignments.filter((a) => {
-    if (!a.task) return false
     const subtaskCount = a.progress.length
-    const completedCount = a.progress.filter((p) => p.completed).length
-    return subtaskCount > 0 ? completedCount === subtaskCount : a.task.status === 'COMPLETED'
+    if (subtaskCount === 0) return false
+    return a.progress.every((p) => p.completed)
   }).length
 
   return NextResponse.json({
