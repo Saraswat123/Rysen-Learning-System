@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ChevronRight, CheckCircle, Circle, Settings, Plus, X, Trash2, ChevronDown, Layers, BookOpen } from 'lucide-react'
+import { ChevronRight, CheckCircle, Circle, Settings, Plus, X, Trash2, ChevronDown, Layers, BookOpen, Zap } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Toast from '@/components/Toast'
@@ -33,6 +33,7 @@ function StagesInner() {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
   const [bulkProgramId, setBulkProgramId] = useState<string>('')
   const [bulkAssigning, setBulkAssigning] = useState(false)
+  const [seeding, setSeeding] = useState(false)
 
   async function load() {
     try {
@@ -64,6 +65,21 @@ function StagesInner() {
     setBulkProgramId('')
     setBulkAssigning(false)
     load()
+  }
+
+  async function seedOrientationMCQ() {
+    setSeeding(true)
+    const res = await fetch('/api/admin/seed-orientation-mcq', { method: 'POST' })
+    const data = await res.json().catch(() => ({}))
+    if (res.ok) {
+      const added = (data.results ?? []).filter((r: { questionsAdded: number }) => r.questionsAdded > 0)
+      const skipped = (data.results ?? []).filter((r: { skipped: boolean }) => r.skipped)
+      setToast({ msg: `Added questions to ${added.length} stage${added.length !== 1 ? 's' : ''}${skipped.length ? ` · ${skipped.length} skipped (already had questions)` : ''}`, type: 'success' })
+      load()
+    } else {
+      setToast({ msg: data.error ?? 'Seed failed', type: 'error' })
+    }
+    setSeeding(false)
   }
 
   async function assignProgram(stage: Stage, programId: string | null) {
@@ -220,6 +236,9 @@ function StagesInner() {
           <Link href="/admin/programs">
             <Button variant="ghost" size="sm"><Layers size={14} /> Manage Programs</Button>
           </Link>
+          <Button variant="ghost" size="sm" loading={seeding} onClick={seedOrientationMCQ}>
+            <Zap size={14} /> Seed Orientation MCQ
+          </Button>
           <Button onClick={() => { setCreateProgramId(null); setShowCreate(true) }} size="sm">
             <Plus size={14} /> New Stage
           </Button>
