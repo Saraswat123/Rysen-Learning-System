@@ -171,6 +171,31 @@ const TOOLS: Groq.Chat.Completions.ChatCompletionTool[] = [
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'list_branches',
+      description: 'List all campuses/branches with educator counts. Use this to find branch IDs before filtering educators by campus.',
+      parameters: { type: 'object', properties: {} },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'send_reminder',
+      description: 'Send email and/or WhatsApp reminder for a task to specific educators or all assignees',
+      parameters: {
+        type: 'object',
+        properties: {
+          taskId: { type: 'string', description: 'Task ID to send reminder for' },
+          userIds: { type: 'array', items: { type: 'string' }, description: 'Educator IDs to remind. If omitted, reminds all assignees.' },
+          channels: { type: 'array', items: { type: 'string', enum: ['email', 'whatsapp'] }, description: 'Channels to use. Default: ["email"]' },
+          message: { type: 'string', description: 'Custom message to include (optional — uses default task reminder if omitted)' },
+        },
+        required: ['taskId'],
+      },
+    },
+  },
 ]
 
 // ── Tool executors ────────────────────────────────────────────────────────────
@@ -302,6 +327,75 @@ async function executeTool(name: string, args: Record<string, unknown>, userId: 
       const group = await db.taskGroup.create({ data: { title, description: description ?? null, color: color ?? COLORS[Math.floor(Math.random() * COLORS.length)], createdById: userId } })
       return { success: true, id: group.id, title: group.title, message: `Task group "${title}" created.` }
     }
+    case 'list_branches': {
+      const branches = await db.branch.findMany({
+        include: { _count: { select: { users: true } } },
+        orderBy: { location: 'asc' },
+      })
+      return branches.map((b) => ({ id: b.id, name: b.name, location: b.location, educators: b._count.users }))
+    }
+    case 'send_reminder': {
+      const { taskId, userIds, channels, message } = args as { taskId: string; userIds?: string[]; channels?: string[]; message?: string }
+      const task = await db.task.findUnique({
+        where: { id: taskId },
+        include: { assignments: { select: { userId: true } } },
+      })
+      if (!task) return { error: 'Task not found' }
+      const targetIds = userIds?.length ? userIds : task.assignments.map((a) => a.userId)
+      if (!targetIds.length) return { error: 'No educators assigned to this task. Assign educators first.' }
+      const educators = await db.user.findMany({
+        where: { id: { in: targetIds } },
+        select: { id: true, name: true, email: true, phone: true },
+      })
+      const useChannels = (channels?.length ? channels : ['email']) as ('email' | 'whatsapp')[]
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? `https://${process.env.VERCEL_URL ?? 'rysen-learning-centre.vercel.app'}`
+      const taskUrl = `${appUrl}/educator/tasks/${taskId}`
+      const deadlineStr = task.deadline
+        ? new Date(task.deadline).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })
+        : 'No deadline'
+      const results: string[] = []
+      for (const edu of educators) {
+        const body = message
+          ? `${message}\n\nTask: ${task.title}\nView: ${taskUrl}`
+          : `Hi ${edu.name}, reminder for task:\n\n*${task.title}*\nDeadline: ${deadlineStr}\n\nView: ${taskUrl}`
+        // Email
+        if (useChannels.includes('email') && edu.email) {
+          try {
+            const resendKey = process.env.RESEND_API_KEY
+            if (resendKey) {
+              const { Resend } = await import('resend')
+              const resend = new Resend(resendKey)
+              await resend.emails.send({
+                from: process.env.RESEND_FROM_EMAIL ?? 'onboarding@resend.dev',
+                to: edu.email,
+                subject: `Reminder: ${task.title}`,
+                html: `<div style="font-family:sans-serif;padding:20px"><h2 style="color:#033D4C">RYSEN Task Reminder</h2><p>Hi <b>${edu.name}</b>,</p><p>${message ?? `Please complete your task before ${deadlineStr}.`}</p><h3>${task.title}</h3><a href="${taskUrl}" style="background:#033D4C;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;display:inline-block;margin-top:12px">View Task →</a></div>`,
+              })
+              results.push(`✓ Email → ${edu.name}`)
+            }
+          } catch { results.push(`✗ Email failed → ${edu.name}`) }
+        }
+        // WhatsApp
+        if (useChannels.includes('whatsapp') && edu.phone) {
+          const rawPhone = edu.phone.replace(/\D/g, '')
+          const e164 = rawPhone.startsWith('91') && rawPhone.length === 12 ? `+${rawPhone}` : `+91${rawPhone}`
+          try {
+            const sid = process.env.TWILIO_ACCOUNT_SID, token = process.env.TWILIO_AUTH_TOKEN, from = process.env.TWILIO_WHATSAPP_FROM
+            if (sid && token && from) {
+              const twilio = (await import('twilio')).default
+              await twilio(sid, token).messages.create({ from, to: `whatsapp:${e164}`, body })
+              results.push(`✓ WhatsApp → ${edu.name}`)
+            } else {
+              results.push(`⚠ WhatsApp not configured (Twilio env vars missing) → ${edu.name}`)
+            }
+          } catch { results.push(`✗ WhatsApp failed → ${edu.name}`) }
+        }
+        await db.notification.create({
+          data: { userId: edu.id, title: `Task Reminder: ${task.title}`, message: message ?? `Reminder to complete "${task.title}" by ${deadlineStr}.`, type: 'TASK', relatedId: taskId },
+        })
+      }
+      return { success: true, message: `Reminders sent to ${educators.length} educator(s).`, details: results }
+    }
     default:
       return { error: `Unknown tool: ${name}` }
   }
@@ -320,20 +414,36 @@ export async function POST(req: NextRequest) {
   const { messages } = await req.json() as { messages: Groq.Chat.Completions.ChatCompletionMessageParam[] }
 
   const groq = new Groq({ apiKey })
-  const systemPrompt = `You are RYSEN AI — an intelligent task management assistant for RYSEN Learning Centre admin team.
+  const systemPrompt = `You are RYSEN AI — the intelligent task management assistant for RYSEN Learning Centre admin team.
 
-You can create, update, delete, and manage tasks, subtasks, resources, and educator assignments through natural language commands.
+Today: ${new Date().toLocaleDateString('en-IN', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
 
-Current date: ${new Date().toLocaleDateString('en-IN', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
+CAPABILITIES (use tools proactively — chain multiple tools in one response):
+- Create full tasks: title, description, notes, priority (LOW/NORMAL/HIGH), deadline, group
+- Add subtasks with individual deadlines
+- Add resources (URLs, Google Drive, Sheets, Docs, Videos) to tasks
+- Assign educators: by name, by campus/branch, or all educators
+- Send email + WhatsApp reminders for any task
+- Update or delete tasks
+- List tasks, groups, educators, branches
 
-Guidelines:
-- Be concise and action-oriented
-- When creating tasks, always confirm what was created
-- When listing tasks, format them clearly
-- If user asks to assign educators, first list educators if you don't know their IDs
-- For deadlines, interpret natural language like "next Friday", "end of month" into proper dates
-- Always confirm before deleting
-- After actions, briefly summarize what was done`
+WORKFLOW RULES:
+- When asked to create a complete task, do it ALL in sequence: create task → add subtasks → add resources → assign educators → send reminder (if asked)
+- Deadlines: convert natural language to ISO dates. "next Friday" = calculate from today. "end of month" = last day of current month. "in 3 days" = today + 3
+- When assigning by campus/branch ("all Ganganagar educators"), call list_branches first to get branch name, then list_educators with that branch as search term, then assign_educators
+- When sending reminders, default channel is email. Add whatsapp if user mentions it
+- Be brief in responses — show what was done, not what you're about to do
+- Never ask for confirmation unless deleting. Just act.
+
+EXAMPLE FLOWS the user might say:
+"Create a STEM data sheet task for all Ganganagar educators due next Friday with HIGH priority and add the drive link"
+→ create_task → add_resource → list_branches → list_educators(search=Ganganagar) → assign_educators → done
+
+"Remind all educators about the orientation task via WhatsApp"
+→ list_tasks → send_reminder(channels=[email,whatsapp]) → done
+
+"Create a full onboarding task with 3 subtasks, assign everyone, set deadline end of month"
+→ create_task → add_subtask × 3 → list_educators → assign_educators → done`
 
   const msgHistory: Groq.Chat.Completions.ChatCompletionMessageParam[] = [
     { role: 'system', content: systemPrompt },

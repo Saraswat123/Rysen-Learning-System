@@ -25,18 +25,20 @@ const TOOL_LABELS: Record<string, string> = {
   list_tasks: '↓ Tasks Fetched',
   list_educators: '↓ Educators Fetched',
   list_task_groups: '↓ Groups Fetched',
+  list_branches: '↓ Campuses Fetched',
   get_task: '↓ Task Details Fetched',
+  send_reminder: '🔔 Reminders Sent',
 }
 
 const SUGGESTIONS = [
-  'Create a task "Weekly Report Submission" due this Friday with HIGH priority',
-  'List all tasks assigned to educators',
-  'Create a task group called "STEM Activities" and add 3 tasks to it',
-  'Show me all overdue tasks',
-  'Assign all educators in Delhi branch to task "Safety Training"',
-  'Add subtasks to the last task: Review materials, Submit report, Attend meeting',
-  'Delete all tasks with LOW priority',
-  'Create a complete onboarding task with subtasks and resources',
+  'Create a STEM data sheet task for all Ganganagar educators, HIGH priority, due this Friday, add the Drive link',
+  'Create a full onboarding task with 3 subtasks, deadline end of month, assign all educators',
+  'Send WhatsApp + email reminder for the orientation task to all assigned educators',
+  'List all tasks and remind educators about HIGH priority ones via email',
+  'Assign all Jaipur campus educators to the Safety Training task',
+  'Create a task group "July STEM Drive" and add 2 tasks under it with deadlines',
+  'Update the Welcome Week task deadline to 30 July and change priority to HIGH',
+  'Delete all tasks with no assignees and list what was deleted',
 ]
 
 function ActionCard({ action, expanded, onToggle }: { action: Action; expanded: boolean; onToggle: () => void }) {
