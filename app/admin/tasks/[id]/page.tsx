@@ -510,19 +510,28 @@ export default function AdminTaskDetailPage({ params }: { params: Promise<{ id: 
                       {remindResults.map((r) => (
                         <div key={r.userId} className="text-xs border border-gray-100 rounded-xl p-3 flex flex-col gap-1.5">
                           <p className="font-semibold text-midnight">{r.name}</p>
-                          {r.email && (
+                          {r.email !== undefined && (
                             <p className={`flex items-center gap-1 ${r.emailSent ? 'text-forest' : 'text-red-500'}`}>
-                              <Mail size={11} /> {r.emailSent ? `Email sent to ${r.email}` : `Email failed: ${r.emailError}`}
+                              <Mail size={11} />
+                              {r.emailSent ? `✓ Email sent → ${r.email}` : `✗ Email failed: ${r.emailError ?? 'unknown error'}`}
                             </p>
                           )}
-                          {r.whatsappLink && (
-                            <a href={r.whatsappLink} target="_blank" rel="noreferrer"
-                              className="flex items-center gap-1 text-green-600 font-semibold hover:underline">
-                              <Phone size={11} /> Open WhatsApp <ExternalLink size={10} />
-                            </a>
+                          {r.whatsapp === 'sent' && (
+                            <p className="text-green-600 flex items-center gap-1 font-semibold"><Phone size={11} /> ✓ WhatsApp sent</p>
                           )}
                           {r.whatsapp === 'no_phone' && (
-                            <p className="text-amber-500 flex items-center gap-1"><Phone size={11} /> No phone number saved</p>
+                            <p className="text-amber-500 flex items-center gap-1"><Phone size={11} /> No phone number — add phone in educator profile</p>
+                          )}
+                          {(r.whatsapp === 'link_only' || (r.whatsapp?.startsWith('error:') && r.whatsappLink)) && (
+                            <div>
+                              {r.whatsapp?.startsWith('error:') && (
+                                <p className="text-red-500 flex items-center gap-1 mb-1"><Phone size={11} /> WhatsApp API failed — use manual link below</p>
+                              )}
+                              <a href={r.whatsappLink!} target="_blank" rel="noreferrer"
+                                className="flex items-center gap-1 text-green-600 font-semibold hover:underline">
+                                <Phone size={11} /> Send via WhatsApp Web <ExternalLink size={10} />
+                              </a>
+                            </div>
                           )}
                         </div>
                       ))}

@@ -100,13 +100,43 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       }
     }
 
-    // ── WhatsApp (wa.me link — no API required) ───────────────────────────
+    // ── WhatsApp via Twilio ───────────────────────────────────────────────
     if (target.channels.includes('whatsapp')) {
-      const phone = edu.phone?.replace(/\D/g, '')
-      if (phone) {
-        result.whatsappLink = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
-      } else {
+      const rawPhone = edu.phone?.replace(/\D/g, '')
+      if (!rawPhone) {
         result.whatsapp = 'no_phone'
+      } else {
+        // Normalise to E.164 — prepend +91 if no country code
+        const e164 = rawPhone.startsWith('91') && rawPhone.length === 12
+          ? `+${rawPhone}`
+          : rawPhone.startsWith('+')
+          ? rawPhone
+          : `+91${rawPhone}`
+
+        const twilioSid = process.env.TWILIO_ACCOUNT_SID
+        const twilioToken = process.env.TWILIO_AUTH_TOKEN
+        const twilioFrom = process.env.TWILIO_WHATSAPP_FROM // e.g. whatsapp:+14155238886
+
+        if (!twilioSid || !twilioToken || !twilioFrom) {
+          // Fallback to wa.me link if Twilio not configured
+          result.whatsappLink = `https://wa.me/${rawPhone}?text=${encodeURIComponent(message)}`
+          result.whatsapp = 'link_only'
+        } else {
+          try {
+            const twilio = (await import('twilio')).default
+            const client = twilio(twilioSid, twilioToken)
+            await client.messages.create({
+              from: twilioFrom,
+              to: `whatsapp:${e164}`,
+              body: message,
+            })
+            result.whatsapp = 'sent'
+          } catch (e) {
+            result.whatsapp = `error:${String(e)}`
+            // Still give manual fallback link
+            result.whatsappLink = `https://wa.me/${rawPhone}?text=${encodeURIComponent(message)}`
+          }
+        }
       }
     }
 
