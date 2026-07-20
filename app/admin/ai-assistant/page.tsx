@@ -26,6 +26,8 @@ const TOOL_LABELS: Record<string, string> = {
   list_educators: '↓ Educators Fetched',
   list_task_groups: '↓ Groups Fetched',
   list_branches: '↓ Campuses Fetched',
+  list_educator_groups: '↓ Groups Fetched',
+  assign_group_to_task: '⊕ Group Assigned',
   get_task: '↓ Task Details Fetched',
   send_reminder: '🔔 Reminders Sent',
 }

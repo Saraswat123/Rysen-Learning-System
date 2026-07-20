@@ -21,6 +21,7 @@ const NAV = [
   { href: '/admin/student-tests', label: 'Student Tests', icon: ClipboardList },
   { href: '/admin/test-results', label: 'Results Sheet', icon: FileSpreadsheet },
   { href: '/admin/tasks', label: 'Task Directory', icon: ListTodo },
+  { href: '/admin/educator-groups', label: 'Educator Groups', icon: Users },
   { href: '/admin/resources', label: 'Resources', icon: FolderOpen },
   { href: '/admin/ai-assistant', label: 'RYSEN AI', icon: Sparkles },
   { href: '/admin/reports', label: 'Branch Reports', icon: PieChart },
@@ -47,14 +48,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       const d = await r.json()
       setUser(d.user)
       // Run migration once per browser session; skip if already done
-      if (!sessionStorage.getItem('rysen_migrated_v20')) {
+      if (!sessionStorage.getItem('rysen_migrated_v21')) {
         try {
           const ac = new AbortController()
           const t = setTimeout(() => ac.abort(), 12000)
           await fetch('/api/admin/migrate', { method: 'POST', signal: ac.signal })
           clearTimeout(t)
         } catch {}
-        sessionStorage.setItem('rysen_migrated_v20', '1')
+        sessionStorage.setItem('rysen_migrated_v21', '1')
       }
       setReady(true)
     })

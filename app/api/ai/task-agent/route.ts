@@ -174,6 +174,29 @@ const TOOLS: Groq.Chat.Completions.ChatCompletionTool[] = [
   {
     type: 'function',
     function: {
+      name: 'list_educator_groups',
+      description: 'List all saved educator groups with their members. Use this to assign a whole group to a task instead of individual educators.',
+      parameters: { type: 'object', properties: {} },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'assign_group_to_task',
+      description: 'Assign all members of a saved educator group to a task in one step',
+      parameters: {
+        type: 'object',
+        properties: {
+          taskId: { type: 'string', description: 'Task ID to assign the group to' },
+          groupId: { type: 'string', description: 'Educator group ID' },
+        },
+        required: ['taskId', 'groupId'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'list_branches',
       description: 'List all campuses/branches with educator counts. Use this to find branch IDs before filtering educators by campus.',
       parameters: { type: 'object', properties: {} },
@@ -327,6 +350,37 @@ async function executeTool(name: string, args: Record<string, unknown>, userId: 
       const group = await db.taskGroup.create({ data: { title, description: description ?? null, color: color ?? COLORS[Math.floor(Math.random() * COLORS.length)], createdById: userId } })
       return { success: true, id: group.id, title: group.title, message: `Task group "${title}" created.` }
     }
+    case 'list_educator_groups': {
+      const groups = await db.educatorGroup.findMany({
+        include: { members: { include: { user: { select: { id: true, name: true, branch: { select: { name: true } } } } } } },
+        orderBy: { createdAt: 'asc' },
+      })
+      return groups.map((g) => ({
+        id: g.id, name: g.name, description: g.description,
+        memberCount: g.members.length,
+        members: g.members.map((m) => ({ id: m.user.id, name: m.user.name, branch: m.user.branch?.name })),
+      }))
+    }
+    case 'assign_group_to_task': {
+      const { taskId, groupId } = args as { taskId: string; groupId: string }
+      const group = await db.educatorGroup.findUnique({
+        where: { id: groupId },
+        include: { members: { select: { userId: true } } },
+      })
+      if (!group) return { error: 'Educator group not found' }
+      const task = await db.task.findUnique({ where: { id: taskId }, select: { title: true } })
+      if (!task) return { error: 'Task not found' }
+      const existing = await db.taskAssignment.findMany({ where: { taskId }, select: { userId: true } })
+      const existingIds = new Set(existing.map((a) => a.userId))
+      const toAdd = group.members.map((m) => m.userId).filter((id) => !existingIds.has(id))
+      if (toAdd.length > 0) {
+        await db.taskAssignment.createMany({ data: toAdd.map((uid) => ({ taskId, userId: uid })) })
+        await db.notification.createMany({
+          data: toAdd.map((uid) => ({ userId: uid, title: 'New Task Assigned', message: `You have been assigned: "${task.title}"`, type: 'TASK', relatedId: taskId })),
+        })
+      }
+      return { success: true, message: `Assigned "${group.name}" (${group.members.length} educators) to "${task.title}". ${toAdd.length} new, ${group.members.length - toAdd.length} already assigned.` }
+    }
     case 'list_branches': {
       const branches = await db.branch.findMany({
         include: { _count: { select: { users: true } } },
@@ -430,6 +484,7 @@ CAPABILITIES (use tools proactively — chain multiple tools in one response):
 WORKFLOW RULES:
 - When asked to create a complete task, do it ALL in sequence: create task → add subtasks → add resources → assign educators → send reminder (if asked)
 - Deadlines: convert natural language to ISO dates. "next Friday" = calculate from today. "end of month" = last day of current month. "in 3 days" = today + 3
+- Educator groups: ALWAYS call list_educator_groups first. If a group matches what the user wants, use assign_group_to_task instead of manually listing and assigning educators
 - When assigning by campus/branch ("all Ganganagar educators"), call list_branches first to get branch name, then list_educators with that branch as search term, then assign_educators
 - When sending reminders, default channel is email. Add whatsapp if user mentions it
 - Be brief in responses — show what was done, not what you're about to do

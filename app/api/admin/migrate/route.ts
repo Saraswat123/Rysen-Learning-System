@@ -276,6 +276,28 @@ const MIGRATIONS = [
     sql: `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "phone" TEXT`,
   },
   {
+    label: 'EducatorGroup table',
+    check: `SELECT 1 FROM information_schema.tables WHERE table_name='EducatorGroup'`,
+    sql: `CREATE TABLE IF NOT EXISTS "EducatorGroup" (
+      "id" TEXT PRIMARY KEY,
+      "name" TEXT NOT NULL,
+      "description" TEXT,
+      "color" TEXT NOT NULL DEFAULT '#033D4C',
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`,
+  },
+  {
+    label: 'EducatorGroupMember table',
+    check: `SELECT 1 FROM information_schema.tables WHERE table_name='EducatorGroupMember'`,
+    sql: `CREATE TABLE IF NOT EXISTS "EducatorGroupMember" (
+      "id" TEXT PRIMARY KEY,
+      "groupId" TEXT NOT NULL REFERENCES "EducatorGroup"("id") ON DELETE CASCADE,
+      "userId" TEXT NOT NULL REFERENCES "User"("id") ON DELETE CASCADE,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE("groupId","userId")
+    )`,
+  },
+  {
     label: 'Resource table',
     check: `SELECT 1 FROM information_schema.tables WHERE table_name='Resource'`,
     sql: `CREATE TABLE IF NOT EXISTS "Resource" (

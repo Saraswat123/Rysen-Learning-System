@@ -45,6 +45,26 @@ model Resource {
   updatedAt   DateTime @updatedAt
 }
 
+model EducatorGroup {
+  id          String                @id @default(cuid())
+  name        String
+  description String?
+  color       String                @default("#033D4C")
+  members     EducatorGroupMember[]
+  createdAt   DateTime              @default(now())
+}
+
+model EducatorGroupMember {
+  id        String        @id @default(cuid())
+  groupId   String
+  group     EducatorGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime      @default(now())
+
+  @@unique([groupId, userId])
+}
+
 model User {
   id        String   @id @default(cuid())
   name      String
@@ -67,6 +87,7 @@ model User {
   taskAssignments   TaskAssignment[]     @relation("TaskAssignee")
   taskComments      TaskComment[]        @relation("TaskCommenter")
   notifications     Notification[]       @relation("NotificationRecipient")
+  educatorGroups    EducatorGroupMember[]
 }
 
 model Session {

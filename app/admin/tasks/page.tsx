@@ -1,11 +1,12 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { Plus, Folder, ClipboardList, Trash2, ChevronRight, Users, Calendar, AlertCircle, CheckCircle, Clock, Edit2, X } from 'lucide-react'
+import { Plus, Folder, ClipboardList, Trash2, ChevronRight, Users, Calendar, AlertCircle, CheckCircle, Clock, Edit2, X, UsersRound } from 'lucide-react'
 import Link from 'next/link'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 
 interface TaskGroup { id: string; title: string; description: string | null; color: string; _count: { tasks: number }; createdBy: { name: string } }
+interface EducatorGroup { id: string; name: string; color: string; members: { user: { id: string } }[] }
 interface Task {
   id: string; title: string; description: string | null; deadline: string | null
   priority: string; group: { id: string; title: string; color: string } | null
@@ -40,17 +41,21 @@ export default function AdminTasksPage() {
   const [editGroup, setEditGroup] = useState<TaskGroup | null>(null)
   const [groupForm, setGroupForm] = useState({ title: '', description: '', color: COLORS[0] })
   const [taskForm, setTaskForm] = useState({ title: '', description: '', deadline: '', priority: 'NORMAL', groupId: '' })
+  const [taskEduGroupId, setTaskEduGroupId] = useState('')
+  const [eduGroups, setEduGroups] = useState<EducatorGroup[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
   async function load() {
     setLoading(true)
-    const [g, t] = await Promise.all([
+    const [g, t, eg] = await Promise.all([
       fetch('/api/task-groups').then((r) => r.json()),
       fetch('/api/tasks').then((r) => r.json()),
+      fetch('/api/educator-groups').then((r) => r.json()),
     ])
     setGroups(Array.isArray(g) ? g : [])
     setTasks(Array.isArray(t) ? t : [])
+    setEduGroups(Array.isArray(eg) ? eg : [])
     setLoading(false)
   }
 
@@ -73,13 +78,19 @@ export default function AdminTasksPage() {
 
   async function saveTask(e: React.FormEvent) {
     e.preventDefault(); setSaving(true); setError('')
+    // Resolve educator group → assigneeIds
+    const eduGroup = eduGroups.find((g) => g.id === taskEduGroupId)
+    const assigneeIds = eduGroup ? eduGroup.members.map((m) => m.user.id) : undefined
     const res = await fetch('/api/tasks', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...taskForm, groupId: taskForm.groupId || null, deadline: taskForm.deadline || null }),
+      body: JSON.stringify({ ...taskForm, groupId: taskForm.groupId || null, deadline: taskForm.deadline || null, assigneeIds }),
     })
     const data = await res.json(); setSaving(false)
     if (!res.ok) { setError(data.error); return }
-    setShowTaskModal(false); setTaskForm({ title: '', description: '', deadline: '', priority: 'NORMAL', groupId: '' }); load()
+    setShowTaskModal(false)
+    setTaskForm({ title: '', description: '', deadline: '', priority: 'NORMAL', groupId: '' })
+    setTaskEduGroupId('')
+    load()
   }
 
   async function deleteTask(id: string) {
@@ -264,8 +275,28 @@ export default function AdminTasksPage() {
                   {groups.map((g) => <option key={g.id} value={g.id}>{g.title}</option>)}
                 </select>
               </div>
+              {/* Assign to Educator Group */}
+              {eduGroups.length > 0 && (
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm font-semibold text-charcoal flex items-center gap-1.5">
+                    <UsersRound size={13} /> Assign to Educator Group
+                  </label>
+                  <select value={taskEduGroupId} onChange={(e) => setTaskEduGroupId(e.target.value)}
+                    className="px-3 py-2.5 border border-gray-300 rounded-lg text-sm text-charcoal focus:outline-none focus:ring-2 focus:ring-midnight">
+                    <option value="">— Don't assign yet —</option>
+                    {eduGroups.map((g) => (
+                      <option key={g.id} value={g.id}>{g.name} ({g.members.length} educators)</option>
+                    ))}
+                  </select>
+                  {taskEduGroupId && (
+                    <p className="text-xs text-forest font-medium">
+                      ✓ Will assign {eduGroups.find((g) => g.id === taskEduGroupId)?.members.length ?? 0} educators automatically
+                    </p>
+                  )}
+                </div>
+              )}
               {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
-              <p className="text-xs text-charcoal/40">Assign educators, add subtasks and resources after creating.</p>
+              <p className="text-xs text-charcoal/40">{taskEduGroupId ? 'Group will be auto-assigned on create.' : 'Or assign educators individually after creating.'}</p>
               <div className="flex gap-3 mt-1">
                 <Button type="button" onClick={() => setShowTaskModal(false)} className="flex-1 bg-gray-100 text-charcoal">Cancel</Button>
                 <Button type="submit" loading={saving} className="flex-1">Create Task</Button>
