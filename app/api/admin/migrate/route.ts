@@ -275,6 +275,23 @@ const MIGRATIONS = [
     check: `SELECT 1 FROM information_schema.columns WHERE table_name='User' AND column_name='phone'`,
     sql: `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "phone" TEXT`,
   },
+  {
+    label: 'Resource table',
+    check: `SELECT 1 FROM information_schema.tables WHERE table_name='Resource'`,
+    sql: `CREATE TABLE IF NOT EXISTS "Resource" (
+      "id" TEXT PRIMARY KEY,
+      "title" TEXT NOT NULL,
+      "description" TEXT,
+      "url" TEXT NOT NULL,
+      "type" TEXT NOT NULL DEFAULT 'LINK',
+      "category" TEXT NOT NULL DEFAULT 'General',
+      "isPublished" BOOLEAN NOT NULL DEFAULT true,
+      "isPinned" BOOLEAN NOT NULL DEFAULT false,
+      "branchId" TEXT REFERENCES "Branch"("id") ON DELETE SET NULL,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`,
+  },
 ]
 
 async function checkPending() {
