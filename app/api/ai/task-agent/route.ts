@@ -529,7 +529,7 @@ EXAMPLE FLOWS the user might say:
       const toolResults: Groq.Chat.Completions.ChatCompletionToolMessageParam[] = []
       for (const call of msg.tool_calls) {
         try {
-          const args = JSON.parse(call.function.arguments) as Record<string, unknown>
+          const args = (JSON.parse(call.function.arguments) ?? {}) as Record<string, unknown>
           const result = await executeTool(call.function.name, args, user.id)
           actions.push({ tool: call.function.name, args, result })
           toolResults.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify(result) })

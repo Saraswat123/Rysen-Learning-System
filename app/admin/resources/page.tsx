@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   Plus, Trash2, Eye, EyeOff, Pin, PinOff, ExternalLink, X,
   FileText, FileSpreadsheet, Video, Link as LinkIcon, FolderOpen, File,
-  Search, Filter,
+  Search, Upload, Sparkles,
 } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
@@ -12,7 +12,7 @@ import Toast from '@/components/Toast'
 
 interface Branch { id: string; name: string; location: string }
 interface Resource {
-  id: string; title: string; description: string | null; url: string
+  id: string; title: string; description: string | null; url: string | null
   type: string; category: string; isPublished: boolean; isPinned: boolean
   branchId: string | null; branch: { id: string; name: string } | null
   createdAt: string
@@ -54,6 +54,10 @@ export default function AdminResourcesPage() {
   const [search, setSearch] = useState('')
   const [filterCat, setFilterCat] = useState('')
   const [filterBranch, setFilterBranch] = useState('')
+  const [inputMode, setInputMode] = useState<'link' | 'upload'>('link')
+  const [uploadFile, setUploadFile] = useState<File | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
 
   async function load() {
     const [rr, br] = await Promise.all([fetch('/api/resources'), fetch('/api/branches')])
@@ -62,29 +66,51 @@ export default function AdminResourcesPage() {
   }
   useEffect(() => { load() }, [])
 
-  function openCreate() { setForm({ ...EMPTY_FORM }); setEditId(null); setShowCreate(true) }
+  function openCreate() { setForm({ ...EMPTY_FORM }); setEditId(null); setUploadFile(null); setInputMode('link'); setShowCreate(true) }
   function openEdit(r: Resource) {
-    setForm({ title: r.title, description: r.description ?? '', url: r.url, type: r.type, category: r.category, branchId: r.branchId ?? '', isPublished: r.isPublished, isPinned: r.isPinned })
+    setForm({ title: r.title, description: r.description ?? '', url: r.url ?? '', type: r.type, category: r.category, branchId: r.branchId ?? '', isPublished: r.isPublished, isPinned: r.isPinned })
     setEditId(r.id)
     setShowCreate(true)
   }
 
   async function save() {
-    if (!form.title.trim() || !form.url.trim()) return
+    if (!form.title.trim()) return
     setSaving(true)
-    const payload = { ...form, branchId: form.branchId || null, description: form.description.trim() || null }
+
+    let finalUrl = form.url.trim() || null
+
+    // Upload file first if in upload mode
+    if (inputMode === 'upload' && uploadFile) {
+      setUploading(true)
+      const fd = new FormData()
+      fd.append('file', uploadFile)
+      const upRes = await fetch('/api/resources/upload', { method: 'POST', body: fd })
+      const upData = await upRes.json()
+      setUploading(false)
+      if (!upRes.ok) { setToast({ msg: upData.error ?? 'Upload failed', type: 'error' }); setSaving(false); return }
+      finalUrl = upData.url
+    }
+
+    const payload = { ...form, url: finalUrl, branchId: form.branchId || null, description: form.description.trim() || null }
     const res = editId
       ? await fetch(`/api/resources/${editId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
       : await fetch('/api/resources', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
     if (res.ok) {
       setToast({ msg: editId ? 'Resource updated' : 'Resource added', type: 'success' })
-      setShowCreate(false)
+      setShowCreate(false); setUploadFile(null)
       load()
     } else {
       const err = await res.json().catch(() => ({}))
       setToast({ msg: err.error ?? 'Failed', type: 'error' })
     }
     setSaving(false)
+  }
+
+  async function seedStemResources() {
+    const res = await fetch('/api/admin/setup-stem-resources', { method: 'POST' })
+    const data = await res.json()
+    if (res.ok) { setToast({ msg: `STEM resources seeded: ${data.results.filter((r: {status: string}) => r.status === 'created').length} added`, type: 'success' }); load() }
+    else setToast({ msg: data.error ?? 'Failed', type: 'error' })
   }
 
   async function toggle(r: Resource, field: 'isPublished' | 'isPinned') {
@@ -122,7 +148,13 @@ export default function AdminResourcesPage() {
           <h1 className="text-2xl font-bold text-midnight">Resources</h1>
           <p className="text-sm text-charcoal/60 mt-0.5">{resources.length} resources across {Object.keys(grouped).length} categories</p>
         </div>
-        <Button onClick={openCreate} size="sm"><Plus size={14} /> Add Resource</Button>
+        <div className="flex gap-2">
+          <button onClick={seedStemResources}
+            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl border border-forest/30 text-forest hover:bg-forest/5 transition-colors">
+            <Sparkles size={13} /> Seed STEM Resources
+          </button>
+          <Button onClick={openCreate} size="sm"><Plus size={14} /> Add Resource</Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -172,17 +204,23 @@ export default function AdminResourcesPage() {
                               {!r.branchId && <span className="text-[10px] font-medium bg-forest/5 text-forest px-1.5 py-0.5 rounded-full">All Campuses</span>}
                             </div>
                             {r.description && <p className="text-xs text-charcoal/50 mt-0.5 line-clamp-1">{r.description}</p>}
-                            <a href={r.url} target="_blank" rel="noopener noreferrer"
-                              className="text-xs text-midnight/50 hover:text-midnight truncate block mt-1 max-w-xs">
-                              {r.url}
-                            </a>
+                            {r.url ? (
+                              <a href={r.url} target="_blank" rel="noopener noreferrer"
+                                className="text-xs text-midnight/50 hover:text-midnight truncate block mt-1 max-w-xs">
+                                {r.url}
+                              </a>
+                            ) : (
+                              <span className="text-xs text-charcoal/30 block mt-1">No link — upload pending</span>
+                            )}
                           </div>
                         </div>
                         <div className="flex items-center gap-1 flex-shrink-0">
-                          <a href={r.url} target="_blank" rel="noopener noreferrer"
-                            className="p-1.5 text-charcoal/30 hover:text-midnight hover:bg-midnight/5 rounded-lg transition-colors">
-                            <ExternalLink size={13} />
-                          </a>
+                          {r.url && (
+                            <a href={r.url} target="_blank" rel="noopener noreferrer"
+                              className="p-1.5 text-charcoal/30 hover:text-midnight hover:bg-midnight/5 rounded-lg transition-colors">
+                              <ExternalLink size={13} />
+                            </a>
+                          )}
                           <button onClick={() => toggle(r, 'isPinned')}
                             className={`p-1.5 rounded-lg transition-colors ${r.isPinned ? 'text-gold hover:bg-gold/10' : 'text-charcoal/30 hover:text-charcoal hover:bg-gray-50'}`}>
                             {r.isPinned ? <Pin size={13} /> : <PinOff size={13} />}
@@ -235,8 +273,38 @@ export default function AdminResourcesPage() {
                   })}
                 </div>
               </div>
-              <Input label="URL / Link *" placeholder="https://drive.google.com/…"
-                value={form.url} onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))} />
+              {/* Link or Upload toggle */}
+              <div>
+                <div className="flex gap-1 mb-2 p-1 bg-gray-100 rounded-xl w-fit">
+                  <button type="button" onClick={() => setInputMode('link')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${inputMode === 'link' ? 'bg-white text-midnight shadow-sm' : 'text-charcoal/50 hover:text-charcoal'}`}>
+                    <LinkIcon size={11} /> Paste Link
+                  </button>
+                  <button type="button" onClick={() => setInputMode('upload')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${inputMode === 'upload' ? 'bg-white text-midnight shadow-sm' : 'text-charcoal/50 hover:text-charcoal'}`}>
+                    <Upload size={11} /> Upload File
+                  </button>
+                </div>
+                {inputMode === 'link' ? (
+                  <Input label="" placeholder="https://drive.google.com/…"
+                    value={form.url} onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))} />
+                ) : (
+                  <div>
+                    <input ref={fileRef} type="file" className="hidden"
+                      onChange={(e) => { const f = e.target.files?.[0]; if (f) setUploadFile(f) }} />
+                    <button type="button" onClick={() => fileRef.current?.click()}
+                      className="w-full border-2 border-dashed border-gray-200 rounded-xl py-6 flex flex-col items-center gap-2 text-charcoal/40 hover:border-midnight/30 hover:text-midnight transition-colors">
+                      <Upload size={20} />
+                      {uploadFile ? (
+                        <span className="text-sm font-semibold text-forest">{uploadFile.name} ({(uploadFile.size / 1024).toFixed(0)} KB)</span>
+                      ) : (
+                        <span className="text-sm">Click to choose file (PDF, DOC, image, etc.) · Max 50MB</span>
+                      )}
+                    </button>
+                    {uploading && <p className="text-xs text-midnight/50 mt-1 text-center animate-pulse">Uploading…</p>}
+                  </div>
+                )}
+              </div>
               <Input label="Description" placeholder="Brief note on what this resource contains"
                 value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
               <div className="grid grid-cols-2 gap-3">
@@ -270,7 +338,7 @@ export default function AdminResourcesPage() {
             </div>
             <div className="flex gap-3 mt-6">
               <Button variant="ghost" className="flex-1" onClick={() => setShowCreate(false)}>Cancel</Button>
-              <Button className="flex-1" loading={saving} onClick={save} disabled={!form.title.trim() || !form.url.trim()}>
+              <Button className="flex-1" loading={saving || uploading} onClick={save} disabled={!form.title.trim() || (inputMode === 'link' ? !form.url.trim() : !uploadFile)}>
                 {editId ? 'Save Changes' : 'Add Resource'}
               </Button>
             </div>

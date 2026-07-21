@@ -31,9 +31,12 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(assignments)
   }
 
-  // Admin sees all tasks
+  // Admin sees own tasks + all ALL_ADMINS tasks
   const tasks = await db.task.findMany({
-    where: groupId ? { groupId } : {},
+    where: {
+      ...(groupId ? { groupId } : {}),
+      OR: [{ createdById: user.id }, { visibility: 'ALL_ADMINS' }],
+    },
     include: {
       group: { select: { id: true, title: true, color: true } },
       subtasks: { orderBy: { order: 'asc' } },
@@ -52,7 +55,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   }
   const body = await req.json()
-  const { title, description, deadline, priority, groupId, assigneeIds } = body
+  const { title, description, deadline, priority, groupId, assigneeIds, visibility } = body
   if (!title) return NextResponse.json({ error: 'Title required' }, { status: 400 })
 
   const task = await db.task.create({
@@ -61,6 +64,7 @@ export async function POST(req: NextRequest) {
       description: description ?? null,
       deadline: deadline ? new Date(deadline) : null,
       priority: priority ?? 'NORMAL',
+      visibility: visibility ?? 'ALL_ADMINS',
       groupId: groupId || null,
       createdById: user.id,
       assignments: assigneeIds?.length

@@ -314,6 +314,16 @@ const MIGRATIONS = [
       "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`,
   },
+  {
+    label: 'Task.visibility',
+    check: `SELECT 1 FROM information_schema.columns WHERE table_name='Task' AND column_name='visibility'`,
+    sql: `ALTER TABLE "Task" ADD COLUMN IF NOT EXISTS "visibility" TEXT NOT NULL DEFAULT 'ALL_ADMINS'`,
+  },
+  {
+    label: 'Resource.url nullable',
+    check: `SELECT 1 FROM information_schema.columns WHERE table_name='Resource' AND column_name='url' AND is_nullable='YES'`,
+    sql: `ALTER TABLE "Resource" ALTER COLUMN "url" DROP NOT NULL`,
+  },
 ]
 
 async function checkPending() {

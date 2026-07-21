@@ -34,7 +34,7 @@ model Resource {
   id          String   @id @default(cuid())
   title       String
   description String?
-  url         String
+  url         String?
   type        String   @default("LINK")
   category    String   @default("General")
   isPublished Boolean  @default(true)
@@ -270,6 +270,7 @@ model Task {
   notes       String?
   deadline    DateTime?
   priority    String    @default("NORMAL")
+  visibility  String    @default("ALL_ADMINS")
   createdById String
   createdBy   User      @relation("TaskCreator", fields: [createdById], references: [id], onDelete: Cascade)
   createdAt   DateTime  @default(now())

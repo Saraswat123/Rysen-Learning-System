@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { ExternalLink, Search, FolderOpen, FileText, FileSpreadsheet, Video, Link as LinkIcon, File, Pin } from 'lucide-react'
 
 interface Resource {
-  id: string; title: string; description: string | null; url: string
+  id: string; title: string; description: string | null; url: string | null
   type: string; category: string; isPublished: boolean; isPinned: boolean
   branchId: string | null; branch: { id: string; name: string } | null
   createdAt: string
@@ -23,8 +23,8 @@ function ResourceCard({ r }: { r: Resource }) {
   const meta = TYPE_META[r.type] ?? TYPE_META['LINK']
   const Icon = meta.icon
   return (
-    <a href={r.url} target="_blank" rel="noopener noreferrer"
-      className="group bg-white rounded-2xl border border-gray-100 p-4 flex items-start gap-4 hover:border-midnight/20 hover:shadow-md transition-all">
+    <a href={r.url ?? '#'} target={r.url ? '_blank' : undefined} rel="noopener noreferrer"
+      className={`group bg-white rounded-2xl border border-gray-100 p-4 flex items-start gap-4 hover:border-midnight/20 hover:shadow-md transition-all ${!r.url ? 'opacity-60 cursor-default' : ''}`}>
       <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${meta.bg}`}>
         <Icon size={18} className={meta.color} />
       </div>

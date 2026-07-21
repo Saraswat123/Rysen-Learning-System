@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { Plus, Folder, ClipboardList, Trash2, ChevronRight, Users, Calendar, AlertCircle, CheckCircle, Clock, Edit2, X, UsersRound } from 'lucide-react'
+import { Plus, Folder, ClipboardList, Trash2, ChevronRight, Users, Calendar, AlertCircle, CheckCircle, Clock, Edit2, X, UsersRound, Lock, Globe } from 'lucide-react'
 import Link from 'next/link'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
@@ -9,7 +9,7 @@ interface TaskGroup { id: string; title: string; description: string | null; col
 interface EducatorGroup { id: string; name: string; color: string; members: { user: { id: string } }[] }
 interface Task {
   id: string; title: string; description: string | null; deadline: string | null
-  priority: string; group: { id: string; title: string; color: string } | null
+  priority: string; visibility: string; group: { id: string; title: string; color: string } | null
   _count: { assignments: number; comments: number }
   assignments: { user: { id: string; name: string; branch: { name: string } | null }; completedAt: string | null }[]
 }
@@ -40,7 +40,7 @@ export default function AdminTasksPage() {
   const [showTaskModal, setShowTaskModal] = useState(false)
   const [editGroup, setEditGroup] = useState<TaskGroup | null>(null)
   const [groupForm, setGroupForm] = useState({ title: '', description: '', color: COLORS[0] })
-  const [taskForm, setTaskForm] = useState({ title: '', description: '', deadline: '', priority: 'NORMAL', groupId: '' })
+  const [taskForm, setTaskForm] = useState({ title: '', description: '', deadline: '', priority: 'NORMAL', groupId: '', visibility: 'ALL_ADMINS' })
   const [taskEduGroupId, setTaskEduGroupId] = useState('')
   const [eduGroups, setEduGroups] = useState<EducatorGroup[]>([])
   const [saving, setSaving] = useState(false)
@@ -88,7 +88,7 @@ export default function AdminTasksPage() {
     const data = await res.json(); setSaving(false)
     if (!res.ok) { setError(data.error); return }
     setShowTaskModal(false)
-    setTaskForm({ title: '', description: '', deadline: '', priority: 'NORMAL', groupId: '' })
+    setTaskForm({ title: '', description: '', deadline: '', priority: 'NORMAL', groupId: '', visibility: 'ALL_ADMINS' })
     setTaskEduGroupId('')
     load()
   }
@@ -167,6 +167,7 @@ export default function AdminTasksPage() {
                           <h3 className="font-bold text-midnight">{task.title}</h3>
                           <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${PRIORITY_STYLE[task.priority]}`}>{task.priority}</span>
                           {task.group && <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ backgroundColor: task.group.color + '20', color: task.group.color }}>{task.group.title}</span>}
+                          {task.visibility === 'PRIVATE' && <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 font-semibold"><Lock size={9} /> Only me</span>}
                         </div>
                         {task.description && <p className="text-sm text-charcoal/60 mb-2 line-clamp-2">{task.description}</p>}
                         <div className="flex items-center gap-4 flex-wrap text-xs text-charcoal/50">
@@ -274,6 +275,20 @@ export default function AdminTasksPage() {
                   <option value="">No group</option>
                   {groups.map((g) => <option key={g.id} value={g.id}>{g.title}</option>)}
                 </select>
+              </div>
+              {/* Visibility */}
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-semibold text-charcoal">Visibility</label>
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => setTaskForm((f) => ({ ...f, visibility: 'ALL_ADMINS' }))}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg border text-sm font-medium transition-colors ${taskForm.visibility === 'ALL_ADMINS' ? 'bg-midnight text-white border-midnight' : 'border-gray-200 text-charcoal hover:bg-gray-50'}`}>
+                    <Globe size={13} /> All Admins
+                  </button>
+                  <button type="button" onClick={() => setTaskForm((f) => ({ ...f, visibility: 'PRIVATE' }))}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg border text-sm font-medium transition-colors ${taskForm.visibility === 'PRIVATE' ? 'bg-amber-500 text-white border-amber-500' : 'border-gray-200 text-charcoal hover:bg-gray-50'}`}>
+                    <Lock size={13} /> Only Me
+                  </button>
+                </div>
               </div>
               {/* Assign to Educator Group */}
               {eduGroups.length > 0 && (

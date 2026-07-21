@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
       data: {
         title: data.title?.trim(),
         description: data.description?.trim() || null,
-        url: data.url?.trim(),
+        url: data.url?.trim() || null,
         type: data.type ?? 'LINK',
         category: data.category?.trim() || 'General',
         isPublished: data.isPublished ?? true,

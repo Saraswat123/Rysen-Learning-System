@@ -20,6 +20,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     select: { title: true, description: true, deadline: true, priority: true },
   })
   if (!task) return NextResponse.json({ error: 'Task not found' }, { status: 404 })
+  const taskTitle = task.title
+  const taskDescription = task.description
+  const taskPriority = task.priority
 
   const userIds = targets.map((t) => t.userId)
   const educators = await db.user.findMany({
@@ -50,10 +53,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     <p style="color:#40403E;font-size:14px;margin:0 0 24px">You have a pending task${customMessage ? ':' : '. Please complete it before the deadline.'}</p>
     ${customMessage ? `<p style="color:#40403E;font-size:14px;background:#f5f5f5;padding:12px 16px;border-radius:8px;border-left:3px solid #033D4C">${customMessage}</p>` : ''}
     <div style="background:#f5f9fc;border:1px solid #e0ecf0;border-radius:12px;padding:20px;margin:20px 0">
-      <h2 style="color:#033D4C;font-size:18px;margin:0 0 8px">${task.title}</h2>
-      ${task.description ? `<p style="color:#666;font-size:13px;margin:0 0 12px">${task.description}</p>` : ''}
+      <h2 style="color:#033D4C;font-size:18px;margin:0 0 8px">${taskTitle}</h2>
+      ${taskDescription ? `<p style="color:#666;font-size:13px;margin:0 0 12px">${taskDescription}</p>` : ''}
       <div style="display:flex;gap:16px;flex-wrap:wrap">
-        <span style="font-size:12px;font-weight:600;background:${task.priority === 'HIGH' ? '#fee2e2' : task.priority === 'LOW' ? '#f3f4f6' : '#e0ecf0'};color:${task.priority === 'HIGH' ? '#dc2626' : task.priority === 'LOW' ? '#6b7280' : '#033D4C'};padding:4px 10px;border-radius:99px">${task.priority} PRIORITY</span>
+        <span style="font-size:12px;font-weight:600;background:${taskPriority === 'HIGH' ? '#fee2e2' : taskPriority === 'LOW' ? '#f3f4f6' : '#e0ecf0'};color:${taskPriority === 'HIGH' ? '#dc2626' : taskPriority === 'LOW' ? '#6b7280' : '#033D4C'};padding:4px 10px;border-radius:99px">${taskPriority} PRIORITY</span>
         <span style="font-size:12px;color:#666;padding:4px 0">📅 ${deadlineStr}</span>
       </div>
     </div>
