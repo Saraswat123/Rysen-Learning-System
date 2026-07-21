@@ -507,33 +507,45 @@ EXAMPLE FLOWS the user might say:
 
   const actions: { tool: string; args: Record<string, unknown>; result: unknown }[] = []
 
-  // Agentic loop — run until no more tool calls
-  for (let i = 0; i < 5; i++) {
-    const response = await groq.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
-      messages: msgHistory,
-      tools: TOOLS,
-      tool_choice: 'auto',
-      max_tokens: 2000,
-    })
+  try {
+    // Agentic loop — run until no more tool calls
+    for (let i = 0; i < 5; i++) {
+      const response = await groq.chat.completions.create({
+        model: 'llama-3.3-70b-versatile',
+        messages: msgHistory,
+        tools: TOOLS,
+        tool_choice: 'auto',
+        max_tokens: 2000,
+      })
 
-    const msg = response.choices[0].message
-    msgHistory.push(msg as Groq.Chat.Completions.ChatCompletionMessageParam)
+      const msg = response.choices[0].message
+      msgHistory.push(msg as Groq.Chat.Completions.ChatCompletionMessageParam)
 
-    if (!msg.tool_calls?.length) {
-      return NextResponse.json({ reply: msg.content ?? 'Done.', actions })
+      if (!msg.tool_calls?.length) {
+        return NextResponse.json({ reply: msg.content ?? 'Done.', actions })
+      }
+
+      // Execute all tool calls
+      const toolResults: Groq.Chat.Completions.ChatCompletionToolMessageParam[] = []
+      for (const call of msg.tool_calls) {
+        try {
+          const args = JSON.parse(call.function.arguments) as Record<string, unknown>
+          const result = await executeTool(call.function.name, args, user.id)
+          actions.push({ tool: call.function.name, args, result })
+          toolResults.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify(result) })
+        } catch (toolErr) {
+          const errResult = { error: String(toolErr) }
+          actions.push({ tool: call.function.name, args: {}, result: errResult })
+          toolResults.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify(errResult) })
+        }
+      }
+      msgHistory.push(...toolResults)
     }
 
-    // Execute all tool calls
-    const toolResults: Groq.Chat.Completions.ChatCompletionToolMessageParam[] = []
-    for (const call of msg.tool_calls) {
-      const args = JSON.parse(call.function.arguments) as Record<string, unknown>
-      const result = await executeTool(call.function.name, args, user.id)
-      actions.push({ tool: call.function.name, args, result })
-      toolResults.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify(result) })
-    }
-    msgHistory.push(...toolResults)
+    return NextResponse.json({ reply: 'Done processing your request.', actions })
+  } catch (err) {
+    console.error('[RYSEN AI]', err)
+    const msg = err instanceof Error ? err.message : String(err)
+    return NextResponse.json({ reply: `AI error: ${msg}`, actions })
   }
-
-  return NextResponse.json({ reply: 'Done processing your request.', actions })
 }

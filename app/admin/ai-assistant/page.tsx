@@ -162,10 +162,10 @@ export default function AIAssistantPage() {
         ...prev.filter((m) => !m.loading),
         { id: Date.now().toString() + '-resp', role: 'assistant', content: data.reply, actions: data.actions },
       ])
-    } catch {
+    } catch (err) {
       setMessages((prev) => [
         ...prev.filter((m) => !m.loading),
-        { id: Date.now().toString() + '-err', role: 'assistant', content: 'Something went wrong. Please try again.' },
+        { id: Date.now().toString() + '-err', role: 'assistant', content: `Error: ${String(err)}` },
       ])
     }
     setLoading(false)
