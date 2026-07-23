@@ -482,7 +482,8 @@ CAPABILITIES (use tools proactively — chain multiple tools in one response):
 - List tasks, groups, educators, branches
 
 WORKFLOW RULES:
-- When asked to create a complete task, do it ALL in sequence: create task → add subtasks → add resources → assign educators → send reminder (if asked)
+- CRITICAL: Call ONE tool per step. NEVER call create_task and add_resource or add_subtask in the same step. Wait for create_task to return the real task ID, then use that ID in the next step.
+- Correct order: create_task → (get real ID from result) → add_subtask (using real ID) → add_resource (using real ID) → list_educators/list_educator_groups → assign → done
 - Deadlines: convert natural language to ISO dates. "next Friday" = calculate from today. "end of month" = last day of current month. "in 3 days" = today + 3
 - Educator groups: ALWAYS call list_educator_groups first. If a group matches what the user wants, use assign_group_to_task instead of manually listing and assigning educators
 - When assigning by campus/branch ("all Ganganagar educators"), call list_branches first to get branch name, then list_educators with that branch as search term, then assign_educators
@@ -509,14 +510,29 @@ EXAMPLE FLOWS the user might say:
 
   try {
     // Agentic loop — run until no more tool calls
-    for (let i = 0; i < 5; i++) {
-      const response = await groq.chat.completions.create({
-        model: 'llama-3.3-70b-versatile',
-        messages: msgHistory,
-        tools: TOOLS,
-        tool_choice: 'auto',
-        max_tokens: 2000,
-      })
+    for (let i = 0; i < 8; i++) {
+      let response: Awaited<ReturnType<typeof groq.chat.completions.create>>
+      try {
+        response = await groq.chat.completions.create({
+          model: 'llama-3.3-70b-versatile',
+          messages: msgHistory,
+          tools: TOOLS,
+          tool_choice: 'auto',
+          max_tokens: 2000,
+        })
+      } catch (groqErr) {
+        // Groq rejects its own hallucinated tool names (e.g. "list_task_groups?") — retry without tools
+        const errMsg = groqErr instanceof Error ? groqErr.message : String(groqErr)
+        if (errMsg.includes('tool_use_failed') || errMsg.includes('tool call validation')) {
+          response = await groq.chat.completions.create({
+            model: 'llama-3.3-70b-versatile',
+            messages: msgHistory,
+            max_tokens: 2000,
+          })
+        } else {
+          throw groqErr
+        }
+      }
 
       const msg = response.choices[0].message
       msgHistory.push(msg as Groq.Chat.Completions.ChatCompletionMessageParam)
@@ -525,17 +541,19 @@ EXAMPLE FLOWS the user might say:
         return NextResponse.json({ reply: msg.content ?? 'Done.', actions })
       }
 
-      // Execute all tool calls
+      // Execute tool calls one at a time — feed each result back before running next
+      // This prevents create_task + add_resource batching (FK errors from predicted IDs)
       const toolResults: Groq.Chat.Completions.ChatCompletionToolMessageParam[] = []
       for (const call of msg.tool_calls) {
         try {
+          const toolName = call.function.name.replace(/[^a-z0-9_]/gi, '')
           const args = (JSON.parse(call.function.arguments) ?? {}) as Record<string, unknown>
-          const result = await executeTool(call.function.name, args, user.id)
-          actions.push({ tool: call.function.name, args, result })
+          const result = await executeTool(toolName, args, user.id)
+          actions.push({ tool: toolName, args, result })
           toolResults.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify(result) })
         } catch (toolErr) {
           const errResult = { error: String(toolErr) }
-          actions.push({ tool: call.function.name, args: {}, result: errResult })
+          actions.push({ tool: call.function.name.replace(/[^a-z0-9_]/gi, ''), args: {}, result: errResult })
           toolResults.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify(errResult) })
         }
       }

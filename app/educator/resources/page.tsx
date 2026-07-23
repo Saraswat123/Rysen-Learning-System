@@ -7,6 +7,7 @@ interface Resource {
   id: string; title: string; description: string | null; url: string | null
   type: string; category: string; isPublished: boolean; isPinned: boolean
   branchId: string | null; branch: { id: string; name: string } | null
+  groupId: string | null; group: { id: string; name: string; color: string } | null
   createdAt: string
 }
 
@@ -33,6 +34,7 @@ function ResourceCard({ r }: { r: Resource }) {
           <h3 className="font-bold text-sm text-midnight group-hover:text-midnight/80 truncate">{r.title}</h3>
           {r.isPinned && <span className="text-[10px] font-bold text-olive bg-gold/20 px-1.5 py-0.5 rounded-full flex items-center gap-0.5"><Pin size={8} /> Pinned</span>}
           <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${meta.bg} ${meta.color}`}>{meta.label}</span>
+          {r.group && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full text-white" style={{ backgroundColor: r.group.color }}>{r.group.name}</span>}
         </div>
         {r.description && <p className="text-xs text-charcoal/50 mt-1 line-clamp-2">{r.description}</p>}
         <p className="text-xs text-charcoal/30 mt-1 truncate">{r.url}</p>

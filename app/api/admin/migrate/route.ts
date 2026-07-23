@@ -324,6 +324,11 @@ const MIGRATIONS = [
     check: `SELECT 1 FROM information_schema.columns WHERE table_name='Resource' AND column_name='url' AND is_nullable='YES'`,
     sql: `ALTER TABLE "Resource" ALTER COLUMN "url" DROP NOT NULL`,
   },
+  {
+    label: 'Resource.groupId column',
+    check: `SELECT 1 FROM information_schema.columns WHERE table_name='Resource' AND column_name='groupId'`,
+    sql: `ALTER TABLE "Resource" ADD COLUMN IF NOT EXISTS "groupId" TEXT REFERENCES "EducatorGroup"("id") ON DELETE SET NULL`,
+  },
 ]
 
 async function checkPending() {

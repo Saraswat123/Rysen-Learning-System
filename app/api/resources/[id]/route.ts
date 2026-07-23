@@ -28,8 +28,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         ...(data.isPublished !== undefined && { isPublished: data.isPublished }),
         ...(data.isPinned !== undefined && { isPinned: data.isPinned }),
         ...(data.branchId !== undefined && { branchId: data.branchId || null }),
+        ...(data.groupId !== undefined && { groupId: data.groupId || null }),
       },
-      include: { branch: { select: { id: true, name: true } } },
+      include: {
+        branch: { select: { id: true, name: true } },
+        group: { select: { id: true, name: true, color: true } },
+      },
     })
     return NextResponse.json(resource)
   } catch (err) {

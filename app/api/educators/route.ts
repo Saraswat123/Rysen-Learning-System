@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   }
 
-  const { name, email, branchId } = await req.json()
+  const { name, email, phone, branchId } = await req.json()
   if (!name || !email || !branchId) {
     return NextResponse.json({ error: 'Name, email, and branch are required' }, { status: 400 })
   }
@@ -40,6 +40,7 @@ export async function POST(req: NextRequest) {
     data: {
       name: name.trim(),
       email: email.toLowerCase().trim(),
+      phone: phone?.trim() || null,
       role: Role.EDUCATOR,
       branchId,
       createdBy: user.id,

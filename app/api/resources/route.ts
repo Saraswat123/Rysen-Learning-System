@@ -14,16 +14,35 @@ export async function GET(req: NextRequest) {
     const branchId = searchParams.get('branchId')
     const isAdmin = user.role === Role.ADMIN || user.role === Role.SUPER_ADMIN
 
+    // For educators: get their group memberships to filter resources
+    let educatorGroupIds: string[] | null = null
+    if (!isAdmin) {
+      const memberships = await db.educatorGroupMember.findMany({
+        where: { userId: user.id },
+        select: { groupId: true },
+      })
+      educatorGroupIds = memberships.map((m) => m.groupId)
+    }
+
+    const branchFilter = branchId
+      ? { OR: [{ branchId }, { branchId: null }] }
+      : user.branchId
+      ? { OR: [{ branchId: user.branchId }, { branchId: null }] }
+      : {}
+
     const resources = await db.resource.findMany({
       where: {
         ...(isAdmin ? {} : { isPublished: true }),
-        ...(branchId
-          ? { OR: [{ branchId }, { branchId: null }] }
-          : user.branchId
-          ? { OR: [{ branchId: user.branchId }, { branchId: null }] }
+        ...branchFilter,
+        // Educators see: resources with no group (everyone) OR resources for their groups
+        ...(educatorGroupIds !== null
+          ? { OR: [{ groupId: null }, { groupId: { in: educatorGroupIds } }] }
           : {}),
       },
-      include: { branch: { select: { id: true, name: true } } },
+      include: {
+        branch: { select: { id: true, name: true } },
+        group: { select: { id: true, name: true, color: true } },
+      },
       orderBy: [{ isPinned: 'desc' }, { createdAt: 'desc' }],
     })
 
@@ -51,8 +70,12 @@ export async function POST(req: NextRequest) {
         isPublished: data.isPublished ?? true,
         isPinned: data.isPinned ?? false,
         branchId: data.branchId || null,
+        groupId: data.groupId || null,
       },
-      include: { branch: { select: { id: true, name: true } } },
+      include: {
+        branch: { select: { id: true, name: true } },
+        group: { select: { id: true, name: true, color: true } },
+      },
     })
     return NextResponse.json(resource)
   } catch (err) {

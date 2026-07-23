@@ -249,6 +249,17 @@ export default function EducatorsPage() {
         />
       </div>
 
+      {/* Missing phone warning */}
+      {(() => {
+        const missing = filtered.filter((e) => e.isActive && !e.phone).length
+        return missing > 0 ? (
+          <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-700">
+            <Phone size={15} className="flex-shrink-0" />
+            <span><strong>{missing} educator{missing > 1 ? 's' : ''}</strong> missing WhatsApp number — click <strong>+ Add phone</strong> in their row to enable WhatsApp reminders</span>
+          </div>
+        ) : null
+      })()}
+
       {/* Table */}
       <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
         <table className="w-full text-sm">
@@ -256,6 +267,7 @@ export default function EducatorsPage() {
             <tr>
               <th className="text-left px-5 py-3 font-semibold text-charcoal">Name</th>
               <th className="text-left px-5 py-3 font-semibold text-charcoal">Email</th>
+              <th className="text-left px-5 py-3 font-semibold text-charcoal">WhatsApp</th>
               <th className="text-left px-5 py-3 font-semibold text-charcoal">Campus</th>
               <th className="text-left px-5 py-3 font-semibold text-charcoal">Progress</th>
               <th className="text-left px-5 py-3 font-semibold text-charcoal">Status</th>
@@ -264,9 +276,18 @@ export default function EducatorsPage() {
           </thead>
           <tbody>
             {filtered.map((e) => (
-              <tr key={e.id} className="border-b border-gray-50 hover:bg-cream/50 transition-colors">
+              <tr key={e.id} className={`border-b border-gray-50 hover:bg-cream/50 transition-colors ${!e.phone ? 'bg-amber-50/30' : ''}`}>
                 <td className="px-5 py-3 font-medium text-charcoal">{e.name}</td>
-                <td className="px-5 py-3 text-charcoal/70">{e.email}</td>
+                <td className="px-5 py-3 text-charcoal/70 text-xs">{e.email}</td>
+                <td className="px-5 py-3">
+                  {e.phone ? (
+                    <span className="text-xs text-charcoal/70 flex items-center gap-1"><Phone size={11} className="text-green-500" />{e.phone}</span>
+                  ) : (
+                    <button onClick={() => openEdit(e)} className="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full hover:bg-amber-100 transition-colors font-medium">
+                      + Add phone
+                    </button>
+                  )}
+                </td>
                 <td className="px-5 py-3">
                   {e.branch ? (
                     <span className="text-charcoal/70">{e.branch.name}</span>
@@ -293,9 +314,7 @@ export default function EducatorsPage() {
                 </td>
                 <td className="px-5 py-3">
                   <div className="flex items-center gap-2">
-                    {e.phone && (
-                      <span className="text-[10px] text-charcoal/40 flex items-center gap-0.5" title={e.phone}><Phone size={10} /></span>
-                    )}
+                    {/* phone icon removed — now shown in column */}
                     <button onClick={() => openEdit(e)} className="text-charcoal/30 hover:text-midnight transition-colors" title="Edit">
                       <Pencil size={15} />
                     </button>
@@ -313,7 +332,7 @@ export default function EducatorsPage() {
               </tr>
             ))}
             {filtered.length === 0 && (
-              <tr><td colSpan={6} className="text-center py-12 text-charcoal/40">No educators found</td></tr>
+              <tr><td colSpan={7} className="text-center py-12 text-charcoal/40">No educators found</td></tr>
             )}
           </tbody>
         </table>

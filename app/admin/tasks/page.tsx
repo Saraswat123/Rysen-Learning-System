@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { Plus, Folder, ClipboardList, Trash2, ChevronRight, Users, Calendar, AlertCircle, CheckCircle, Clock, Edit2, X, UsersRound, Lock, Globe } from 'lucide-react'
+import { Plus, Folder, ClipboardList, Trash2, ChevronRight, Users, Calendar, AlertCircle, CheckCircle, Clock, Edit2, X, UsersRound, Lock, Globe, BookMarked } from 'lucide-react'
 import Link from 'next/link'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
@@ -43,6 +43,9 @@ export default function AdminTasksPage() {
   const [taskForm, setTaskForm] = useState({ title: '', description: '', deadline: '', priority: 'NORMAL', groupId: '', visibility: 'ALL_ADMINS' })
   const [taskEduGroupId, setTaskEduGroupId] = useState('')
   const [eduGroups, setEduGroups] = useState<EducatorGroup[]>([])
+  const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null)
+  const [editTask, setEditTask] = useState<Task | null>(null)
+  const [editTaskForm, setEditTaskForm] = useState({ title: '', description: '', deadline: '', priority: 'NORMAL', groupId: '', visibility: 'ALL_ADMINS' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -93,15 +96,68 @@ export default function AdminTasksPage() {
     load()
   }
 
+  async function addTaskToResources(task: Task) {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? window.location.origin
+    const res = await fetch('/api/resources', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: task.title,
+        description: task.description ?? undefined,
+        url: `${appUrl}/educator/tasks/${task.id}`,
+        type: 'TASK',
+        category: 'Tasks',
+      }),
+    })
+    if (res.ok) {
+      setToast({ msg: `"${task.title}" added to Resources`, ok: true })
+    } else {
+      const d = await res.json()
+      setToast({ msg: d.error ?? 'Failed to add', ok: false })
+    }
+    setTimeout(() => setToast(null), 3000)
+  }
+
   async function deleteTask(id: string) {
     if (!confirm('Delete task?')) return
     await fetch(`/api/tasks/${id}`, { method: 'DELETE' }); load()
+  }
+
+  function openEditTask(task: Task) {
+    setEditTask(task)
+    setEditTaskForm({
+      title: task.title,
+      description: task.description ?? '',
+      deadline: task.deadline ? new Date(task.deadline).toISOString().split('T')[0] : '',
+      priority: task.priority,
+      groupId: task.group?.id ?? '',
+      visibility: task.visibility,
+    })
+    setError('')
+  }
+
+  async function saveEditTask(e: React.FormEvent) {
+    e.preventDefault()
+    if (!editTask) return
+    setSaving(true); setError('')
+    const res = await fetch(`/api/tasks/${editTask.id}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...editTaskForm, groupId: editTaskForm.groupId || null, deadline: editTaskForm.deadline || null }),
+    })
+    const data = await res.json(); setSaving(false)
+    if (!res.ok) { setError(data.error ?? 'Failed to save'); return }
+    setEditTask(null); load()
   }
 
   const filteredTasks = activeGroup === 'all' ? tasks : tasks.filter((t) => t.group?.id === activeGroup)
 
   return (
     <div className="max-w-6xl mx-auto">
+      {toast && (
+        <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-xl shadow-lg text-sm font-semibold text-white ${toast.ok ? 'bg-forest' : 'bg-red-500'}`}>
+          {toast.msg}
+        </div>
+      )}
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-midnight flex items-center gap-2"><ClipboardList size={24} /> Task Directory</h1>
@@ -192,6 +248,8 @@ export default function AdminTasksPage() {
                         )}
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
+                        <button onClick={() => addTaskToResources(task)} className="p-1.5 rounded-lg hover:bg-forest/10 text-charcoal/30 hover:text-forest transition-colors" title="Add to Resources"><BookMarked size={15} /></button>
+                        <button onClick={() => openEditTask(task)} className="p-1.5 rounded-lg hover:bg-midnight/5 text-charcoal/30 hover:text-midnight transition-colors" title="Edit task"><Edit2 size={15} /></button>
                         <button onClick={() => deleteTask(task.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-charcoal/30 hover:text-red-500 transition-colors"><Trash2 size={15} /></button>
                         <Link href={`/admin/tasks/${task.id}`}>
                           <button className="flex items-center gap-1 px-3 py-2 bg-midnight text-white text-xs font-semibold rounded-xl hover:bg-midnight/80 transition-colors">
@@ -315,6 +373,68 @@ export default function AdminTasksPage() {
               <div className="flex gap-3 mt-1">
                 <Button type="button" onClick={() => setShowTaskModal(false)} className="flex-1 bg-gray-100 text-charcoal">Cancel</Button>
                 <Button type="submit" loading={saving} className="flex-1">Create Task</Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Task Modal */}
+      {editTask && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-midnight flex items-center gap-2"><Edit2 size={16} /> Edit Task</h2>
+              <button onClick={() => setEditTask(null)} className="text-charcoal/40 hover:text-charcoal"><X size={18} /></button>
+            </div>
+            <form onSubmit={saveEditTask} className="flex flex-col gap-3">
+              <Input label="Task Title" value={editTaskForm.title} onChange={(e) => setEditTaskForm((f) => ({ ...f, title: e.target.value }))} required />
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-semibold text-charcoal">Description</label>
+                <textarea value={editTaskForm.description} onChange={(e) => setEditTaskForm((f) => ({ ...f, description: e.target.value }))} rows={3}
+                  className="px-4 py-2.5 border border-gray-300 rounded-lg text-sm text-charcoal focus:outline-none focus:ring-2 focus:ring-midnight resize-none" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm font-semibold text-charcoal">Priority</label>
+                  <select value={editTaskForm.priority} onChange={(e) => setEditTaskForm((f) => ({ ...f, priority: e.target.value }))}
+                    className="px-3 py-2.5 border border-gray-300 rounded-lg text-sm text-charcoal focus:outline-none focus:ring-2 focus:ring-midnight">
+                    <option value="LOW">Low</option>
+                    <option value="NORMAL">Normal</option>
+                    <option value="HIGH">High</option>
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm font-semibold text-charcoal">Deadline</label>
+                  <input type="date" value={editTaskForm.deadline} onChange={(e) => setEditTaskForm((f) => ({ ...f, deadline: e.target.value }))}
+                    className="px-3 py-2.5 border border-gray-300 rounded-lg text-sm text-charcoal focus:outline-none focus:ring-2 focus:ring-midnight" />
+                </div>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-semibold text-charcoal">Task Group</label>
+                <select value={editTaskForm.groupId} onChange={(e) => setEditTaskForm((f) => ({ ...f, groupId: e.target.value }))}
+                  className="px-3 py-2.5 border border-gray-300 rounded-lg text-sm text-charcoal focus:outline-none focus:ring-2 focus:ring-midnight">
+                  <option value="">No group</option>
+                  {groups.map((g) => <option key={g.id} value={g.id}>{g.title}</option>)}
+                </select>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-semibold text-charcoal">Visibility</label>
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => setEditTaskForm((f) => ({ ...f, visibility: 'ALL_ADMINS' }))}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg border text-sm font-medium transition-colors ${editTaskForm.visibility === 'ALL_ADMINS' ? 'bg-midnight text-white border-midnight' : 'border-gray-200 text-charcoal hover:bg-gray-50'}`}>
+                    <Globe size={13} /> All Admins
+                  </button>
+                  <button type="button" onClick={() => setEditTaskForm((f) => ({ ...f, visibility: 'PRIVATE' }))}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg border text-sm font-medium transition-colors ${editTaskForm.visibility === 'PRIVATE' ? 'bg-amber-500 text-white border-amber-500' : 'border-gray-200 text-charcoal hover:bg-gray-50'}`}>
+                    <Lock size={13} /> Only Me
+                  </button>
+                </div>
+              </div>
+              {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
+              <div className="flex gap-3 mt-1">
+                <Button type="button" onClick={() => setEditTask(null)} className="flex-1 bg-gray-100 text-charcoal">Cancel</Button>
+                <Button type="submit" loading={saving} className="flex-1">Save Changes</Button>
               </div>
             </form>
           </div>

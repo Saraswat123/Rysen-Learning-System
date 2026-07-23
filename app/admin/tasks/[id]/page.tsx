@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, use, useRef } from 'react'
-import { ArrowLeft, Plus, Trash2, Link2, FileText, Users, CheckSquare, Square, Calendar, MessageSquare, Send, X, CheckCircle, StickyNote, Sparkles, AlertCircle, Clock, Bot, User, Bell, Mail, Phone, ExternalLink } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, Link2, FileText, Users, CheckSquare, Square, Calendar, MessageSquare, Send, X, CheckCircle, StickyNote, Sparkles, AlertCircle, Clock, Bot, User, Bell, Mail, Phone, ExternalLink, Upload } from 'lucide-react'
 import Link from 'next/link'
 import Button from '@/components/ui/Button'
 
@@ -36,6 +36,11 @@ export default function AdminTaskDetailPage({ params }: { params: Promise<{ id: 
   const [loading, setLoading] = useState(true)
   const [subtaskForm, setSubtaskForm] = useState({ title: '', deadline: '' })
   const [resourceForm, setResourceForm] = useState({ type: 'URL', title: '', url: '', description: '' })
+  const [resourceTab, setResourceTab] = useState<'link' | 'upload'>('link')
+  const [resourceFile, setResourceFile] = useState<File | null>(null)
+  const [uploadingResource, setUploadingResource] = useState(false)
+  const [uploadError, setUploadError] = useState('')
+  const resourceFileRef = useRef<HTMLInputElement>(null)
   const [commentText, setCommentText] = useState('')
   const [notes, setNotes] = useState('')
   const [notesSaved, setNotesSaved] = useState(false)
@@ -84,10 +89,37 @@ export default function AdminTaskDetailPage({ params }: { params: Promise<{ id: 
   }
 
   async function addResource(e: React.FormEvent) {
-    e.preventDefault(); if (!resourceForm.title || !resourceForm.url) return
-    setSaving('resource')
-    await fetch(`/api/tasks/${id}/resources`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(resourceForm) })
-    setResourceForm({ type: 'URL', title: '', url: '', description: '' }); setSaving(null); load()
+    e.preventDefault()
+    if (!resourceForm.title) return
+    if (resourceTab === 'upload' && resourceFile) {
+      setUploadingResource(true); setUploadError('')
+      const fd = new FormData(); fd.append('file', resourceFile)
+      let upData: { url?: string; error?: string }
+      try {
+        const up = await fetch('/api/resources/upload', { method: 'POST', body: fd })
+        upData = await up.json()
+        if (!up.ok) {
+          setUploadError(upData.error ?? 'Upload failed')
+          setUploadingResource(false); setSaving(null); return
+        }
+      } catch {
+        setUploadError('Network error — upload failed')
+        setUploadingResource(false); setSaving(null); return
+      }
+      setUploadingResource(false)
+      await fetch(`/api/tasks/${id}/resources`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...resourceForm, url: upData.url, type: 'DOCUMENT' }),
+      })
+    } else {
+      if (!resourceForm.url) return
+      setSaving('resource')
+      await fetch(`/api/tasks/${id}/resources`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(resourceForm) })
+    }
+    setResourceForm({ type: 'URL', title: '', url: '', description: '' })
+    setResourceFile(null)
+    if (resourceFileRef.current) resourceFileRef.current.value = ''
+    setSaving(null); load()
   }
 
   async function deleteResource(resourceId: string) {
@@ -250,7 +282,7 @@ export default function AdminTaskDetailPage({ params }: { params: Promise<{ id: 
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-midnight">{r.title}</p>
-                    <a href={r.url} target="_blank" rel="noreferrer" className="text-xs text-charcoal/50 hover:text-midnight truncate block transition-colors">{r.url.slice(0, 55)}{r.url.length > 55 ? '…' : ''}</a>
+                    {r.url && <a href={r.url} target="_blank" rel="noreferrer" className="text-xs text-charcoal/50 hover:text-midnight truncate block transition-colors">{r.url.slice(0, 55)}{r.url.length > 55 ? '…' : ''}</a>}
                     {r.description && <p className="text-xs text-charcoal/60 mt-1 italic">{r.description}</p>}
                   </div>
                   <button onClick={() => deleteResource(r.id)} className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-50 text-charcoal/30 hover:text-red-500 transition-all flex-shrink-0">
@@ -261,21 +293,40 @@ export default function AdminTaskDetailPage({ params }: { params: Promise<{ id: 
               {task.resources.length === 0 && <p className="text-sm text-charcoal/40">No resources yet.</p>}
             </div>
             <form onSubmit={addResource} className="flex flex-col gap-2">
-              <div className="flex gap-2">
-                <select value={resourceForm.type} onChange={(e) => setResourceForm((f) => ({ ...f, type: e.target.value }))}
-                  className="px-3 py-2 border border-gray-200 rounded-xl text-sm text-charcoal focus:outline-none focus:ring-2 focus:ring-midnight">
-                  <option value="URL">Link / URL</option>
-                  <option value="DOCUMENT">Document</option>
-                </select>
-                <input value={resourceForm.title} onChange={(e) => setResourceForm((f) => ({ ...f, title: e.target.value }))} placeholder="Resource title"
-                  className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-midnight" />
+              {/* Tab toggle */}
+              <div className="flex rounded-xl border border-gray-200 overflow-hidden text-xs font-semibold">
+                <button type="button" onClick={() => { setResourceTab('link'); setUploadError('') }}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 transition-colors ${resourceTab === 'link' ? 'bg-midnight text-white' : 'text-charcoal/50 hover:bg-gray-50'}`}>
+                  <Link2 size={12} /> Paste Link
+                </button>
+                <button type="button" onClick={() => { setResourceTab('upload'); setUploadError('') }}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 transition-colors ${resourceTab === 'upload' ? 'bg-midnight text-white' : 'text-charcoal/50 hover:bg-gray-50'}`}>
+                  <Upload size={12} /> Upload File
+                </button>
               </div>
-              <input value={resourceForm.url} onChange={(e) => setResourceForm((f) => ({ ...f, url: e.target.value }))} placeholder="https://…"
+              <input value={resourceForm.title} onChange={(e) => setResourceForm((f) => ({ ...f, title: e.target.value }))} placeholder="Resource title *"
                 className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-midnight" />
+              {resourceTab === 'link' ? (
+                <input value={resourceForm.url} onChange={(e) => setResourceForm((f) => ({ ...f, url: e.target.value }))} placeholder="https://…"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-midnight" />
+              ) : (
+                <div
+                  onClick={() => resourceFileRef.current?.click()}
+                  className="w-full px-3 py-3 border-2 border-dashed border-gray-200 rounded-xl text-sm text-charcoal/40 text-center cursor-pointer hover:border-midnight/30 hover:text-midnight/50 transition-colors">
+                  {resourceFile ? <span className="text-midnight font-medium">{resourceFile.name}</span> : <span className="flex items-center justify-center gap-2"><Upload size={14} /> Click to choose file — PDF, Doc, Image (max 4.5 MB)</span>}
+                  <input ref={resourceFileRef} type="file" className="hidden" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.mp4,.zip" onChange={(e) => { setResourceFile(e.target.files?.[0] ?? null); setUploadError('') }} />
+                </div>
+              )}
+              {uploadError && <p className="text-xs text-red-600 bg-red-50 px-3 py-2 rounded-lg">{uploadError}</p>}
               <div className="flex gap-2">
-                <input value={resourceForm.description} onChange={(e) => setResourceForm((f) => ({ ...f, description: e.target.value }))} placeholder="Key points / notes about this resource (optional)"
+                <input value={resourceForm.description} onChange={(e) => setResourceForm((f) => ({ ...f, description: e.target.value }))} placeholder="Notes (optional)"
                   className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-midnight" />
-                <Button type="submit" size="sm" loading={saving === 'resource'} className="flex items-center gap-1 flex-shrink-0"><Plus size={13} /> Add</Button>
+                <Button type="submit" size="sm"
+                  loading={saving === 'resource' || uploadingResource}
+                  disabled={!resourceForm.title || (resourceTab === 'link' ? !resourceForm.url : !resourceFile)}
+                  className="flex items-center gap-1 flex-shrink-0">
+                  <Plus size={13} /> Add
+                </Button>
               </div>
             </form>
           </div>

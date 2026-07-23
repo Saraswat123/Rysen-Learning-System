@@ -11,10 +11,12 @@ import Input from '@/components/ui/Input'
 import Toast from '@/components/Toast'
 
 interface Branch { id: string; name: string; location: string }
+interface Group { id: string; name: string; color: string }
 interface Resource {
   id: string; title: string; description: string | null; url: string | null
   type: string; category: string; isPublished: boolean; isPinned: boolean
   branchId: string | null; branch: { id: string; name: string } | null
+  groupId: string | null; group: { id: string; name: string; color: string } | null
   createdAt: string
 }
 
@@ -40,11 +42,12 @@ function typeBadge(type: string) {
   return t.label
 }
 
-const EMPTY_FORM = { title: '', description: '', url: '', type: 'LINK', category: 'General', branchId: '', isPublished: true, isPinned: false }
+const EMPTY_FORM = { title: '', description: '', url: '', type: 'LINK', category: 'General', branchId: '', groupId: '', isPublished: true, isPinned: false }
 
 export default function AdminResourcesPage() {
   const [resources, setResources] = useState<Resource[]>([])
   const [branches, setBranches] = useState<Branch[]>([])
+  const [groups, setGroups] = useState<Group[]>([])
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -54,22 +57,26 @@ export default function AdminResourcesPage() {
   const [search, setSearch] = useState('')
   const [filterCat, setFilterCat] = useState('')
   const [filterBranch, setFilterBranch] = useState('')
+  const [filterGroup, setFilterGroup] = useState('')
   const [inputMode, setInputMode] = useState<'link' | 'upload'>('link')
   const [uploadFile, setUploadFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
   async function load() {
-    const [rr, br] = await Promise.all([fetch('/api/resources'), fetch('/api/branches')])
+    const [rr, br, gr] = await Promise.all([fetch('/api/resources'), fetch('/api/branches'), fetch('/api/educator-groups')])
     if (rr.ok) setResources(await rr.json())
     if (br.ok) setBranches(await br.json())
+    if (gr.ok) setGroups(await gr.json())
   }
   useEffect(() => { load() }, [])
 
   function openCreate() { setForm({ ...EMPTY_FORM }); setEditId(null); setUploadFile(null); setInputMode('link'); setShowCreate(true) }
   function openEdit(r: Resource) {
-    setForm({ title: r.title, description: r.description ?? '', url: r.url ?? '', type: r.type, category: r.category, branchId: r.branchId ?? '', isPublished: r.isPublished, isPinned: r.isPinned })
+    setForm({ title: r.title, description: r.description ?? '', url: r.url ?? '', type: r.type, category: r.category, branchId: r.branchId ?? '', groupId: r.groupId ?? '', isPublished: r.isPublished, isPinned: r.isPinned })
     setEditId(r.id)
+    setInputMode('link')
+    setUploadFile(null)
     setShowCreate(true)
   }
 
@@ -91,7 +98,7 @@ export default function AdminResourcesPage() {
       finalUrl = upData.url
     }
 
-    const payload = { ...form, url: finalUrl, branchId: form.branchId || null, description: form.description.trim() || null }
+    const payload = { ...form, url: finalUrl, branchId: form.branchId || null, groupId: form.groupId || null, description: form.description.trim() || null }
     const res = editId
       ? await fetch(`/api/resources/${editId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
       : await fetch('/api/resources', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
@@ -130,6 +137,8 @@ export default function AdminResourcesPage() {
     if (search && !r.title.toLowerCase().includes(search.toLowerCase()) && !(r.description ?? '').toLowerCase().includes(search.toLowerCase())) return false
     if (filterCat && filterCat !== 'All' && r.category !== filterCat) return false
     if (filterBranch && r.branchId !== filterBranch) return false
+    if (filterGroup === '__none__' && r.groupId !== null) return false
+    if (filterGroup && filterGroup !== '__none__' && r.groupId !== filterGroup) return false
     return true
   })
 
@@ -174,6 +183,12 @@ export default function AdminResourcesPage() {
           <option value="">All Campuses</option>
           {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
         </select>
+        <select value={filterGroup} onChange={(e) => setFilterGroup(e.target.value)}
+          className="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-midnight/20">
+          <option value="">All Groups</option>
+          <option value="__none__">No Group (Everyone)</option>
+          {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+        </select>
       </div>
 
       {/* Resource groups */}
@@ -202,6 +217,11 @@ export default function AdminResourcesPage() {
                               {!r.isPublished && <span className="text-[10px] font-bold bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded-full">HIDDEN</span>}
                               {r.branch && <span className="text-[10px] font-medium bg-midnight/5 text-midnight px-1.5 py-0.5 rounded-full">{r.branch.name}</span>}
                               {!r.branchId && <span className="text-[10px] font-medium bg-forest/5 text-forest px-1.5 py-0.5 rounded-full">All Campuses</span>}
+                              {r.group ? (
+                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full text-white" style={{ backgroundColor: r.group.color }}>{r.group.name}</span>
+                              ) : (
+                                <span className="text-[10px] font-medium bg-gray-100 text-charcoal/50 px-1.5 py-0.5 rounded-full">All Educators</span>
+                              )}
                             </div>
                             {r.description && <p className="text-xs text-charcoal/50 mt-0.5 line-clamp-1">{r.description}</p>}
                             {r.url ? (
@@ -322,6 +342,15 @@ export default function AdminResourcesPage() {
                     {branches.map((b) => <option key={b.id} value={b.id}>{b.name} — {b.location}</option>)}
                   </select>
                 </div>
+              </div>
+              <div>
+                <label className="text-sm font-semibold text-charcoal mb-1 block">Visible to Group</label>
+                <select value={form.groupId} onChange={(e) => setForm((f) => ({ ...f, groupId: e.target.value }))}
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-midnight/20">
+                  <option value="">All Educators (no restriction)</option>
+                  {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+                </select>
+                {form.groupId && <p className="text-xs text-charcoal/40 mt-1">Only educators in this group will see this resource.</p>}
               </div>
               <div className="flex items-center gap-4 pt-1">
                 <label className="flex items-center gap-2 cursor-pointer">

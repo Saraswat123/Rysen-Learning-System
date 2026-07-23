@@ -5,9 +5,17 @@ import { Role } from '@/app/generated/prisma/client'
 import { put } from '@vercel/blob'
 
 export async function POST(req: NextRequest) {
-  const user = await getSession()
-  if (!user || (user.role !== Role.ADMIN && user.role !== Role.SUPER_ADMIN)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+  let user
+  try {
+    user = await getSession()
+  } catch (sessionErr) {
+    return NextResponse.json({ error: `Session error: ${sessionErr instanceof Error ? sessionErr.message : String(sessionErr)}` }, { status: 500 })
+  }
+  if (!user) {
+    return NextResponse.json({ error: 'Not logged in — session missing or expired. Please refresh and log in again.' }, { status: 401 })
+  }
+  if (user.role !== Role.ADMIN && user.role !== Role.SUPER_ADMIN) {
+    return NextResponse.json({ error: `Unauthorized — your role is ${user.role}, needs ADMIN` }, { status: 403 })
   }
 
   const formData = await req.formData()
