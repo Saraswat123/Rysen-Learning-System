@@ -329,6 +329,17 @@ const MIGRATIONS = [
     check: `SELECT 1 FROM information_schema.columns WHERE table_name='Resource' AND column_name='groupId'`,
     sql: `ALTER TABLE "Resource" ADD COLUMN IF NOT EXISTS "groupId" TEXT REFERENCES "EducatorGroup"("id") ON DELETE SET NULL`,
   },
+  {
+    label: 'GroupMessage table',
+    check: `SELECT 1 FROM information_schema.tables WHERE table_name='GroupMessage'`,
+    sql: `CREATE TABLE IF NOT EXISTS "GroupMessage" (
+      "id" TEXT PRIMARY KEY,
+      "groupId" TEXT NOT NULL REFERENCES "EducatorGroup"("id") ON DELETE CASCADE,
+      "userId" TEXT NOT NULL REFERENCES "User"("id") ON DELETE CASCADE,
+      "text" TEXT NOT NULL,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`,
+  },
 ]
 
 async function checkPending() {

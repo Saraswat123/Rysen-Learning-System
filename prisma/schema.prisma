@@ -54,7 +54,18 @@ model EducatorGroup {
   color       String                @default("#033D4C")
   members     EducatorGroupMember[]
   resources   Resource[]
+  messages    GroupMessage[]
   createdAt   DateTime              @default(now())
+}
+
+model GroupMessage {
+  id        String        @id @default(cuid())
+  groupId   String
+  group     EducatorGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  text      String
+  createdAt DateTime      @default(now())
 }
 
 model EducatorGroupMember {
@@ -91,6 +102,7 @@ model User {
   taskComments      TaskComment[]        @relation("TaskCommenter")
   notifications     Notification[]       @relation("NotificationRecipient")
   educatorGroups    EducatorGroupMember[]
+  groupMessages     GroupMessage[]
 }
 
 model Session {
