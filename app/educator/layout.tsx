@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import RysenLogo from '@/components/RysenLogo'
-import { LayoutDashboard, Award, Trophy, LogOut, School, ClipboardList, ChevronDown, ListTodo, UserCircle, FolderOpen, Users, Layers, BarChart3 } from 'lucide-react'
+import { LayoutDashboard, Award, Trophy, LogOut, School, ClipboardList, ChevronDown, ListTodo, UserCircle, FolderOpen, Users, Layers, BarChart3, TrendingUp } from 'lucide-react'
 import NotificationBell from '@/components/NotificationBell'
 
 export default function EducatorLayout({ children }: { children: React.ReactNode }) {
@@ -64,6 +64,10 @@ export default function EducatorLayout({ children }: { children: React.ReactNode
                     <Link href="/educator/students/progress" onClick={() => setStudentsOpen(false)}
                       className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-charcoal hover:bg-midnight/5 hover:text-midnight transition-colors">
                       <BarChart3 size={15} className="text-midnight/50" /> Student Progress
+                    </Link>
+                    <Link href="/educator/analytics" onClick={() => setStudentsOpen(false)}
+                      className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-charcoal hover:bg-midnight/5 hover:text-midnight transition-colors">
+                      <TrendingUp size={15} className="text-midnight/50" /> Class Analytics
                     </Link>
                     <div className="border-t border-gray-100 my-1" />
                     <a href="/student/leaderboard" target="_blank" rel="noreferrer"
