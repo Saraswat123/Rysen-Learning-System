@@ -40,16 +40,18 @@ export async function POST() {
     results.push('— SOP doc already exists')
   }
 
+  const MEET_URL = 'https://meet.google.com/ruz-exjr-wru'
+
   // 2. North Campus Meeting (1st & 3rd Monday)
-  const northMeetingExists = await db.resource.findFirst({
+  const northMeeting = await db.resource.findFirst({
     where: { title: { contains: '1st & 3rd Monday' } },
   })
-  if (!northMeetingExists) {
+  if (!northMeeting) {
     await db.resource.create({
       data: {
         title: 'Weekly Meeting — 1st & 3rd Monday (North Campus)',
-        description: 'Every Monday 4:30 PM – 5:30 PM | 1st & 3rd week of month at North Campus',
-        url: null,
+        description: 'Every Monday 4:30 PM – 5:30 PM | 1st & 3rd week at North Campus · Google Meet',
+        url: MEET_URL,
         type: 'LINK',
         category: 'Meetings',
         isPublished: true,
@@ -57,21 +59,22 @@ export async function POST() {
         groupId: group?.id ?? null,
       },
     })
-    results.push('✓ North Campus meeting resource created')
+    results.push('✓ North Campus meeting created')
   } else {
-    results.push('— North meeting already exists')
+    await db.resource.update({ where: { id: northMeeting.id }, data: { url: MEET_URL } })
+    results.push('✓ North Campus meeting URL updated')
   }
 
   // 3. South Campus Meeting (2nd & 4th Monday)
-  const southMeetingExists = await db.resource.findFirst({
+  const southMeeting = await db.resource.findFirst({
     where: { title: { contains: '2nd & 4th Monday' } },
   })
-  if (!southMeetingExists) {
+  if (!southMeeting) {
     await db.resource.create({
       data: {
         title: 'Weekly Meeting — 2nd & 4th Monday (South Campus)',
-        description: 'Every Monday 4:30 PM – 5:30 PM | 2nd & 4th week of month at South Campus',
-        url: null,
+        description: 'Every Monday 4:30 PM – 5:30 PM | 2nd & 4th week at South Campus · Google Meet',
+        url: MEET_URL,
         type: 'LINK',
         category: 'Meetings',
         isPublished: true,
@@ -79,9 +82,10 @@ export async function POST() {
         groupId: group?.id ?? null,
       },
     })
-    results.push('✓ South Campus meeting resource created')
+    results.push('✓ South Campus meeting created')
   } else {
-    results.push('— South meeting already exists')
+    await db.resource.update({ where: { id: southMeeting.id }, data: { url: MEET_URL } })
+    results.push('✓ South Campus meeting URL updated')
   }
 
   return NextResponse.json({

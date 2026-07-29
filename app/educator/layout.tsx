@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import RysenLogo from '@/components/RysenLogo'
-import { LayoutDashboard, Award, Trophy, LogOut, School, ClipboardList, ChevronDown, ListTodo, UserCircle, FolderOpen, Users } from 'lucide-react'
+import { LayoutDashboard, Award, Trophy, LogOut, School, ClipboardList, ChevronDown, ListTodo, UserCircle, FolderOpen, Users, Layers } from 'lucide-react'
 import NotificationBell from '@/components/NotificationBell'
 
 export default function EducatorLayout({ children }: { children: React.ReactNode }) {
@@ -69,6 +69,11 @@ export default function EducatorLayout({ children }: { children: React.ReactNode
                   </div>
                 )}
               </div>
+
+              <Link href="/educator/programs"
+                className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg transition-colors ${pathname.startsWith('/educator/programs') ? 'bg-white/15 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
+                <Layers size={15} /> Programs
+              </Link>
 
               <Link href="/educator/tasks"
                 className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg transition-colors ${pathname.startsWith('/educator/tasks') ? 'bg-white/15 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>

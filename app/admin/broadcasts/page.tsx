@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Send, Mail, MessageCircle, Users, CheckCircle, XCircle, ExternalLink, ChevronDown, ChevronUp, Megaphone, FlaskConical, AlertCircle, Minus, ClipboardList } from 'lucide-react'
+import { Send, Mail, MessageCircle, Users, CheckCircle, XCircle, ExternalLink, ChevronDown, ChevronUp, Megaphone, FlaskConical, AlertCircle, Minus, ClipboardList, FolderOpen } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Toast from '@/components/Toast'
@@ -14,6 +14,7 @@ interface EducatorGroup {
 }
 
 interface Task { id: string; title: string; priority: string; deadline: string | null }
+interface Resource { id: string; title: string; type: string; category: string; description: string | null; url: string | null }
 interface WaLink { name: string; phone: string; link: string }
 interface EmailResult { name: string; email: string; sent: boolean; error?: string }
 interface BroadcastResult {
@@ -33,8 +34,10 @@ const TEMPLATES = [
 export default function BroadcastsPage() {
   const [groups, setGroups] = useState<EducatorGroup[]>([])
   const [tasks, setTasks] = useState<Task[]>([])
+  const [resources, setResources] = useState<Resource[]>([])
   const [groupId, setGroupId] = useState('')
   const [taskId, setTaskId] = useState('')
+  const [resourceId, setResourceId] = useState('')
   const [subject, setSubject] = useState('')
   const [message, setMessage] = useState('')
   const [channels, setChannels] = useState<('email' | 'whatsapp')[]>(['email'])
@@ -51,6 +54,7 @@ export default function BroadcastsPage() {
   useEffect(() => {
     fetch('/api/educator-groups').then((r) => r.json()).then((d) => setGroups(Array.isArray(d) ? d : []))
     fetch('/api/tasks').then((r) => r.json()).then((d) => setTasks(Array.isArray(d) ? d : []))
+    fetch('/api/resources').then((r) => r.json()).then((d) => setResources(Array.isArray(d) ? d.filter((r: Resource) => r.url) : []))
   }, [])
 
   function toggleChannel(c: 'email' | 'whatsapp') {
@@ -68,7 +72,7 @@ export default function BroadcastsPage() {
     const res = await fetch('/api/broadcasts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ groupId, message, subject, channels, taskId: taskId || undefined }),
+      body: JSON.stringify({ groupId, message, subject, channels, taskId: taskId || undefined, resourceId: resourceId || undefined }),
     })
     const data = await res.json()
     setSending(false)
@@ -172,9 +176,30 @@ export default function BroadcastsPage() {
             )}
           </div>
 
+          {/* Resource selector */}
+          <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-3">
+            <h2 className="font-bold text-midnight text-sm">4. Link a Resource <span className="text-charcoal/40 font-normal">(optional)</span></h2>
+            <select
+              value={resourceId}
+              onChange={(e) => setResourceId(e.target.value)}
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-charcoal focus:outline-none focus:ring-2 focus:ring-midnight/20 bg-white">
+              <option value="">— No specific resource —</option>
+              {resources.map((r) => (
+                <option key={r.id} value={r.id}>
+                  [{r.type}] {r.title} · {r.category}
+                </option>
+              ))}
+            </select>
+            {resourceId && (
+              <p className="text-xs text-forest bg-forest/5 rounded-lg px-3 py-2 flex items-center gap-1.5">
+                <FolderOpen size={12} /> Resource card will be included in email + WhatsApp message
+              </p>
+            )}
+          </div>
+
           {/* Templates */}
           <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-3">
-            <h2 className="font-bold text-midnight text-sm">4. Compose</h2>
+            <h2 className="font-bold text-midnight text-sm">5. Compose</h2>
             <div className="flex gap-2 flex-wrap">
               {TEMPLATES.map((t) => (
                 <button key={t.label} onClick={() => applyTemplate(t)}

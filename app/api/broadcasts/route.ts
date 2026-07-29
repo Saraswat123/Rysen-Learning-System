@@ -10,12 +10,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   }
 
-  const { groupId, message, subject, channels, taskId } = await req.json() as {
+  const { groupId, message, subject, channels, taskId, resourceId } = await req.json() as {
     groupId: string
     message: string
     subject: string
     channels: ('email' | 'whatsapp')[]
     taskId?: string
+    resourceId?: string
   }
 
   if (!groupId || !message?.trim()) {
@@ -35,6 +36,13 @@ export async function POST(req: NextRequest) {
         url: `${appUrl}/educator/tasks/${taskId}`,
       }
     }
+  }
+
+  // Optional resource link
+  let resourceInfo: { title: string; description: string | null; url: string | null; type: string } | null = null
+  if (resourceId) {
+    const res = await db.resource.findUnique({ where: { id: resourceId }, select: { title: true, description: true, url: true, type: true } })
+    if (res) resourceInfo = res
   }
 
   const group = await db.educatorGroup.findUnique({
@@ -81,6 +89,16 @@ export async function POST(req: NextRequest) {
         <a href="${taskInfo.url}" style="display:inline-block;background:#FECB08;color:#033D4C;font-weight:700;font-size:13px;padding:10px 20px;border-radius:8px;text-decoration:none">View Task →</a>
       </div>
     </div>` : ''}
+    ${resourceInfo ? `<div style="margin-top:16px;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden">
+      <div style="background:#f0fdf4;padding:12px 16px;border-bottom:1px solid #e2e8f0">
+        <p style="margin:0;font-size:11px;color:#15803d;text-transform:uppercase;letter-spacing:0.05em;font-weight:600">📁 New Resource Added</p>
+      </div>
+      <div style="padding:16px">
+        <p style="margin:0 0 4px;font-size:15px;font-weight:600;color:#033D4C">${resourceInfo.title.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>
+        ${resourceInfo.description ? `<p style="margin:4px 0 12px;font-size:13px;color:#64748b">${resourceInfo.description.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>` : '<div style="margin-bottom:12px"></div>'}
+        ${resourceInfo.url ? `<a href="${resourceInfo.url}" style="display:inline-block;background:#225632;color:#fff;font-weight:700;font-size:13px;padding:10px 20px;border-radius:8px;text-decoration:none">Open Resource →</a>` : ''}
+      </div>
+    </div>` : ''}
   </div>
   <div style="background:#f5f5f5;padding:16px 32px;text-align:center">
     <p style="color:#999;font-size:11px;margin:0">RYSEN Group of Schools · Learning Centre</p>
@@ -115,9 +133,11 @@ export async function POST(req: NextRequest) {
       const raw = m.phone?.replace(/\D/g, '')
       if (!raw) continue
       const e164 = raw.startsWith('91') && raw.length === 12 ? raw : `91${raw}`
-      const waText = taskInfo
-        ? `${message}\n\n📌 Task: ${taskInfo.title}${taskInfo.deadline ? ` (Due: ${taskInfo.deadline})` : ''}\n🔗 ${taskInfo.url}`
-        : message
+      const waText = [
+        message,
+        taskInfo ? `\n📌 Task: ${taskInfo.title}${taskInfo.deadline ? ` (Due: ${taskInfo.deadline})` : ''}\n🔗 ${taskInfo.url}` : '',
+        resourceInfo?.url ? `\n📁 Resource: ${resourceInfo.title}\n🔗 ${resourceInfo.url}` : '',
+      ].join('')
       waLinks.push({
         name: m.name,
         phone: `+${e164}`,
