@@ -64,7 +64,7 @@ export async function POST() {
         s.class,
         s.section ?? '',
         s.subject ?? '',
-        s.phone ?? '',
+        '',
         s.isActive ? 'Active' : 'Inactive',
         String(attempts.length),
         String(passed),

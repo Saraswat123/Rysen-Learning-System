@@ -12,7 +12,7 @@ import Input from '@/components/ui/Input'
 interface Branch { id: string; name: string; location: string }
 interface Student {
   id: string; name: string; class: string; section: string
-  subject: string; phone?: string; isActive: boolean; createdAt: string
+  subject: string; isActive: boolean; createdAt: string
   branch: Branch | null; _count: { attempts: number }
 }
 interface BranchGroup { branch: Branch | null; students: Student[] }
@@ -55,7 +55,7 @@ export default function StudentsPage() {
   const [filterClass, setFilterClass] = useState('')
   const [expandedBranches, setExpandedBranches] = useState<Set<string>>(new Set(['all']))
   const [showAdd, setShowAdd] = useState(false)
-  const [form, setForm] = useState({ name: '', class: '', section: '', subject: '', phone: '', branchId: '' })
+  const [form, setForm] = useState({ name: '', class: '', section: '', subject: '', branchId: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [showImport, setShowImport] = useState(false)
@@ -93,7 +93,7 @@ export default function StudentsPage() {
     setSaving(false)
     if (!res.ok) { setError(data.error); return }
     setShowAdd(false)
-    setForm({ name: '', class: '', section: '', subject: '', phone: '', branchId: '' })
+    setForm({ name: '', class: '', section: '', subject: '', branchId: '' })
     load()
   }
 
@@ -206,10 +206,7 @@ export default function StudentsPage() {
                 <Input label="Class" placeholder="e.g. 10" value={form.class} onChange={(e) => setForm((f) => ({ ...f, class: e.target.value }))} required />
                 <Input label="Section" placeholder="e.g. A" value={form.section} onChange={(e) => setForm((f) => ({ ...f, section: e.target.value }))} />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <Input label="Subject" placeholder="e.g. Science" value={form.subject} onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value }))} />
-                <Input label="Phone" placeholder="optional" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
-              </div>
+              <Input label="Subject" placeholder="e.g. Science" value={form.subject} onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value }))} />
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-semibold text-charcoal">Branch / Campus</label>
                 <select value={form.branchId} onChange={(e) => setForm((f) => ({ ...f, branchId: e.target.value }))}
@@ -374,7 +371,7 @@ export default function StudentsPage() {
                           <th className="text-left px-5 py-2.5 text-xs font-bold text-charcoal/40 uppercase tracking-wider">Name</th>
                           <th className="text-left px-5 py-2.5 text-xs font-bold text-charcoal/40 uppercase tracking-wider">Class</th>
                           <th className="text-left px-5 py-2.5 text-xs font-bold text-charcoal/40 uppercase tracking-wider hidden sm:table-cell">Subject</th>
-                          <th className="text-left px-5 py-2.5 text-xs font-bold text-charcoal/40 uppercase tracking-wider hidden md:table-cell">Phone</th>
+
                           <th className="text-left px-5 py-2.5 text-xs font-bold text-charcoal/40 uppercase tracking-wider hidden lg:table-cell">Tests</th>
                           <th className="text-left px-5 py-2.5 text-xs font-bold text-charcoal/40 uppercase tracking-wider">Status</th>
                           <th className="px-5 py-2.5" />
@@ -386,7 +383,7 @@ export default function StudentsPage() {
                             <td className="px-5 py-3 font-medium text-midnight">{s.name}</td>
                             <td className="px-5 py-3 text-charcoal/70">{s.class}{s.section ? ` · ${s.section}` : ''}</td>
                             <td className="px-5 py-3 text-charcoal/50 hidden sm:table-cell">{s.subject || '—'}</td>
-                            <td className="px-5 py-3 text-charcoal/50 hidden md:table-cell">{s.phone || '—'}</td>
+
                             <td className="px-5 py-3 text-charcoal/50 hidden lg:table-cell">{s._count.attempts}</td>
                             <td className="px-5 py-3">
                               <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${s.isActive ? 'bg-forest/10 text-forest' : 'bg-red-50 text-red-600'}`}>
