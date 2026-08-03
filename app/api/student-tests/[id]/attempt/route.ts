@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getStudentSession } from '@/lib/student-auth'
+import { sheetsEnabled, updateStudentRow } from '@/lib/google-sheets'
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -36,6 +37,34 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         answers: answers as object,
       },
     })
+
+    // Fire-and-forget sheet update (non-blocking)
+    if (sheetsEnabled()) {
+      db.student.findUnique({
+        where: { id: student.id },
+        include: {
+          branch: { select: { name: true } },
+          attempts: { orderBy: { completedAt: 'desc' }, include: { test: { select: { title: true } } } },
+        },
+      }).then((s) => {
+        if (!s) return
+        const allAttempts = s.attempts
+        const passedCount = allAttempts.filter((a) => a.passed).length
+        const scores = allAttempts.map((a) => a.totalMarks > 0 ? Math.round((a.score / a.totalMarks) * 100) : 0)
+        const avg = scores.length > 0 ? Math.round(scores.reduce((x, y) => x + y, 0) / scores.length) : 0
+        const last = allAttempts[0]
+        const lastPct = last && last.totalMarks > 0 ? Math.round((last.score / last.totalMarks) * 100) : 0
+        updateStudentRow(s.branch?.name ?? '', s.name, {
+          totalTests: allAttempts.length,
+          testsPassed: passedCount,
+          avgScore: avg,
+          lastTestTitle: last?.test.title ?? '',
+          lastScore: lastPct,
+          lastPassed: last?.passed ?? false,
+          lastDate: new Date(last?.completedAt ?? new Date()).toLocaleDateString('en-IN'),
+        }).catch(() => {})
+      }).catch(() => {})
+    }
 
     const questionsWithAnswers = test.questions.map((q) => ({
       id: q.id,

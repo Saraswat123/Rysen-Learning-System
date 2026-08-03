@@ -1,17 +1,21 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Download, Plus, Search, Trash2, UserCheck, UserX, Upload, X, CheckCircle, AlertCircle, FileText } from 'lucide-react'
+import {
+  Download, Plus, Search, Trash2, UserCheck, UserX, Upload, X,
+  CheckCircle, AlertCircle, FileText, ChevronDown, RefreshCw,
+  Sheet, Building2, Users
+} from 'lucide-react'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 
 interface Branch { id: string; name: string; location: string }
 interface Student {
   id: string; name: string; class: string; section: string
-  subject: string; isActive: boolean; createdAt: string
+  subject: string; phone?: string; isActive: boolean; createdAt: string
   branch: Branch | null; _count: { attempts: number }
 }
-
+interface BranchGroup { branch: Branch | null; students: Student[] }
 interface ParsedRow { name: string; class: string; section: string; subject: string; valid: boolean }
 
 function parseCSV(text: string): ParsedRow[] {
@@ -25,15 +29,33 @@ function parseCSV(text: string): ParsedRow[] {
   })
 }
 
+function groupByBranch(students: Student[]): BranchGroup[] {
+  const map = new Map<string, BranchGroup>()
+  const NO_BRANCH = '__none__'
+  for (const s of students) {
+    const key = s.branch?.id ?? NO_BRANCH
+    if (!map.has(key)) map.set(key, { branch: s.branch, students: [] })
+    map.get(key)!.students.push(s)
+  }
+  // Sort: named branches alphabetically, no-branch last
+  return [...map.entries()]
+    .sort(([ka], [kb]) => {
+      if (ka === NO_BRANCH) return 1
+      if (kb === NO_BRANCH) return -1
+      return (map.get(ka)!.branch?.name ?? '').localeCompare(map.get(kb)!.branch?.name ?? '')
+    })
+    .map(([, g]) => g)
+}
+
 export default function StudentsPage() {
   const [students, setStudents] = useState<Student[]>([])
   const [branches, setBranches] = useState<Branch[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [filterClass, setFilterClass] = useState('')
-  const [filterBranch, setFilterBranch] = useState('')
+  const [expandedBranches, setExpandedBranches] = useState<Set<string>>(new Set(['all']))
   const [showAdd, setShowAdd] = useState(false)
-  const [form, setForm] = useState({ name: '', class: '', section: '', subject: '', branchId: '' })
+  const [form, setForm] = useState({ name: '', class: '', section: '', subject: '', phone: '', branchId: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [showImport, setShowImport] = useState(false)
@@ -41,13 +63,14 @@ export default function StudentsPage() {
   const [parsedRows, setParsedRows] = useState<ParsedRow[]>([])
   const [importing, setImporting] = useState(false)
   const [importResult, setImportResult] = useState<{ added: number; skipped: number; errors: string[] } | null>(null)
+  const [syncing, setSyncing] = useState(false)
+  const [syncMsg, setSyncMsg] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
 
   async function load() {
     setLoading(true)
     const params = new URLSearchParams()
     if (filterClass) params.set('class', filterClass)
-    if (filterBranch) params.set('branchId', filterBranch)
     const [s, b] = await Promise.all([
       fetch(`/api/students?${params}`).then((r) => r.json()),
       fetch('/api/branches').then((r) => r.json()),
@@ -57,29 +80,26 @@ export default function StudentsPage() {
     setLoading(false)
   }
 
-  useEffect(() => { load() }, [filterClass, filterBranch]) // eslint-disable-line
+  useEffect(() => { load() }, [filterClass]) // eslint-disable-line
 
   async function addStudent(e: React.FormEvent) {
     e.preventDefault()
-    setSaving(true)
-    setError('')
+    setSaving(true); setError('')
     const res = await fetch('/api/students', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(form),
     })
     const data = await res.json()
     setSaving(false)
     if (!res.ok) { setError(data.error); return }
     setShowAdd(false)
-    setForm({ name: '', class: '', section: '', subject: '', branchId: '' })
+    setForm({ name: '', class: '', section: '', subject: '', phone: '', branchId: '' })
     load()
   }
 
   async function toggleActive(student: Student) {
     await fetch(`/api/students/${student.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ isActive: !student.isActive }),
     })
     load()
@@ -91,19 +111,25 @@ export default function StudentsPage() {
     load()
   }
 
+  async function syncToSheet() {
+    setSyncing(true); setSyncMsg('')
+    const res = await fetch('/api/admin/students/sheet', { method: 'POST' })
+    const data = await res.json()
+    setSyncing(false)
+    if (data.ok) setSyncMsg(`✓ Synced ${data.synced} students to Google Sheet`)
+    else setSyncMsg(`✗ ${data.error}`)
+  }
+
   function exportCSV() { window.open('/api/students/export', '_blank') }
 
   function downloadTemplate() {
-    const csv = 'Name,Class,Section,Subject\nArjun Sharma,10,A,Science\nPriya Verma,9,B,Maths'
+    const csv = 'Name,Class,Section,Subject,Phone\nArjun Sharma,10,A,Science,9876543210\nPriya Verma,9,B,Maths,'
     const blob = new Blob([csv], { type: 'text/csv' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a'); a.href = url; a.download = 'students-template.csv'; a.click()
-    URL.revokeObjectURL(url)
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'students-template.csv'; a.click()
   }
 
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]; if (!file) return
-    new FileReader().onload = (ev) => { setParsedRows(parseCSV(ev.target?.result as string)); setImportResult(null) }
     const r = new FileReader(); r.onload = (ev) => { setParsedRows(parseCSV(ev.target?.result as string)); setImportResult(null) }; r.readAsText(file)
   }
 
@@ -118,20 +144,37 @@ export default function StudentsPage() {
     if (data.added > 0) { load(); setParsedRows([]) }
   }
 
-  const filtered = students.filter((s) =>
-    search ? s.name.toLowerCase().includes(search.toLowerCase()) || s.class.includes(search) : true
-  )
+  function toggleBranch(key: string) {
+    setExpandedBranches((prev) => {
+      const next = new Set(prev)
+      next.has(key) ? next.delete(key) : next.add(key)
+      return next
+    })
+  }
 
+  function expandAll() { setExpandedBranches(new Set(groups.map((g) => g.branch?.id ?? '__none__'))) }
+  function collapseAll() { setExpandedBranches(new Set()) }
+
+  const filtered = students.filter((s) =>
+    (search ? s.name.toLowerCase().includes(search.toLowerCase()) || s.class.includes(search) : true) &&
+    (filterClass ? s.class === filterClass : true)
+  )
+  const groups = groupByBranch(filtered)
   const classes = [...new Set(students.map((s) => s.class))].sort()
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-midnight">Students</h1>
-          <p className="text-sm text-charcoal/60 mt-0.5">{students.length} total students</p>
+          <p className="text-sm text-charcoal/60 mt-0.5">{students.length} total · {branches.length} campuses</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          <button onClick={syncToSheet} disabled={syncing}
+            className="flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border border-green-200 text-green-700 hover:bg-green-50 transition-colors disabled:opacity-50">
+            <Sheet size={13} /> {syncing ? 'Syncing…' : 'Sync to Sheet'}
+          </button>
           <Button onClick={exportCSV} size="sm" className="bg-forest text-white flex items-center gap-2">
             <Download size={15} /> Export CSV
           </Button>
@@ -145,6 +188,13 @@ export default function StudentsPage() {
         </div>
       </div>
 
+      {syncMsg && (
+        <div className={`mb-4 px-4 py-3 rounded-xl text-sm font-medium ${syncMsg.startsWith('✓') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
+          {syncMsg}
+          <span className="ml-2 text-xs opacity-60">· Google Sheet auto-updates whenever a student submits a test</span>
+        </div>
+      )}
+
       {/* Add Student Modal */}
       {showAdd && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
@@ -156,11 +206,14 @@ export default function StudentsPage() {
                 <Input label="Class" placeholder="e.g. 10" value={form.class} onChange={(e) => setForm((f) => ({ ...f, class: e.target.value }))} required />
                 <Input label="Section" placeholder="e.g. A" value={form.section} onChange={(e) => setForm((f) => ({ ...f, section: e.target.value }))} />
               </div>
-              <Input label="Subject" placeholder="e.g. Science" value={form.subject} onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value }))} />
+              <div className="grid grid-cols-2 gap-3">
+                <Input label="Subject" placeholder="e.g. Science" value={form.subject} onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value }))} />
+                <Input label="Phone" placeholder="optional" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
+              </div>
               <div className="flex flex-col gap-1">
-                <label className="text-sm font-semibold text-charcoal">Branch</label>
+                <label className="text-sm font-semibold text-charcoal">Branch / Campus</label>
                 <select value={form.branchId} onChange={(e) => setForm((f) => ({ ...f, branchId: e.target.value }))}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm text-charcoal focus:outline-none focus:ring-2 focus:ring-midnight">
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-midnight">
                   <option value="">No specific branch</option>
                   {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
                 </select>
@@ -188,8 +241,8 @@ export default function StudentsPage() {
                 <div className="flex items-center gap-3">
                   <FileText size={20} className="text-midnight/50" />
                   <div>
-                    <p className="text-sm font-semibold text-midnight">CSV Format: Name, Class, Section, Subject</p>
-                    <p className="text-xs text-charcoal/50">Header row optional. Section and Subject can be blank.</p>
+                    <p className="text-sm font-semibold text-midnight">CSV: Name, Class, Section, Subject, Phone</p>
+                    <p className="text-xs text-charcoal/50">Header optional. Section/Subject/Phone can be blank.</p>
                   </div>
                 </div>
                 <button onClick={downloadTemplate} className="flex items-center gap-1 text-xs font-semibold text-midnight hover:underline whitespace-nowrap">
@@ -197,9 +250,9 @@ export default function StudentsPage() {
                 </button>
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-sm font-semibold text-charcoal">Assign to Branch</label>
+                <label className="text-sm font-semibold text-charcoal">Assign to Campus</label>
                 <select value={importBranchId} onChange={(e) => setImportBranchId(e.target.value)}
-                  className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-charcoal focus:outline-none focus:ring-2 focus:ring-midnight">
+                  className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-midnight">
                   <option value="">No specific branch</option>
                   {branches.map((b) => <option key={b.id} value={b.id}>{b.name} — {b.location}</option>)}
                 </select>
@@ -218,7 +271,7 @@ export default function StudentsPage() {
               )}
               {parsedRows.length > 0 && !importResult && (
                 <div>
-                  <p className="text-sm font-semibold text-midnight mb-2">{parsedRows.filter((r) => r.valid).length} valid · {parsedRows.filter((r) => !r.valid).length} invalid</p>
+                  <p className="text-sm font-semibold text-midnight mb-2">{parsedRows.filter(r => r.valid).length} valid · {parsedRows.filter(r => !r.valid).length} invalid</p>
                   <div className="border border-gray-100 rounded-xl overflow-hidden max-h-56 overflow-y-auto">
                     <table className="w-full text-xs">
                       <thead className="bg-gray-50 sticky top-0"><tr>
@@ -245,8 +298,8 @@ export default function StudentsPage() {
             <div className="px-6 py-4 border-t border-gray-100 flex gap-3">
               <Button onClick={() => setShowImport(false)} className="flex-1 bg-gray-100 text-charcoal hover:bg-gray-200">Close</Button>
               {parsedRows.length > 0 && !importResult && (
-                <Button onClick={runImport} loading={importing} disabled={!parsedRows.some((r) => r.valid)} className="flex-1">
-                  Import {parsedRows.filter((r) => r.valid).length} Students
+                <Button onClick={runImport} loading={importing} disabled={!parsedRows.some(r => r.valid)} className="flex-1">
+                  Import {parsedRows.filter(r => r.valid).length} Students
                 </Button>
               )}
             </div>
@@ -255,81 +308,127 @@ export default function StudentsPage() {
       )}
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3 mb-4">
+      <div className="flex flex-wrap items-center gap-3 mb-4">
         <div className="relative flex-1 min-w-48">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-charcoal/40" />
-          <input
-            className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-midnight"
-            placeholder="Search by name or class…"
-            value={search} onChange={(e) => setSearch(e.target.value)}
-          />
+          <input className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-midnight"
+            placeholder="Search by name or class…" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <select value={filterClass} onChange={(e) => setFilterClass(e.target.value)}
-          className="px-3 py-2 border border-gray-200 rounded-xl text-sm text-charcoal focus:outline-none focus:ring-2 focus:ring-midnight">
+          className="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-midnight">
           <option value="">All Classes</option>
           {classes.map((c) => <option key={c} value={c}>Class {c}</option>)}
         </select>
-        <select value={filterBranch} onChange={(e) => setFilterBranch(e.target.value)}
-          className="px-3 py-2 border border-gray-200 rounded-xl text-sm text-charcoal focus:outline-none focus:ring-2 focus:ring-midnight">
-          <option value="">All Branches</option>
-          {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-        </select>
+        <div className="flex items-center gap-1 ml-auto">
+          <button onClick={expandAll} className="text-xs text-charcoal/50 hover:text-midnight px-2 py-1 rounded-lg hover:bg-gray-100">Expand all</button>
+          <button onClick={collapseAll} className="text-xs text-charcoal/50 hover:text-midnight px-2 py-1 rounded-lg hover:bg-gray-100">Collapse all</button>
+        </div>
       </div>
 
       {loading ? (
         <div className="flex justify-center py-16">
           <div className="w-8 h-8 border-4 border-midnight border-t-transparent rounded-full animate-spin" />
         </div>
+      ) : groups.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-gray-100 py-16 text-center text-charcoal/40 text-sm">No students found.</div>
       ) : (
-        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-100 bg-gray-50">
-                <th className="text-left px-5 py-3 text-charcoal/60 font-semibold">Name</th>
-                <th className="text-left px-5 py-3 text-charcoal/60 font-semibold">Class</th>
-                <th className="text-left px-5 py-3 text-charcoal/60 font-semibold hidden sm:table-cell">Subject</th>
-                <th className="text-left px-5 py-3 text-charcoal/60 font-semibold hidden md:table-cell">Branch</th>
-                <th className="text-left px-5 py-3 text-charcoal/60 font-semibold hidden lg:table-cell">Tests</th>
-                <th className="text-left px-5 py-3 text-charcoal/60 font-semibold">Status</th>
-                <th className="text-right px-5 py-3 text-charcoal/60 font-semibold">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((s) => (
-                <tr key={s.id} className="border-b border-gray-50 hover:bg-gray-50/50">
-                  <td className="px-5 py-3 font-medium text-midnight">{s.name}</td>
-                  <td className="px-5 py-3 text-charcoal/70">
-                    {s.class}{s.section ? ` - ${s.section}` : ''}
-                  </td>
-                  <td className="px-5 py-3 text-charcoal/60 hidden sm:table-cell">{s.subject || '—'}</td>
-                  <td className="px-5 py-3 text-charcoal/60 hidden md:table-cell">{s.branch?.name || '—'}</td>
-                  <td className="px-5 py-3 text-charcoal/60 hidden lg:table-cell">{s._count.attempts}</td>
-                  <td className="px-5 py-3">
-                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${s.isActive ? 'bg-forest/10 text-forest' : 'bg-red-50 text-red-600'}`}>
-                      {s.isActive ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3">
-                    <div className="flex items-center justify-end gap-2">
-                      <button onClick={() => toggleActive(s)} title={s.isActive ? 'Deactivate' : 'Activate'}
-                        className="p-1.5 rounded-lg hover:bg-gray-100 text-charcoal/40 hover:text-charcoal transition-colors">
-                        {s.isActive ? <UserX size={15} /> : <UserCheck size={15} />}
-                      </button>
-                      <button onClick={() => deleteStudent(s.id)} title="Delete"
-                        className="p-1.5 rounded-lg hover:bg-red-50 text-charcoal/40 hover:text-red-600 transition-colors">
-                        <Trash2 size={15} />
-                      </button>
+        <div className="space-y-3">
+          {groups.map((g) => {
+            const key = g.branch?.id ?? '__none__'
+            const isOpen = expandedBranches.has(key)
+            const activeCount = g.students.filter(s => s.isActive).length
+
+            return (
+              <div key={key} className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                {/* Branch header — clickable */}
+                <button onClick={() => toggleBranch(key)}
+                  className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-midnight flex items-center justify-center flex-shrink-0">
+                      <Building2 size={16} className="text-white" />
                     </div>
-                  </td>
-                </tr>
-              ))}
-              {filtered.length === 0 && (
-                <tr><td colSpan={7} className="text-center py-12 text-charcoal/40 text-sm">No students found.</td></tr>
-              )}
-            </tbody>
-          </table>
+                    <div className="text-left">
+                      <p className="font-bold text-midnight">{g.branch?.name ?? 'No Campus Assigned'}</p>
+                      {g.branch?.location && <p className="text-xs text-charcoal/40">{g.branch.location}</p>}
+                    </div>
+                    <div className="flex items-center gap-2 ml-2">
+                      <span className="text-xs bg-midnight/10 text-midnight font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <Users size={10} /> {g.students.length}
+                      </span>
+                      {activeCount < g.students.length && (
+                        <span className="text-xs bg-red-50 text-red-500 font-bold px-2 py-0.5 rounded-full">
+                          {g.students.length - activeCount} inactive
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <ChevronDown size={16} className={`text-charcoal/30 transition-transform flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {/* Student rows */}
+                {isOpen && (
+                  <div className="border-t border-gray-50">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-gray-50/70">
+                          <th className="text-left px-5 py-2.5 text-xs font-bold text-charcoal/40 uppercase tracking-wider">Name</th>
+                          <th className="text-left px-5 py-2.5 text-xs font-bold text-charcoal/40 uppercase tracking-wider">Class</th>
+                          <th className="text-left px-5 py-2.5 text-xs font-bold text-charcoal/40 uppercase tracking-wider hidden sm:table-cell">Subject</th>
+                          <th className="text-left px-5 py-2.5 text-xs font-bold text-charcoal/40 uppercase tracking-wider hidden md:table-cell">Phone</th>
+                          <th className="text-left px-5 py-2.5 text-xs font-bold text-charcoal/40 uppercase tracking-wider hidden lg:table-cell">Tests</th>
+                          <th className="text-left px-5 py-2.5 text-xs font-bold text-charcoal/40 uppercase tracking-wider">Status</th>
+                          <th className="px-5 py-2.5" />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {g.students.map((s) => (
+                          <tr key={s.id} className="border-t border-gray-50 hover:bg-gray-50/50">
+                            <td className="px-5 py-3 font-medium text-midnight">{s.name}</td>
+                            <td className="px-5 py-3 text-charcoal/70">{s.class}{s.section ? ` · ${s.section}` : ''}</td>
+                            <td className="px-5 py-3 text-charcoal/50 hidden sm:table-cell">{s.subject || '—'}</td>
+                            <td className="px-5 py-3 text-charcoal/50 hidden md:table-cell">{s.phone || '—'}</td>
+                            <td className="px-5 py-3 text-charcoal/50 hidden lg:table-cell">{s._count.attempts}</td>
+                            <td className="px-5 py-3">
+                              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${s.isActive ? 'bg-forest/10 text-forest' : 'bg-red-50 text-red-600'}`}>
+                                {s.isActive ? 'Active' : 'Inactive'}
+                              </span>
+                            </td>
+                            <td className="px-5 py-3">
+                              <div className="flex items-center justify-end gap-2">
+                                <button onClick={() => toggleActive(s)} title={s.isActive ? 'Deactivate' : 'Activate'}
+                                  className="p-1.5 rounded-lg hover:bg-gray-100 text-charcoal/40 hover:text-charcoal transition-colors">
+                                  {s.isActive ? <UserX size={14} /> : <UserCheck size={14} />}
+                                </button>
+                                <button onClick={() => deleteStudent(s.id)} title="Delete"
+                                  className="p-1.5 rounded-lg hover:bg-red-50 text-charcoal/40 hover:text-red-600 transition-colors">
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
       )}
+
+      {/* Sheet info banner */}
+      <div className="mt-6 bg-green-50 border border-green-100 rounded-2xl p-4 flex items-start gap-3">
+        <Sheet size={16} className="text-green-600 flex-shrink-0 mt-0.5" />
+        <div>
+          <p className="text-sm font-semibold text-green-800">Google Sheet live sync</p>
+          <p className="text-xs text-green-700/70 mt-0.5">
+            Sheet columns: Branch · Name · Class · Section · Subject · Phone · Status · Total Tests · Tests Passed · Avg Score% · Last Test · Last Score% · Last Result · Last Date.
+            Test results auto-write to sheet every time a student submits. Use "Sync to Sheet" to push current roster.
+          </p>
+          <p className="text-xs text-green-700/50 mt-1">Requires GOOGLE_SHEETS_CLIENT_EMAIL · GOOGLE_SHEETS_PRIVATE_KEY · GOOGLE_SHEETS_ID in Vercel env vars.</p>
+        </div>
+      </div>
     </div>
   )
 }
