@@ -423,7 +423,7 @@ export default function StudentsPage() {
             Sheet columns: Branch · Name · Class · Section · Subject · Phone · Status · Total Tests · Tests Passed · Avg Score% · Last Test · Last Score% · Last Result · Last Date.
             Test results auto-write to sheet every time a student submits. Use "Sync to Sheet" to push current roster.
           </p>
-          <p className="text-xs text-green-700/50 mt-1">Requires GOOGLE_SHEETS_CLIENT_EMAIL · GOOGLE_SHEETS_PRIVATE_KEY · GOOGLE_SHEETS_ID in Vercel env vars.</p>
+          <p className="text-xs text-green-700/50 mt-1">Requires GOOGLE_CLIENT_ID · GOOGLE_CLIENT_SECRET · GOOGLE_REFRESH_TOKEN · GOOGLE_SHEETS_ID in Vercel env vars.</p>
         </div>
       </div>
     </div>

@@ -35,7 +35,7 @@ export async function POST() {
     if (!user || !isAdmin(user.role)) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
 
     if (!sheetsEnabled()) {
-      return NextResponse.json({ error: 'Google Sheets not configured. Add GOOGLE_SHEETS_CLIENT_EMAIL, GOOGLE_SHEETS_PRIVATE_KEY, GOOGLE_SHEETS_ID to Vercel env vars.' }, { status: 400 })
+      return NextResponse.json({ error: 'Google Sheets not configured. Add GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REFRESH_TOKEN, GOOGLE_SHEETS_ID to Vercel env vars.' }, { status: 400 })
     }
 
     // All students with branch + attempts
