@@ -52,3 +52,28 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: String(err) }, { status: 500 })
   }
 }
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const user = await getSession()
+    if (!user || (user.role !== Role.SUPER_ADMIN && user.role !== Role.ADMIN && user.role !== Role.EDUCATOR)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+    }
+
+    const { ids } = await req.json() as { ids: string[] }
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return NextResponse.json({ error: 'No IDs provided' }, { status: 400 })
+    }
+
+    // Educators can only delete their own branch's students
+    const whereClause =
+      user.role === Role.EDUCATOR
+        ? { id: { in: ids }, branchId: user.branchId ?? undefined }
+        : { id: { in: ids } }
+
+    const { count } = await db.student.deleteMany({ where: whereClause })
+    return NextResponse.json({ deleted: count })
+  } catch (err) {
+    return NextResponse.json({ error: String(err) }, { status: 500 })
+  }
+}

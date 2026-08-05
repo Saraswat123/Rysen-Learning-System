@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Download, Plus, Search, Trash2, UserCheck, UserX, School, Upload, X, CheckCircle, AlertCircle, FileText } from 'lucide-react'
+import { Download, Plus, Search, Trash2, UserCheck, UserX, School, Upload, X, CheckCircle, AlertCircle, FileText, Square, SquareCheck } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 
@@ -39,6 +39,10 @@ export default function EducatorStudentsPage() {
   const [form, setForm] = useState({ name: '', class: '', section: '', subject: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+
+  // Bulk select state
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [bulkDeleting, setBulkDeleting] = useState(false)
 
   // Bulk import state
   const [showImport, setShowImport] = useState(false)
@@ -88,6 +92,36 @@ export default function EducatorStudentsPage() {
     if (!confirm('Delete student? All test attempts will be lost.')) return
     await fetch(`/api/students/${id}`, { method: 'DELETE' })
     load()
+  }
+
+  async function bulkDelete() {
+    if (selected.size === 0) return
+    if (!confirm(`Delete ${selected.size} selected student${selected.size > 1 ? 's' : ''}? All their test attempts will be lost. This cannot be undone.`)) return
+    setBulkDeleting(true)
+    await fetch('/api/students/bulk', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: [...selected] }),
+    })
+    setBulkDeleting(false)
+    setSelected(new Set())
+    load()
+  }
+
+  function toggleSelect(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  function toggleSelectAll() {
+    if (selected.size === filtered.length && filtered.length > 0) {
+      setSelected(new Set())
+    } else {
+      setSelected(new Set(filtered.map((s) => s.id)))
+    }
   }
 
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -282,6 +316,26 @@ export default function EducatorStudentsPage() {
         </div>
       )}
 
+      {/* Bulk delete action bar */}
+      {selected.size > 0 && (
+        <div className="mb-4 flex items-center justify-between gap-4 bg-red-50 border border-red-200 rounded-2xl px-5 py-3">
+          <div className="flex items-center gap-2">
+            <SquareCheck size={16} className="text-red-500" />
+            <span className="text-sm font-semibold text-red-700">{selected.size} student{selected.size > 1 ? 's' : ''} selected</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setSelected(new Set())}
+              className="text-xs text-charcoal/50 hover:text-midnight px-3 py-1.5 rounded-lg hover:bg-white transition-colors">
+              Clear selection
+            </button>
+            <button onClick={bulkDelete} disabled={bulkDeleting}
+              className="flex items-center gap-1.5 text-xs font-bold bg-red-500 hover:bg-red-600 text-white px-4 py-1.5 rounded-xl transition-colors disabled:opacity-50">
+              <Trash2 size={13} /> {bulkDeleting ? 'Deleting…' : `Delete ${selected.size}`}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Filters */}
       <div className="flex flex-wrap gap-3 mb-4">
         <div className="relative flex-1 min-w-48">
@@ -308,6 +362,13 @@ export default function EducatorStudentsPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50">
+                <th className="px-5 py-3 w-10">
+                  <button onClick={toggleSelectAll} className="text-charcoal/30 hover:text-midnight transition-colors">
+                    {selected.size > 0 && selected.size === filtered.length
+                      ? <SquareCheck size={16} className="text-midnight" />
+                      : <Square size={16} />}
+                  </button>
+                </th>
                 <th className="text-left px-5 py-3 text-charcoal/60 font-semibold">Name</th>
                 <th className="text-left px-5 py-3 text-charcoal/60 font-semibold">Class</th>
                 <th className="text-left px-5 py-3 text-charcoal/60 font-semibold hidden sm:table-cell">Subject</th>
@@ -318,7 +379,14 @@ export default function EducatorStudentsPage() {
             </thead>
             <tbody>
               {filtered.map((s) => (
-                <tr key={s.id} className="border-b border-gray-50 hover:bg-gray-50/50">
+                <tr key={s.id} className={`border-b border-gray-50 hover:bg-gray-50/50 ${selected.has(s.id) ? 'bg-red-50/40' : ''}`}>
+                  <td className="px-5 py-3">
+                    <button onClick={() => toggleSelect(s.id)} className="text-charcoal/30 hover:text-midnight transition-colors">
+                      {selected.has(s.id)
+                        ? <SquareCheck size={16} className="text-midnight" />
+                        : <Square size={16} />}
+                    </button>
+                  </td>
                   <td className="px-5 py-3 font-medium text-midnight">{s.name}</td>
                   <td className="px-5 py-3 text-charcoal/70">{s.class}{s.section ? ` - ${s.section}` : ''}</td>
                   <td className="px-5 py-3 text-charcoal/60 hidden sm:table-cell">{s.subject || '—'}</td>
@@ -343,7 +411,7 @@ export default function EducatorStudentsPage() {
                 </tr>
               ))}
               {filtered.length === 0 && (
-                <tr><td colSpan={6} className="text-center py-12 text-charcoal/40 text-sm">
+                <tr><td colSpan={7} className="text-center py-12 text-charcoal/40 text-sm">
                   {students.length === 0 ? 'No students added yet. Click "Add Student" or "Bulk Import" to start.' : 'No students match your search.'}
                 </td></tr>
               )}
