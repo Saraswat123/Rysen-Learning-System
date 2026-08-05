@@ -6,7 +6,7 @@ import Link from 'next/link'
 import RysenLogo from '@/components/RysenLogo'
 import {
   LayoutDashboard, Users, BookOpen, BarChart3,
-  UserCog, LogOut, Menu, Trophy, GraduationCap, Layers, School, ClipboardList, FileSpreadsheet, ListTodo, PieChart, Sparkles, Building2, FolderOpen, Megaphone, Settings,
+  UserCog, LogOut, Menu, Trophy, GraduationCap, Layers, School, ClipboardList, FileSpreadsheet, ListTodo, PieChart, Sparkles, Building2, FolderOpen, Megaphone, Settings, History,
 } from 'lucide-react'
 import NotificationBell from '@/components/NotificationBell'
 
@@ -21,6 +21,7 @@ const NAV = [
   { href: '/admin/student-tests', label: 'Student Tests', icon: ClipboardList },
   { href: '/admin/test-results', label: 'Results Sheet', icon: FileSpreadsheet },
   { href: '/admin/tasks', label: 'Task Directory', icon: ListTodo },
+  { href: '/admin/task-history', label: 'Task History', icon: History },
   { href: '/admin/educator-groups', label: 'Educator Groups', icon: Users },
   { href: '/admin/resources', label: 'Resources', icon: FolderOpen },
   { href: '/admin/broadcasts', label: 'Broadcasts', icon: Megaphone },
