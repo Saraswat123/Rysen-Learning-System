@@ -43,3 +43,23 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json(results, { status: 201 })
 }
+
+export async function DELETE(req: NextRequest) {
+  const user = await getSession()
+  if (!user || (user.role !== Role.ADMIN && user.role !== Role.SUPER_ADMIN)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+  }
+
+  const { ids } = await req.json() as { ids: string[] }
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return NextResponse.json({ error: 'No IDs provided' }, { status: 400 })
+  }
+  if (ids.includes(user.id)) {
+    return NextResponse.json({ error: 'Cannot delete your own account' }, { status: 400 })
+  }
+
+  const { count } = await db.user.deleteMany({
+    where: { id: { in: ids }, role: Role.EDUCATOR },
+  })
+  return NextResponse.json({ deleted: count })
+}

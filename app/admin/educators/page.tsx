@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Plus, Search, ToggleLeft, ToggleRight, X, Upload, Download, FileSpreadsheet, Trash2, Eye, Pencil, Phone, KeyRound } from 'lucide-react'
+import { Plus, Search, ToggleLeft, ToggleRight, X, Upload, Download, FileSpreadsheet, Trash2, Eye, Pencil, Phone, KeyRound, ChevronDown, Building2, Users, Square, SquareCheck } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Toast from '@/components/Toast'
@@ -13,6 +13,25 @@ interface Educator {
   branch: Branch | null
   progress: { passed: boolean; stage: { number: number; title: string } }[]
 }
+interface BranchGroup { branch: Branch | null; educators: Educator[] }
+
+function groupByBranch(educators: Educator[]): BranchGroup[] {
+  const map = new Map<string, BranchGroup>()
+  const NO_BRANCH = '__none__'
+  for (const e of educators) {
+    const key = e.branch?.id ?? NO_BRANCH
+    if (!map.has(key)) map.set(key, { branch: e.branch, educators: [] })
+    map.get(key)!.educators.push(e)
+  }
+  return [...map.entries()]
+    .sort(([ka], [kb]) => {
+      if (ka === NO_BRANCH) return 1
+      if (kb === NO_BRANCH) return -1
+      return (map.get(ka)!.branch?.name ?? '').localeCompare(map.get(kb)!.branch?.name ?? '')
+    })
+    .map(([, g]) => g)
+}
+
 interface TextRow {
   educator: string; email: string; campus: string; program: string
   stageNumber: number; stageTitle: string; week: string
@@ -43,6 +62,11 @@ export default function EducatorsPage() {
   const [responsesData, setResponsesData] = useState<{ textRows: TextRow[]; mcqRows: McqRow[] } | null>(null)
   const [downloading, setDownloading] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+
+  // Branch accordion + bulk select
+  const [expandedBranches, setExpandedBranches] = useState<Set<string>>(new Set())
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [bulkDeleting, setBulkDeleting] = useState(false)
 
   async function load() {
     const [e, b] = await Promise.all([
@@ -225,20 +249,67 @@ export default function EducatorsPage() {
     XLSX.writeFile(wb, `rysen_${educator.name.replace(/\s+/g, '_')}_responses.xlsx`)
   }
 
+  async function bulkDelete() {
+    if (selected.size === 0) return
+    if (!confirm(`Delete ${selected.size} selected educator${selected.size > 1 ? 's' : ''}? All their progress data will be lost. This cannot be undone.`)) return
+    setBulkDeleting(true)
+    const res = await fetch('/api/educators/bulk', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: [...selected] }),
+    })
+    const data = await res.json()
+    setBulkDeleting(false)
+    setSelected(new Set())
+    if (!res.ok) { setToast({ msg: data.error ?? 'Bulk delete failed', type: 'error' }); return }
+    setToast({ msg: `${data.deleted} educator${data.deleted !== 1 ? 's' : ''} deleted`, type: 'success' })
+    load()
+  }
+
+  function toggleSelect(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  function toggleSelectGroup(groupEducators: Educator[]) {
+    const ids = groupEducators.map((e) => e.id)
+    const allSelected = ids.every((id) => selected.has(id))
+    setSelected((prev) => {
+      const next = new Set(prev)
+      ids.forEach((id) => allSelected ? next.delete(id) : next.add(id))
+      return next
+    })
+  }
+
+  function toggleBranch(key: string) {
+    setExpandedBranches((prev) => {
+      const next = new Set(prev)
+      next.has(key) ? next.delete(key) : next.add(key)
+      return next
+    })
+  }
+
   const filtered = educators.filter(
     (e) => e.name.toLowerCase().includes(search.toLowerCase()) || e.email.toLowerCase().includes(search.toLowerCase())
   )
+  const groups = groupByBranch(filtered)
+
+  function expandAll() { setExpandedBranches(new Set(groups.map((g) => g.branch?.id ?? '__none__'))) }
+  function collapseAll() { setExpandedBranches(new Set()) }
 
   return (
     <div className="max-w-5xl mx-auto">
       {toast && <Toast message={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
 
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-midnight">Educators</h1>
-          <p className="text-sm text-charcoal/60">{educators.length} registered educators</p>
+          <p className="text-sm text-charcoal/60">{educators.length} registered · {branches.length} campuses</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Button variant="ghost" size="sm" onClick={() => setShowBulk(true)}>
             <FileSpreadsheet size={16} /> Bulk Import
           </Button>
@@ -250,107 +321,186 @@ export default function EducatorsPage() {
       </div>
 
       {/* Search */}
-      <div className="relative mb-5">
-        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-        <input
-          className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl bg-white text-sm focus:outline-none focus:ring-2 focus:ring-midnight"
-          placeholder="Search by name or email..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+      <div className="flex items-center gap-3 mb-4">
+        <div className="relative flex-1">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl bg-white text-sm focus:outline-none focus:ring-2 focus:ring-midnight"
+            placeholder="Search by name or email..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        <div className="flex items-center gap-1">
+          <button onClick={expandAll} className="text-xs text-charcoal/50 hover:text-midnight px-2 py-1 rounded-lg hover:bg-gray-100">Expand all</button>
+          <button onClick={collapseAll} className="text-xs text-charcoal/50 hover:text-midnight px-2 py-1 rounded-lg hover:bg-gray-100">Collapse all</button>
+        </div>
       </div>
 
       {/* Missing phone warning */}
       {(() => {
         const missing = filtered.filter((e) => e.isActive && !e.phone).length
         return missing > 0 ? (
-          <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-700">
+          <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-700 mb-4">
             <Phone size={15} className="flex-shrink-0" />
             <span><strong>{missing} educator{missing > 1 ? 's' : ''}</strong> missing WhatsApp number — click <strong>+ Add phone</strong> in their row to enable WhatsApp reminders</span>
           </div>
         ) : null
       })()}
 
-      {/* Table */}
-      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-cream border-b border-gray-100">
-            <tr>
-              <th className="text-left px-5 py-3 font-semibold text-charcoal">Name</th>
-              <th className="text-left px-5 py-3 font-semibold text-charcoal">Email</th>
-              <th className="text-left px-5 py-3 font-semibold text-charcoal">WhatsApp</th>
-              <th className="text-left px-5 py-3 font-semibold text-charcoal">Campus</th>
-              <th className="text-left px-5 py-3 font-semibold text-charcoal">Progress</th>
-              <th className="text-left px-5 py-3 font-semibold text-charcoal">Status</th>
-              <th className="px-5 py-3" />
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((e) => (
-              <tr key={e.id} className={`border-b border-gray-50 hover:bg-cream/50 transition-colors ${!e.phone ? 'bg-amber-50/30' : ''}`}>
-                <td className="px-5 py-3 font-medium text-charcoal">{e.name}</td>
-                <td className="px-5 py-3 text-charcoal/70 text-xs">{e.email}</td>
-                <td className="px-5 py-3">
-                  {e.phone ? (
-                    <span className="text-xs text-charcoal/70 flex items-center gap-1"><Phone size={11} className="text-green-500" />{e.phone}</span>
-                  ) : (
-                    <button onClick={() => openEdit(e)} className="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full hover:bg-amber-100 transition-colors font-medium">
-                      + Add phone
+      {/* Bulk delete action bar */}
+      {selected.size > 0 && (
+        <div className="mb-4 flex items-center justify-between gap-4 bg-red-50 border border-red-200 rounded-2xl px-5 py-3">
+          <div className="flex items-center gap-2">
+            <SquareCheck size={16} className="text-red-500" />
+            <span className="text-sm font-semibold text-red-700">{selected.size} educator{selected.size > 1 ? 's' : ''} selected</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setSelected(new Set())}
+              className="text-xs text-charcoal/50 hover:text-midnight px-3 py-1.5 rounded-lg hover:bg-white transition-colors">
+              Clear selection
+            </button>
+            <button onClick={bulkDelete} disabled={bulkDeleting}
+              className="flex items-center gap-1.5 text-xs font-bold bg-red-500 hover:bg-red-600 text-white px-4 py-1.5 rounded-xl transition-colors disabled:opacity-50">
+              <Trash2 size={13} /> {bulkDeleting ? 'Deleting…' : `Delete ${selected.size}`}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Branch accordion */}
+      {groups.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-gray-100 py-16 text-center text-charcoal/40 text-sm">No educators found</div>
+      ) : (
+        <div className="space-y-3">
+          {groups.map((g) => {
+            const key = g.branch?.id ?? '__none__'
+            const isOpen = expandedBranches.has(key)
+            const activeCount = g.educators.filter((e) => e.isActive).length
+            const groupIds = g.educators.map((e) => e.id)
+            const allGroupSelected = groupIds.length > 0 && groupIds.every((id) => selected.has(id))
+            const someGroupSelected = groupIds.some((id) => selected.has(id))
+
+            return (
+              <div key={key} className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                {/* Branch header */}
+                <div className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors">
+                  <button onClick={() => toggleBranch(key)} className="flex items-center gap-3 flex-1 text-left">
+                    <div className="w-9 h-9 rounded-xl bg-midnight flex items-center justify-center flex-shrink-0">
+                      <Building2 size={16} className="text-white" />
+                    </div>
+                    <div>
+                      <p className="font-bold text-midnight">{g.branch?.name ?? 'No Campus Assigned'}</p>
+                      {g.branch?.location && <p className="text-xs text-charcoal/40">{g.branch.location}</p>}
+                    </div>
+                    <div className="flex items-center gap-2 ml-2">
+                      <span className="text-xs bg-midnight/10 text-midnight font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <Users size={10} /> {g.educators.length}
+                      </span>
+                      {activeCount < g.educators.length && (
+                        <span className="text-xs bg-red-50 text-red-500 font-bold px-2 py-0.5 rounded-full">
+                          {g.educators.length - activeCount} inactive
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => toggleSelectGroup(g.educators)} title="Select all in campus"
+                      className="text-charcoal/30 hover:text-midnight transition-colors">
+                      {allGroupSelected
+                        ? <SquareCheck size={16} className="text-midnight" />
+                        : someGroupSelected
+                          ? <SquareCheck size={16} className="text-midnight/40" />
+                          : <Square size={16} />}
                     </button>
-                  )}
-                </td>
-                <td className="px-5 py-3">
-                  {e.branch ? (
-                    <span className="text-charcoal/70">{e.branch.name}</span>
-                  ) : (
-                    <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Unassigned</span>
-                  )}
-                </td>
-                <td className="px-5 py-3">
-                  <div className="flex items-center gap-1">
-                    {[1, 2, 3, 4, 5].map((n) => {
-                      const done = e.progress.some((p) => p.stage.number === n && p.passed)
-                      return (
-                        <div key={n} className={`w-5 h-5 rounded-full text-xs flex items-center justify-center font-bold ${done ? 'bg-forest text-white' : 'bg-gray-100 text-gray-400'}`}>
-                          {n}
-                        </div>
-                      )
-                    })}
-                  </div>
-                </td>
-                <td className="px-5 py-3">
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${e.isActive ? 'bg-forest/10 text-forest' : 'bg-red-100 text-red-600'}`}>
-                    {e.isActive ? 'Active' : 'Inactive'}
-                  </span>
-                </td>
-                <td className="px-5 py-3">
-                  <div className="flex items-center gap-2">
-                    {/* phone icon removed — now shown in column */}
-                    <button onClick={() => openEdit(e)} className="text-charcoal/30 hover:text-midnight transition-colors" title="Edit">
-                      <Pencil size={15} />
-                    </button>
-                    <button onClick={() => openResponses(e)} className="text-charcoal/30 hover:text-midnight transition-colors" title="View responses">
-                      <Eye size={16} />
-                    </button>
-                    <button onClick={() => resetPassword(e.id, e.name)} className="text-charcoal/30 hover:text-amber-600 transition-colors" title="Reset password">
-                      <KeyRound size={15} />
-                    </button>
-                    <button onClick={() => toggleActive(e.id, e.isActive)} className="text-charcoal/40 hover:text-midnight">
-                      {e.isActive ? <ToggleRight size={20} className="text-forest" /> : <ToggleLeft size={20} />}
-                    </button>
-                    <button onClick={() => setConfirmDelete(e)} className="text-charcoal/30 hover:text-red-500 transition-colors">
-                      <Trash2 size={16} />
+                    <button onClick={() => toggleBranch(key)}>
+                      <ChevronDown size={16} className={`text-charcoal/30 transition-transform flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
                     </button>
                   </div>
-                </td>
-              </tr>
-            ))}
-            {filtered.length === 0 && (
-              <tr><td colSpan={7} className="text-center py-12 text-charcoal/40">No educators found</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+                </div>
+
+                {isOpen && (
+                  <div className="border-t border-gray-50 overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-gray-50/70">
+                          <th className="px-5 py-2.5 w-10" />
+                          <th className="text-left px-5 py-2.5 text-xs font-bold text-charcoal/40 uppercase tracking-wider">Name</th>
+                          <th className="text-left px-5 py-2.5 text-xs font-bold text-charcoal/40 uppercase tracking-wider">Email</th>
+                          <th className="text-left px-5 py-2.5 text-xs font-bold text-charcoal/40 uppercase tracking-wider hidden sm:table-cell">WhatsApp</th>
+                          <th className="text-left px-5 py-2.5 text-xs font-bold text-charcoal/40 uppercase tracking-wider hidden md:table-cell">Progress</th>
+                          <th className="text-left px-5 py-2.5 text-xs font-bold text-charcoal/40 uppercase tracking-wider">Status</th>
+                          <th className="px-5 py-2.5" />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {g.educators.map((e) => (
+                          <tr key={e.id} className={`border-t border-gray-50 hover:bg-cream/50 transition-colors ${selected.has(e.id) ? 'bg-red-50/40' : !e.phone ? 'bg-amber-50/30' : ''}`}>
+                            <td className="px-5 py-3">
+                              <button onClick={() => toggleSelect(e.id)} className="text-charcoal/30 hover:text-midnight transition-colors">
+                                {selected.has(e.id)
+                                  ? <SquareCheck size={16} className="text-midnight" />
+                                  : <Square size={16} />}
+                              </button>
+                            </td>
+                            <td className="px-5 py-3 font-medium text-charcoal">{e.name}</td>
+                            <td className="px-5 py-3 text-charcoal/70 text-xs">{e.email}</td>
+                            <td className="px-5 py-3 hidden sm:table-cell">
+                              {e.phone ? (
+                                <span className="text-xs text-charcoal/70 flex items-center gap-1"><Phone size={11} className="text-green-500" />{e.phone}</span>
+                              ) : (
+                                <button onClick={() => openEdit(e)} className="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full hover:bg-amber-100 transition-colors font-medium">
+                                  + Add phone
+                                </button>
+                              )}
+                            </td>
+                            <td className="px-5 py-3 hidden md:table-cell">
+                              <div className="flex items-center gap-1">
+                                {[1, 2, 3, 4, 5].map((n) => {
+                                  const done = e.progress.some((p) => p.stage.number === n && p.passed)
+                                  return (
+                                    <div key={n} className={`w-5 h-5 rounded-full text-xs flex items-center justify-center font-bold ${done ? 'bg-forest text-white' : 'bg-gray-100 text-gray-400'}`}>
+                                      {n}
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            </td>
+                            <td className="px-5 py-3">
+                              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${e.isActive ? 'bg-forest/10 text-forest' : 'bg-red-100 text-red-600'}`}>
+                                {e.isActive ? 'Active' : 'Inactive'}
+                              </span>
+                            </td>
+                            <td className="px-5 py-3">
+                              <div className="flex items-center justify-end gap-2">
+                                <button onClick={() => openEdit(e)} className="text-charcoal/30 hover:text-midnight transition-colors" title="Edit">
+                                  <Pencil size={15} />
+                                </button>
+                                <button onClick={() => openResponses(e)} className="text-charcoal/30 hover:text-midnight transition-colors" title="View responses">
+                                  <Eye size={16} />
+                                </button>
+                                <button onClick={() => resetPassword(e.id, e.name)} className="text-charcoal/30 hover:text-amber-600 transition-colors" title="Reset password">
+                                  <KeyRound size={15} />
+                                </button>
+                                <button onClick={() => toggleActive(e.id, e.isActive)} className="text-charcoal/40 hover:text-midnight" title={e.isActive ? 'Deactivate' : 'Activate'}>
+                                  {e.isActive ? <ToggleRight size={20} className="text-forest" /> : <ToggleLeft size={20} />}
+                                </button>
+                                <button onClick={() => setConfirmDelete(e)} className="text-charcoal/30 hover:text-red-500 transition-colors" title="Delete">
+                                  <Trash2 size={16} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
 
       {/* Add Single Modal */}
       {showAdd && (
