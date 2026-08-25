@@ -340,6 +340,16 @@ const MIGRATIONS = [
       "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`,
   },
+  {
+    label: 'User.password column',
+    check: `SELECT 1 FROM information_schema.columns WHERE table_name='User' AND column_name='password'`,
+    sql: `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "password" TEXT`,
+  },
+  {
+    label: 'User.passwordSetAt column',
+    check: `SELECT 1 FROM information_schema.columns WHERE table_name='User' AND column_name='passwordSetAt'`,
+    sql: `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "passwordSetAt" TIMESTAMP(3)`,
+  },
 ]
 
 async function checkPending() {

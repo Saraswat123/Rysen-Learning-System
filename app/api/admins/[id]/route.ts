@@ -12,12 +12,21 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 
   const { id } = await params
-  const { role } = await req.json() as { role: string }
-  if (!['ADMIN', 'SUPER_ADMIN'].includes(role)) {
+  const body = await req.json() as { role?: string; resetPassword?: boolean }
+
+  if (body.resetPassword === true) {
+    const updated = await db.user.update({
+      where: { id },
+      data: { password: null, passwordSetAt: null },
+    })
+    return NextResponse.json(updated)
+  }
+
+  if (!body.role || !['ADMIN', 'SUPER_ADMIN'].includes(body.role)) {
     return NextResponse.json({ error: 'Invalid role' }, { status: 400 })
   }
 
-  const updated = await db.user.update({ where: { id }, data: { role: role as Role } })
+  const updated = await db.user.update({ where: { id }, data: { role: body.role as Role } })
   return NextResponse.json(updated)
 }
 

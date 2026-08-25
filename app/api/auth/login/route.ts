@@ -3,14 +3,17 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { createSession, SESSION_COOKIE, SESSION_DURATION_MS } from '@/lib/auth'
+import { verifyPassword, ensurePasswordColumns } from '@/lib/password'
 import { Role } from '@/app/generated/prisma/client'
 
 export async function POST(req: NextRequest) {
   try {
-    const { name, email, branchId } = await req.json()
+    await ensurePasswordColumns()
 
-    if (!name || !email) {
-      return NextResponse.json({ error: 'Name and email are required' }, { status: 400 })
+    const { email, password, branchId } = await req.json()
+
+    if (!email || !password) {
+      return NextResponse.json({ error: 'Email and password are required' }, { status: 400 })
     }
 
     const user = await db.user.findUnique({ where: { email: email.toLowerCase().trim() } })
@@ -19,8 +22,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Account not found. Contact your admin.' }, { status: 401 })
     }
 
+    if (!user.password) {
+      return NextResponse.json({ error: 'No password set up yet for this account.', code: 'NO_PASSWORD' }, { status: 401 })
+    }
+
     if (user.branchId && branchId && user.branchId !== branchId) {
       return NextResponse.json({ error: 'Branch does not match your account.' }, { status: 401 })
+    }
+
+    const valid = await verifyPassword(password, user.password)
+    if (!valid) {
+      return NextResponse.json({ error: 'Incorrect password.' }, { status: 401 })
     }
 
     const token = await createSession(user.id)

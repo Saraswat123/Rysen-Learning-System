@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Trash2, X, Shield } from 'lucide-react'
+import { Plus, Trash2, X, Shield, KeyRound } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Toast from '@/components/Toast'
@@ -65,6 +65,18 @@ export default function AdminsPage() {
     load()
   }
 
+  async function resetPassword(id: string, name: string) {
+    if (!confirm(`Reset ${name}'s password? They'll need to set up a new one on their next login.`)) return
+    const res = await fetch(`/api/admins/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ resetPassword: true }),
+    })
+    if (!res.ok) { setToast({ msg: 'Reset failed', type: 'error' }); return }
+    setToast({ msg: `${name}'s password reset — they'll set up a new one next login`, type: 'success' })
+    load()
+  }
+
   const isSuperAdmin = me?.role === 'SUPER_ADMIN'
 
   return (
@@ -100,6 +112,10 @@ export default function AdminsPage() {
             </div>
             {isSuperAdmin && admin.id !== me?.id && (
               <div className="flex items-center gap-1">
+                <button onClick={() => resetPassword(admin.id, admin.name)} title="Reset password"
+                  className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg bg-amber-50 text-amber-700 hover:bg-amber-100 font-medium transition-colors">
+                  <KeyRound size={12} /> Reset PW
+                </button>
                 {admin.role === 'ADMIN' && (
                   <button
                     onClick={() => promoteAdmin(admin.id, 'SUPER_ADMIN')}

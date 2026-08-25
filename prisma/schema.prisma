@@ -84,6 +84,8 @@ model User {
   name      String
   email     String   @unique
   phone     String?
+  password      String?
+  passwordSetAt DateTime?
   role      Role     @default(EDUCATOR)
   branchId  String?
   branch    Branch?  @relation(fields: [branchId], references: [id])

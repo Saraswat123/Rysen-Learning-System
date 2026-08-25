@@ -27,7 +27,20 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 
   const { id } = await params
-  const data = await req.json()
+  const body = await req.json()
+
+  // Admin-triggered password reset — forces the educator to set up a new password on next login
+  if (body.resetPassword === true) {
+    const educator = await db.user.update({
+      where: { id },
+      data: { password: null, passwordSetAt: null },
+      include: { branch: true },
+    })
+    return NextResponse.json(educator)
+  }
+
+  // Never let the generic pass-through touch password fields directly (must go through hashing)
+  const { password: _password, passwordSetAt: _passwordSetAt, resetPassword: _resetPassword, ...data } = body
   const educator = await db.user.update({ where: { id }, data, include: { branch: true } })
   return NextResponse.json(educator)
 }

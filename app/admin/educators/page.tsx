@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Plus, Search, ToggleLeft, ToggleRight, X, Upload, Download, FileSpreadsheet, Trash2, Eye, Pencil, Phone } from 'lucide-react'
+import { Plus, Search, ToggleLeft, ToggleRight, X, Upload, Download, FileSpreadsheet, Trash2, Eye, Pencil, Phone, KeyRound } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Toast from '@/components/Toast'
@@ -98,6 +98,17 @@ export default function EducatorsPage() {
     if (!res.ok) { setToast({ msg: 'Update failed', type: 'error' }); return }
     setToast({ msg: 'Educator updated', type: 'success' })
     setEditEducator(null); load()
+  }
+
+  async function resetPassword(id: string, name: string) {
+    if (!confirm(`Reset ${name}'s password? They'll need to set up a new one on their next login.`)) return
+    const res = await fetch(`/api/educators/${id}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ resetPassword: true }),
+    })
+    if (!res.ok) { setToast({ msg: 'Reset failed', type: 'error' }); return }
+    setToast({ msg: `${name}'s password reset — they'll set up a new one next login`, type: 'success' })
+    load()
   }
 
   async function toggleActive(id: string, current: boolean) {
@@ -320,6 +331,9 @@ export default function EducatorsPage() {
                     </button>
                     <button onClick={() => openResponses(e)} className="text-charcoal/30 hover:text-midnight transition-colors" title="View responses">
                       <Eye size={16} />
+                    </button>
+                    <button onClick={() => resetPassword(e.id, e.name)} className="text-charcoal/30 hover:text-amber-600 transition-colors" title="Reset password">
+                      <KeyRound size={15} />
                     </button>
                     <button onClick={() => toggleActive(e.id, e.isActive)} className="text-charcoal/40 hover:text-midnight">
                       {e.isActive ? <ToggleRight size={20} className="text-forest" /> : <ToggleLeft size={20} />}
