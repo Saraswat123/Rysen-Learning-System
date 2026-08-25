@@ -85,6 +85,32 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ sta
     },
   })
 
+  // Newly passed this attempt — check if this completes the whole programme, fire certificate notification
+  const justPassed = passed && !progress?.passed
+  if (justPassed) {
+    const siblingStages = await db.stage.findMany({
+      where: { programId: stage.programId },
+      include: { progress: { where: { userId: user.id } } },
+    })
+    const allPassed = siblingStages.every((s) =>
+      s.id === stageId ? true : s.progress[0]?.passed === true
+    )
+    if (allPassed) {
+      const programName = stage.programId
+        ? (await db.program.findUnique({ where: { id: stage.programId }, select: { name: true } }))?.name
+        : 'RYSEN Professional Development & Onboarding Programme'
+      await db.notification.create({
+        data: {
+          userId: user.id,
+          title: '🎓 Certificate Unlocked!',
+          message: `You've completed all stages of "${programName ?? 'the programme'}". Your e-certificate is ready to download.`,
+          type: 'CERTIFICATE',
+          relatedId: stage.programId ?? null,
+        },
+      }).catch(() => {})
+    }
+  }
+
   return NextResponse.json({
     score,
     passed,
