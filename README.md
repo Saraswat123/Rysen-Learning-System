@@ -1,6 +1,13 @@
 # RYSEN Learning Centre
 
-Professional development + student testing portal for RYSEN Group of Schools (15 campuses, 50+ educators).
+A multi-tenant, AI-integrated operations platform unifying educator professional development, student assessment, task orchestration, and campus-level analytics for RYSEN Group of Schools across 15 campuses and 50+ educators. Engineered as a dynamically extensible system of record — programmes, testing modules, task workflows, resource governance, and communication channels are all modeled as first-class, independently composable entities rather than hardcoded flows, letting the platform absorb new campuses, cohorts, and training tracks without structural rework.
+
+**Core capability pillars**
+- **Programme & Assessment Engine** — configurable multi-stage training programmes with MCQ/text evaluation, pass-threshold logic, attempt tracking, and automated per-programme e-certification
+- **Task Orchestration** — hierarchical task/subtask assignment with role-scoped visibility, completion audit trails, and full historical timelines
+- **Applied AI Layer** — Groq-hosted Llama 3.3 70B agentic tool-use loop driving autonomous task management, and LLM-generated analytical insight across training and test-performance data
+- **Operational Analytics** — campus-wise pass-rate reporting, subject-level performance heatmaps, stage-dropout funnels, and at-risk cohort detection
+- **Governed Communication** — group-scoped resource distribution, live educator chat, and broadcast messaging (email + WhatsApp) with contextual resource attachment
 
 Built with Next.js App Router · Prisma 7.8.0 · PostgreSQL (Neon.tech) · Tailwind CSS v4 · Groq AI · Vercel
 
