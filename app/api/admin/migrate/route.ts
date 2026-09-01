@@ -356,26 +356,75 @@ const MIGRATIONS = [
     sql: `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "avatarUrl" TEXT`,
   },
   {
-    label: 'EducatorRating table',
+    label: 'Drop legacy fixed-KRA EducatorRating table',
+    check: `SELECT 1 FROM information_schema.columns WHERE table_name='EducatorRating' AND column_name='kra1'`,
+    sql: `DROP TABLE IF EXISTS "EducatorRating"`,
+  },
+  {
+    label: 'RecognitionCategory table',
+    check: `SELECT 1 FROM information_schema.tables WHERE table_name='RecognitionCategory'`,
+    sql: `CREATE TABLE IF NOT EXISTS "RecognitionCategory" (
+      "id" TEXT PRIMARY KEY,
+      "name" TEXT NOT NULL,
+      "groupId" TEXT NOT NULL UNIQUE REFERENCES "EducatorGroup"("id") ON DELETE CASCADE,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`,
+  },
+  {
+    label: 'RatingCriterion table',
+    check: `SELECT 1 FROM information_schema.tables WHERE table_name='RatingCriterion'`,
+    sql: `CREATE TABLE IF NOT EXISTS "RatingCriterion" (
+      "id" TEXT PRIMARY KEY,
+      "categoryId" TEXT NOT NULL REFERENCES "RecognitionCategory"("id") ON DELETE CASCADE,
+      "label" TEXT NOT NULL,
+      "order" INTEGER NOT NULL DEFAULT 0,
+      "isAutoTest" BOOLEAN NOT NULL DEFAULT false,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`,
+  },
+  {
+    label: 'EducatorRating table (dynamic criteria)',
     check: `SELECT 1 FROM information_schema.tables WHERE table_name='EducatorRating'`,
     sql: `CREATE TABLE IF NOT EXISTS "EducatorRating" (
       "id" TEXT PRIMARY KEY,
       "userId" TEXT NOT NULL REFERENCES "User"("id") ON DELETE CASCADE,
+      "categoryId" TEXT NOT NULL REFERENCES "RecognitionCategory"("id") ON DELETE CASCADE,
       "period" TEXT NOT NULL,
-      "kra1" INTEGER NOT NULL DEFAULT 0,
-      "kra2" INTEGER NOT NULL DEFAULT 0,
-      "kra3" INTEGER NOT NULL DEFAULT 0,
-      "kra4" INTEGER NOT NULL DEFAULT 0,
-      "kra5" INTEGER NOT NULL DEFAULT 0,
-      "kra6" INTEGER NOT NULL DEFAULT 0,
+      "scores" JSONB NOT NULL DEFAULT '{}',
       "comment" TEXT,
       "ratedById" TEXT NOT NULL REFERENCES "User"("id"),
       "finalized" BOOLEAN NOT NULL DEFAULT false,
       "finalizedAt" TIMESTAMP(3),
       "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
       "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      UNIQUE ("userId", "period")
+      UNIQUE ("userId", "categoryId", "period")
     )`,
+  },
+  {
+    label: 'Seed STEM recognition category (5 KRAs, hackathon removed)',
+    check: `SELECT 1 FROM "RecognitionCategory" WHERE name = 'STEM Educators'`,
+    sql: `
+      INSERT INTO "RecognitionCategory" ("id", "name", "groupId")
+      SELECT 'stem-rc-' || substr(md5(random()::text), 1, 20), 'STEM Educators', eg.id
+      FROM "EducatorGroup" eg
+      WHERE eg.name ILIKE '%STEM%'
+      LIMIT 1
+      ON CONFLICT ("groupId") DO NOTHING;
+
+      INSERT INTO "RatingCriterion" ("id", "categoryId", "label", "order", "isAutoTest")
+      SELECT 'stem-rc-crit-' || substr(md5(random()::text || v.label), 1, 16), rc.id, v.label, v.ord, v.auto
+      FROM "RecognitionCategory" rc
+      CROSS JOIN (VALUES
+        ('STEM Model Activity Kit Completion', 1, false),
+        ('Student Test Conduction', 2, false),
+        ('Software Training & On-Site Technical Work', 3, false),
+        ('STEM Data Entry on Excel Sheets', 4, false),
+        ('Sub-Departments, Event Planning & Coordination', 5, false),
+        ('Student Test Understanding', 6, true)
+      ) AS v(label, ord, auto)
+      WHERE rc.name = 'STEM Educators'
+      AND NOT EXISTS (SELECT 1 FROM "RatingCriterion" WHERE "categoryId" = rc.id);
+    `,
   },
 ]
 

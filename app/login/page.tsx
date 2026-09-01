@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import RysenLogo from '@/components/RysenLogo'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
+import PasswordInput from '@/components/ui/PasswordInput'
 import { Layers, CheckCircle, BookOpen, ChevronDown, X, ArrowRight, KeyRound, UserPlus } from 'lucide-react'
 
 interface Branch { id: string; name: string; location: string }
@@ -254,7 +255,7 @@ export default function EducatorLogin() {
                 <form onSubmit={handleSignIn} className="flex flex-col gap-4">
                   <Input label="Email Address" type="email" placeholder="your@email.com"
                     value={signinForm.email} onChange={(e) => setSigninForm((f) => ({ ...f, email: e.target.value }))} required />
-                  <Input label="Password" type="password" placeholder="••••••••"
+                  <PasswordInput label="Password" placeholder="••••••••"
                     value={signinForm.password} onChange={(e) => setSigninForm((f) => ({ ...f, password: e.target.value }))} required />
 
                   <div className="flex flex-col gap-1">
@@ -295,9 +296,9 @@ export default function EducatorLogin() {
                     value={setupForm.name} onChange={(e) => setSetupForm((f) => ({ ...f, name: e.target.value }))} required />
                   <Input label="Email Address" type="email" placeholder="your@email.com"
                     value={setupForm.email} onChange={(e) => setSetupForm((f) => ({ ...f, email: e.target.value }))} required />
-                  <Input label="New Password" type="password" placeholder="At least 6 characters"
+                  <PasswordInput label="New Password" placeholder="At least 6 characters"
                     value={setupForm.password} onChange={(e) => setSetupForm((f) => ({ ...f, password: e.target.value }))} required minLength={6} />
-                  <Input label="Confirm Password" type="password" placeholder="Re-enter password"
+                  <PasswordInput label="Confirm Password" placeholder="Re-enter password"
                     value={setupForm.confirmPassword} onChange={(e) => setSetupForm((f) => ({ ...f, confirmPassword: e.target.value }))} required minLength={6} />
 
                   {programPicker}

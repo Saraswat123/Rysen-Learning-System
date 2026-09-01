@@ -55,6 +55,7 @@ model EducatorGroup {
   members     EducatorGroupMember[]
   resources   Resource[]
   messages    GroupMessage[]
+  recognitionCategory RecognitionCategory?
   createdAt   DateTime              @default(now())
 }
 
@@ -110,29 +111,52 @@ model User {
   ratingsGiven      EducatorRating[] @relation("RatingCreator")
 }
 
-// Monthly STEM-educator performance rating across 6 admin-scored KRA categories.
-// A 7th category (Student Test Understanding) is computed live from StudentAttempt
-// data for the educator's branch — never stored, so it always reflects latest scores.
+// A named recognition programme (e.g. "STEM Educators") scoped to one EducatorGroup's
+// members, with its own admin-editable list of rating criteria.
+model RecognitionCategory {
+  id        String            @id @default(cuid())
+  name      String
+  groupId   String            @unique
+  group     EducatorGroup     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  criteria  RatingCriterion[]
+  ratings   EducatorRating[]
+  createdAt DateTime          @default(now())
+}
+
+// One scoreable line item within a category (e.g. "STEM Kit Completion").
+// isAutoTest = true marks the one criterion computed live from student test data
+// instead of admin-entered — never stored as a manual score.
+model RatingCriterion {
+  id         String              @id @default(cuid())
+  categoryId String
+  category   RecognitionCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  label      String
+  order      Int                 @default(0)
+  isAutoTest Boolean             @default(false)
+  createdAt  DateTime            @default(now())
+}
+
+// Monthly rating for one educator within one recognition category.
+// scores is a { [criterionId]: number(0-10) } map — dynamic since criteria can be
+// added/edited/removed per category. The isAutoTest criterion is never a key here;
+// it's computed live at query time from that educator's branch's StudentAttempt data.
 model EducatorRating {
-  id          String    @id @default(cuid())
+  id          String              @id @default(cuid())
   userId      String
-  user        User      @relation("RatedEducator", fields: [userId], references: [id], onDelete: Cascade)
-  period      String    // "YYYY-MM"
-  kra1        Int       @default(0) // STEM Model Activity Kit Completion
-  kra2        Int       @default(0) // Student Test Conduction
-  kra3        Int       @default(0) // Software Training & On-Site Technical Work
-  kra4        Int       @default(0) // STEM Data Entry on Excel Sheets
-  kra5        Int       @default(0) // Sub-Departments, Event Planning & Coordination
-  kra6        Int       @default(0) // Preparing Children for Hackathons
+  user        User                @relation("RatedEducator", fields: [userId], references: [id], onDelete: Cascade)
+  categoryId  String
+  category    RecognitionCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  period      String              // "YYYY-MM"
+  scores      Json                @default("{}")
   comment     String?
   ratedById   String
-  ratedBy     User      @relation("RatingCreator", fields: [ratedById], references: [id])
-  finalized   Boolean   @default(false)
+  ratedBy     User                @relation("RatingCreator", fields: [ratedById], references: [id])
+  finalized   Boolean             @default(false)
   finalizedAt DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
 
-  @@unique([userId, period])
+  @@unique([userId, categoryId, period])
 }
 
 model Session {

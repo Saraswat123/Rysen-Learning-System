@@ -7,28 +7,23 @@ interface LeaderboardRow {
   rank: number; userId: string; name: string; branch: string | null
   avatarUrl: string | null; average: number; isMe: boolean
 }
+interface ScoreEntry { criterionId: string; label: string; isAutoTest: boolean; score: number }
 interface MyDetail {
   userId: string; name: string; branch: { id: string; name: string } | null
-  kra1: number; kra2: number; kra3: number; kra4: number; kra5: number; kra6: number
-  testScore: number; average: number; rank: number; comment: string | null
+  scores: ScoreEntry[]; average: number; rank: number; comment: string | null
 }
+interface CategoryInfo { id: string; name: string }
 interface RecognitionData {
-  isStemEducator: boolean
+  isInRecognitionProgram: boolean
+  categories?: CategoryInfo[]
+  selectedCategoryId?: string
+  categoryName?: string
   periods?: string[]
-  period?: string
+  period?: string | null
   isFinalized?: boolean
   leaderboard?: LeaderboardRow[]
   myDetail?: MyDetail | null
 }
-
-const KRA_LABELS = [
-  { key: 'kra1', label: 'STEM Kit Completion' },
-  { key: 'kra2', label: 'Student Test Conduction' },
-  { key: 'kra3', label: 'Software Training & Tech Work' },
-  { key: 'kra4', label: 'STEM Data Entry (Excel)' },
-  { key: 'kra5', label: 'Event Planning & Coordination' },
-  { key: 'kra6', label: 'Hackathon Preparation' },
-] as const
 
 function periodLabel(period: string) {
   return new Date(`${period}-01`).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
@@ -44,18 +39,31 @@ function RankIcon({ rank }: { rank: number }) {
 export default function RecognitionPage() {
   const [data, setData] = useState<RecognitionData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [categoryId, setCategoryId] = useState('')
   const [selectedPeriod, setSelectedPeriod] = useState<string>('')
 
   useEffect(() => {
-    const url = selectedPeriod ? `/api/educator/recognition?period=${selectedPeriod}` : '/api/educator/recognition'
-    fetch(url).then((r) => r.json()).then((d) => { setData(d); setLoading(false) })
-  }, [selectedPeriod])
+    const params = new URLSearchParams()
+    if (categoryId) params.set('categoryId', categoryId)
+    if (selectedPeriod) params.set('period', selectedPeriod)
+    fetch(`/api/educator/recognition?${params}`).then((r) => r.json()).then((d) => {
+      setData(d)
+      if (d.selectedCategoryId) setCategoryId(d.selectedCategoryId)
+      setLoading(false)
+    })
+  }, [categoryId, selectedPeriod]) // eslint-disable-line
+
+  function switchCategory(id: string) {
+    setCategoryId(id)
+    setSelectedPeriod('')
+  }
 
   async function downloadCertificate() {
     if (!data?.myDetail || !data.period) return
     const { default: jsPDF } = await import('jspdf')
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
     const m = data.myDetail
+    const catName = data.categoryName ?? 'Recognition'
 
     doc.setFillColor(3, 61, 76)
     doc.rect(0, 0, 297, 210, 'F')
@@ -89,7 +97,7 @@ export default function RecognitionPage() {
     doc.setFontSize(24)
     doc.setFont('helvetica', 'bold')
     doc.setTextColor(254, 203, 8)
-    const title = m.rank === 1 ? 'STEM EDUCATOR OF THE MONTH' : m.rank === 2 ? 'STEM EDUCATOR — RUNNER UP' : 'STEM EDUCATOR — 3RD PLACE'
+    const title = m.rank === 1 ? `${catName.toUpperCase()} — EDUCATOR OF THE MONTH` : m.rank === 2 ? `${catName.toUpperCase()} — RUNNER UP` : `${catName.toUpperCase()} — 3RD PLACE`
     doc.text(title, 148, 128, { align: 'center' })
 
     doc.setTextColor(255, 255, 255)
@@ -99,14 +107,15 @@ export default function RecognitionPage() {
 
     doc.setFontSize(10)
     doc.setTextColor(255, 255, 255, 0.7 as unknown as number)
-    doc.text('Awarded across STEM Kit Completion, Test Conduction, Software Training, Data Entry,', 148, 158, { align: 'center' })
-    doc.text('Event Coordination, Hackathon Preparation & Student Test Understanding', 148, 164, { align: 'center' })
+    const critLine = m.scores.map((s) => s.label).join(' · ')
+    const wrapped = doc.splitTextToSize(`Awarded across ${critLine}`, 240)
+    doc.text(wrapped, 148, 158, { align: 'center' })
 
     doc.setTextColor(254, 203, 8)
     doc.setFontSize(10)
     doc.text('RYSEN Group of Schools · Run by IITians and Doctors', 148, 185, { align: 'center' })
 
-    doc.save(`RYSEN_STEM_Educator_${periodLabel(data.period).replace(' ', '_')}_${m.name.replace(/\s+/g, '_')}.pdf`)
+    doc.save(`RYSEN_${catName.replace(/\s+/g, '_')}_${periodLabel(data.period).replace(' ', '_')}_${m.name.replace(/\s+/g, '_')}.pdf`)
   }
 
   async function downloadReport() {
@@ -114,6 +123,7 @@ export default function RecognitionPage() {
     const { default: jsPDF } = await import('jspdf')
     const doc = new jsPDF({ unit: 'mm', format: 'a4' })
     const m = data.myDetail
+    const catName = data.categoryName ?? 'Recognition'
 
     doc.setFillColor(3, 61, 76)
     doc.rect(0, 0, 210, 30, 'F')
@@ -123,7 +133,7 @@ export default function RecognitionPage() {
     doc.text('RYSEN Group of Schools', 15, 12)
     doc.setFontSize(11)
     doc.setFont('helvetica', 'normal')
-    doc.text(`Monthly STEM Performance Report — ${periodLabel(data.period!)}`, 15, 20)
+    doc.text(`Monthly ${catName} Performance Report — ${periodLabel(data.period!)}`, 15, 20)
 
     doc.setTextColor(30, 30, 30)
     doc.setFontSize(12)
@@ -139,15 +149,11 @@ export default function RecognitionPage() {
     doc.text('Category Breakdown', 15, y)
     y += 8
 
-    const rowsData = [
-      ...KRA_LABELS.map((k) => [k.label, `${m[k.key as keyof MyDetail]}/10`]),
-      ['Student Test Understanding (auto-computed)', `${m.testScore}/10`],
-    ]
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(10)
-    for (const [label, score] of rowsData) {
-      doc.text(String(label), 20, y)
-      doc.text(String(score), 170, y)
+    for (const s of m.scores) {
+      doc.text(`${s.label}${s.isAutoTest ? ' (auto-computed)' : ''}`, 20, y)
+      doc.text(`${s.score}/10`, 170, y)
       y += 8
     }
 
@@ -170,7 +176,7 @@ export default function RecognitionPage() {
     doc.setTextColor(150)
     doc.text('RYSEN Group of Schools · Rise To Success', 15, 285)
 
-    doc.save(`RYSEN_STEM_Report_${periodLabel(data.period!).replace(' ', '_')}_${m.name.replace(/\s+/g, '_')}.pdf`)
+    doc.save(`RYSEN_${catName.replace(/\s+/g, '_')}_Report_${periodLabel(data.period!).replace(' ', '_')}_${m.name.replace(/\s+/g, '_')}.pdf`)
   }
 
   if (loading) return (
@@ -179,23 +185,35 @@ export default function RecognitionPage() {
     </div>
   )
 
-  if (!data?.isStemEducator) return (
+  if (!data?.isInRecognitionProgram) return (
     <div className="max-w-xl mx-auto text-center py-24 text-charcoal/40">
       <Award size={48} className="mx-auto mb-4 opacity-20" />
-      <p className="text-base font-medium">Recognition program is for STEM Educators</p>
-      <p className="text-sm mt-1">Contact your admin if you believe you should be part of this programme</p>
+      <p className="text-base font-medium">No recognition programmes yet</p>
+      <p className="text-sm mt-1">Contact your admin if you believe you should be part of one</p>
     </div>
   )
 
   if (!data.period || !data.leaderboard) return (
-    <div className="max-w-xl mx-auto text-center py-24 text-charcoal/40">
-      <Trophy size={48} className="mx-auto mb-4 opacity-20" />
-      <p className="text-base font-medium">No finalized results yet</p>
-      <p className="text-sm mt-1">Your admin hasn't finalized a monthly report yet</p>
+    <div className="max-w-xl mx-auto space-y-6">
+      {data.categories && data.categories.length > 1 && (
+        <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl w-fit mx-auto">
+          {data.categories.map((c) => (
+            <button key={c.id} onClick={() => switchCategory(c.id)}
+              className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-colors ${c.id === (categoryId || data.selectedCategoryId) ? 'bg-white text-midnight shadow-sm' : 'text-charcoal/50'}`}>
+              {c.name}
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="text-center py-16 text-charcoal/40">
+        <Trophy size={48} className="mx-auto mb-4 opacity-20" />
+        <p className="text-base font-medium">No finalized results yet</p>
+        <p className="text-sm mt-1">Your admin hasn't finalized a monthly report yet</p>
+      </div>
     </div>
   )
 
-  const { myDetail, leaderboard, periods } = data
+  const { myDetail, leaderboard, periods, categories } = data
   const isTop3 = myDetail && myDetail.rank <= 3
 
   return (
@@ -203,16 +221,24 @@ export default function RecognitionPage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-midnight flex items-center gap-2">
-            <Trophy size={22} /> STEM Educator Recognition
+            <Trophy size={22} /> {data.categoryName} Recognition
           </h1>
           <p className="text-sm text-charcoal/60 mt-0.5">Monthly leaderboard, e-certificates & performance reports</p>
         </div>
-        {periods && periods.length > 1 && (
-          <select value={selectedPeriod || data.period} onChange={(e) => setSelectedPeriod(e.target.value)}
-            className="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-midnight/20">
-            {periods.map((p) => <option key={p} value={p}>{periodLabel(p)}</option>)}
-          </select>
-        )}
+        <div className="flex items-center gap-2 flex-wrap">
+          {categories && categories.length > 1 && (
+            <select value={categoryId} onChange={(e) => switchCategory(e.target.value)}
+              className="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-midnight/20">
+              {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          )}
+          {periods && periods.length > 1 && (
+            <select value={selectedPeriod || data.period} onChange={(e) => setSelectedPeriod(e.target.value)}
+              className="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-midnight/20">
+              {periods.map((p) => <option key={p} value={p}>{periodLabel(p)}</option>)}
+            </select>
+          )}
+        </div>
       </div>
 
       {/* My score card */}
@@ -224,7 +250,7 @@ export default function RecognitionPage() {
               <div>
                 <p className="text-white/60 text-xs">{periodLabel(data.period)}</p>
                 <p className="text-xl font-bold">Rank #{myDetail.rank} · {myDetail.average}/10</p>
-                {isTop3 && <p className="text-gold text-sm font-semibold mt-0.5">🏆 STEM Educator of the Month recognition!</p>}
+                {isTop3 && <p className="text-gold text-sm font-semibold mt-0.5">🏆 {data.categoryName} recognition this month!</p>}
               </div>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
@@ -243,16 +269,14 @@ export default function RecognitionPage() {
 
           {/* Category breakdown */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5">
-            {KRA_LABELS.map(({ key, label }) => (
-              <div key={key} className="bg-white/10 rounded-xl p-3">
-                <p className="text-xs text-white/50 truncate">{label}</p>
-                <p className="text-lg font-bold mt-0.5">{myDetail[key as 'kra1' | 'kra2' | 'kra3' | 'kra4' | 'kra5' | 'kra6']}/10</p>
+            {myDetail.scores.map((s) => (
+              <div key={s.criterionId} className="bg-white/10 rounded-xl p-3">
+                <p className="text-xs text-white/50 truncate flex items-center gap-1">
+                  {s.isAutoTest && <Sparkles size={10} className="text-gold" />}{s.label}
+                </p>
+                <p className="text-lg font-bold mt-0.5">{s.score}/10</p>
               </div>
             ))}
-            <div className="bg-white/10 rounded-xl p-3">
-              <p className="text-xs text-white/50 flex items-center gap-1"><Sparkles size={10} className="text-gold" /> Test Understanding</p>
-              <p className="text-lg font-bold mt-0.5">{myDetail.testScore}/10</p>
-            </div>
           </div>
 
           {myDetail.comment && (

@@ -3,41 +3,63 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/auth'
-import { computeRatingsForPeriod, getStemEducatorGroup } from '@/lib/educator-ratings'
+import { computeRatingsForPeriod, ensureRecognitionTables } from '@/lib/educator-ratings'
 
 export async function GET(req: NextRequest) {
   const user = await getSession()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  await ensureRecognitionTables()
 
-  const group = await getStemEducatorGroup()
-  const isStemEducator = !!group?.members.some((m) => m.userId === user.id)
-  if (!isStemEducator) {
-    return NextResponse.json({ isStemEducator: false })
+  // Every recognition category this educator belongs to (via its linked EducatorGroup)
+  const myGroups = await db.educatorGroupMember.findMany({
+    where: { userId: user.id },
+    select: { groupId: true },
+  })
+  const groupIds = myGroups.map((g) => g.groupId)
+
+  const myCategories = await db.recognitionCategory.findMany({
+    where: { groupId: { in: groupIds } },
+    select: { id: true, name: true },
+  })
+
+  if (myCategories.length === 0) {
+    return NextResponse.json({ isInRecognitionProgram: false, categories: [] })
   }
 
   const { searchParams } = new URL(req.url)
+  const requestedCategoryId = searchParams.get('categoryId')
   const requestedPeriod = searchParams.get('period')
 
-  // All finalized periods, newest first
+  const categoryId = requestedCategoryId ?? myCategories[0].id
+
   const finalizedPeriods = await db.educatorRating.findMany({
-    where: { finalized: true },
+    where: { categoryId, finalized: true },
     select: { period: true },
     distinct: ['period'],
     orderBy: { period: 'desc' },
   })
   const periods = finalizedPeriods.map((p) => p.period)
-
   const period = requestedPeriod ?? periods[0] ?? null
+
   if (!period) {
-    return NextResponse.json({ isStemEducator: true, periods: [], leaderboard: null, myDetail: null })
+    return NextResponse.json({
+      isInRecognitionProgram: true,
+      categories: myCategories,
+      selectedCategoryId: categoryId,
+      periods: [], period: null, leaderboard: null, myDetail: null,
+    })
   }
 
-  const rows = await computeRatingsForPeriod(period)
+  const rows = await computeRatingsForPeriod(categoryId, period)
   const isFinalized = rows.some((r) => r.finalized)
   const me = rows.find((r) => r.userId === user.id) ?? null
+  const categoryName = myCategories.find((c) => c.id === categoryId)?.name ?? ''
 
   return NextResponse.json({
-    isStemEducator: true,
+    isInRecognitionProgram: true,
+    categories: myCategories,
+    selectedCategoryId: categoryId,
+    categoryName,
     periods,
     period,
     isFinalized,

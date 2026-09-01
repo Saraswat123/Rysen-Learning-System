@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import RysenLogo from '@/components/RysenLogo'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
+import PasswordInput from '@/components/ui/PasswordInput'
 import { ShieldCheck, KeyRound, UserPlus } from 'lucide-react'
 
 export default function AdminLogin() {
@@ -120,7 +121,7 @@ export default function AdminLogin() {
                 <form onSubmit={handleSignIn} className="flex flex-col gap-4">
                   <Input label="Email Address" type="email" placeholder="admin@rysengroup.com"
                     value={signinForm.email} onChange={(e) => setSigninForm((f) => ({ ...f, email: e.target.value }))} required />
-                  <Input label="Password" type="password" placeholder="••••••••"
+                  <PasswordInput label="Password" placeholder="••••••••"
                     value={signinForm.password} onChange={(e) => setSigninForm((f) => ({ ...f, password: e.target.value }))} required />
 
                   {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
@@ -145,9 +146,9 @@ export default function AdminLogin() {
                     value={setupForm.name} onChange={(e) => setSetupForm((f) => ({ ...f, name: e.target.value }))} required />
                   <Input label="Email Address" type="email" placeholder="admin@rysengroup.com"
                     value={setupForm.email} onChange={(e) => setSetupForm((f) => ({ ...f, email: e.target.value }))} required />
-                  <Input label="New Password" type="password" placeholder="At least 6 characters"
+                  <PasswordInput label="New Password" placeholder="At least 6 characters"
                     value={setupForm.password} onChange={(e) => setSetupForm((f) => ({ ...f, password: e.target.value }))} required minLength={6} />
-                  <Input label="Confirm Password" type="password" placeholder="Re-enter password"
+                  <PasswordInput label="Confirm Password" placeholder="Re-enter password"
                     value={setupForm.confirmPassword} onChange={(e) => setSetupForm((f) => ({ ...f, confirmPassword: e.target.value }))} required minLength={6} />
 
                   {error && <p className={`text-sm px-3 py-2 rounded-lg ${error.includes('below') ? 'text-amber-700 bg-amber-50' : 'text-red-600 bg-red-50'}`}>{error}</p>}
