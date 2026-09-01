@@ -43,14 +43,18 @@ export default function RecognitionPage() {
   const [selectedPeriod, setSelectedPeriod] = useState<string>('')
 
   useEffect(() => {
+    setLoading(true)
     const params = new URLSearchParams()
     if (categoryId) params.set('categoryId', categoryId)
     if (selectedPeriod) params.set('period', selectedPeriod)
-    fetch(`/api/educator/recognition?${params}`).then((r) => r.json()).then((d) => {
-      setData(d)
-      if (d.selectedCategoryId) setCategoryId(d.selectedCategoryId)
-      setLoading(false)
-    })
+    fetch(`/api/educator/recognition?${params}`)
+      .then((r) => r.json())
+      .then((d) => {
+        setData(d)
+        if (d.selectedCategoryId) setCategoryId(d.selectedCategoryId)
+      })
+      .catch(() => setData({ isInRecognitionProgram: false }))
+      .finally(() => setLoading(false))
   }, [categoryId, selectedPeriod]) // eslint-disable-line
 
   function switchCategory(id: string) {

@@ -56,22 +56,35 @@ export default function AdminRewardsPage() {
   const [addCandidateId, setAddCandidateId] = useState('')
 
   async function loadCategories() {
-    const res = await fetch('/api/admin/recognition-categories')
-    const data = await res.json()
-    setCategories(data)
-    if (!categoryId && data.length > 0) setCategoryId(data[0].id)
-    return data as Category[]
+    try {
+      const res = await fetch('/api/admin/recognition-categories')
+      const data = await res.json()
+      const list = Array.isArray(data) ? data : []
+      setCategories(list)
+      if (!categoryId && list.length > 0) setCategoryId(list[0].id)
+      if (list.length === 0) setLoading(false)
+      return list as Category[]
+    } catch {
+      setToast('Failed to load categories — check your connection and retry')
+      setLoading(false)
+      return []
+    }
   }
 
   async function loadRatings() {
-    if (!categoryId) return
+    if (!categoryId) { setLoading(false); return }
     setLoading(true)
-    const res = await fetch(`/api/admin/educator-ratings?categoryId=${categoryId}&period=${period}`)
-    const data = await res.json()
-    setRows(data.educators ?? [])
-    setCriteria(data.criteria ?? [])
-    setDrafts({})
-    setLoading(false)
+    try {
+      const res = await fetch(`/api/admin/educator-ratings?categoryId=${categoryId}&period=${period}`)
+      const data = await res.json()
+      setRows(data.educators ?? [])
+      setCriteria(data.criteria ?? [])
+      setDrafts({})
+    } catch {
+      setToast('Failed to load ratings — check your connection and retry')
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => { loadCategories() }, []) // eslint-disable-line
