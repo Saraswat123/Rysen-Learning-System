@@ -15,6 +15,7 @@ export async function GET() {
         name: true,
         email: true,
         phone: true,
+        avatarUrl: true,
         role: true,
         branch: { select: { id: true, name: true, location: true } },
         createdAt: true,

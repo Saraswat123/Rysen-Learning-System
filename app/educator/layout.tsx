@@ -107,6 +107,10 @@ export default function EducatorLayout({ children }: { children: React.ReactNode
                 className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg transition-colors ${pathname === '/educator/certificate' ? 'bg-white/15 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
                 <Award size={15} /> Certificate
               </Link>
+              <Link href="/educator/recognition"
+                className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg transition-colors ${pathname.startsWith('/educator/recognition') ? 'bg-gold text-midnight font-semibold' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
+                <Trophy size={15} /> Recognition
+              </Link>
               <Link href="/leaderboard"
                 className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg transition-colors ${pathname === '/leaderboard' ? 'bg-white/15 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
                 <Trophy size={15} /> Leaderboard

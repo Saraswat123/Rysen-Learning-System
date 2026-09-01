@@ -84,6 +84,7 @@ model User {
   name      String
   email     String   @unique
   phone     String?
+  avatarUrl String?
   password      String?
   passwordSetAt DateTime?
   role      Role     @default(EDUCATOR)
@@ -105,6 +106,33 @@ model User {
   notifications     Notification[]       @relation("NotificationRecipient")
   educatorGroups    EducatorGroupMember[]
   groupMessages     GroupMessage[]
+  ratings           EducatorRating[] @relation("RatedEducator")
+  ratingsGiven      EducatorRating[] @relation("RatingCreator")
+}
+
+// Monthly STEM-educator performance rating across 6 admin-scored KRA categories.
+// A 7th category (Student Test Understanding) is computed live from StudentAttempt
+// data for the educator's branch — never stored, so it always reflects latest scores.
+model EducatorRating {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation("RatedEducator", fields: [userId], references: [id], onDelete: Cascade)
+  period      String    // "YYYY-MM"
+  kra1        Int       @default(0) // STEM Model Activity Kit Completion
+  kra2        Int       @default(0) // Student Test Conduction
+  kra3        Int       @default(0) // Software Training & On-Site Technical Work
+  kra4        Int       @default(0) // STEM Data Entry on Excel Sheets
+  kra5        Int       @default(0) // Sub-Departments, Event Planning & Coordination
+  kra6        Int       @default(0) // Preparing Children for Hackathons
+  comment     String?
+  ratedById   String
+  ratedBy     User      @relation("RatingCreator", fields: [ratedById], references: [id])
+  finalized   Boolean   @default(false)
+  finalizedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([userId, period])
 }
 
 model Session {

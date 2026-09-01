@@ -350,6 +350,33 @@ const MIGRATIONS = [
     check: `SELECT 1 FROM information_schema.columns WHERE table_name='User' AND column_name='passwordSetAt'`,
     sql: `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "passwordSetAt" TIMESTAMP(3)`,
   },
+  {
+    label: 'User.avatarUrl column',
+    check: `SELECT 1 FROM information_schema.columns WHERE table_name='User' AND column_name='avatarUrl'`,
+    sql: `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "avatarUrl" TEXT`,
+  },
+  {
+    label: 'EducatorRating table',
+    check: `SELECT 1 FROM information_schema.tables WHERE table_name='EducatorRating'`,
+    sql: `CREATE TABLE IF NOT EXISTS "EducatorRating" (
+      "id" TEXT PRIMARY KEY,
+      "userId" TEXT NOT NULL REFERENCES "User"("id") ON DELETE CASCADE,
+      "period" TEXT NOT NULL,
+      "kra1" INTEGER NOT NULL DEFAULT 0,
+      "kra2" INTEGER NOT NULL DEFAULT 0,
+      "kra3" INTEGER NOT NULL DEFAULT 0,
+      "kra4" INTEGER NOT NULL DEFAULT 0,
+      "kra5" INTEGER NOT NULL DEFAULT 0,
+      "kra6" INTEGER NOT NULL DEFAULT 0,
+      "comment" TEXT,
+      "ratedById" TEXT NOT NULL REFERENCES "User"("id"),
+      "finalized" BOOLEAN NOT NULL DEFAULT false,
+      "finalizedAt" TIMESTAMP(3),
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE ("userId", "period")
+    )`,
+  },
 ]
 
 async function checkPending() {

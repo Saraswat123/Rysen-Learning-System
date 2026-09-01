@@ -1,13 +1,14 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { User, Mail, Phone, MapPin, Building2, CheckCircle2, BookOpen, ClipboardList, Star, Pencil, Save, X, Loader2 } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { User, Mail, Phone, MapPin, Building2, CheckCircle2, BookOpen, ClipboardList, Star, Pencil, Save, X, Loader2, Camera } from 'lucide-react'
 
 interface Profile {
   id: string
   name: string
   email: string
   phone: string | null
+  avatarUrl: string | null
   role: string
   branch: { id: string; name: string; location: string } | null
   createdAt: string
@@ -50,6 +51,9 @@ export default function EducatorProfilePage() {
   const [phone, setPhone] = useState('')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [uploadingPhoto, setUploadingPhoto] = useState(false)
+  const [photoError, setPhotoError] = useState('')
+  const fileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     fetch('/api/auth/profile')
@@ -79,6 +83,21 @@ export default function EducatorProfilePage() {
     setSaving(false)
   }
 
+  async function uploadPhoto(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setPhotoError('')
+    setUploadingPhoto(true)
+    const formData = new FormData()
+    formData.append('file', file)
+    const res = await fetch('/api/auth/avatar', { method: 'POST', body: formData })
+    const data = await res.json()
+    setUploadingPhoto(false)
+    if (!res.ok) { setPhotoError(data.error ?? 'Upload failed'); return }
+    setProfile((p) => p ? { ...p, avatarUrl: data.url } : p)
+    if (fileRef.current) fileRef.current.value = ''
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
@@ -101,7 +120,22 @@ export default function EducatorProfilePage() {
     <div className="max-w-2xl mx-auto space-y-6">
       {/* Header card */}
       <div className="bg-midnight rounded-2xl p-8 flex flex-col sm:flex-row items-center gap-6">
-        <InitialsAvatar name={profile.name} />
+        <div className="relative group">
+          {profile.avatarUrl ? (
+            <img src={profile.avatarUrl} alt={profile.name} className="w-24 h-24 rounded-full object-cover shadow-lg" />
+          ) : (
+            <InitialsAvatar name={profile.name} />
+          )}
+          <button
+            onClick={() => fileRef.current?.click()}
+            disabled={uploadingPhoto}
+            title="Change photo"
+            className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity disabled:opacity-100"
+          >
+            {uploadingPhoto ? <Loader2 size={18} className="text-white animate-spin" /> : <Camera size={18} className="text-white" />}
+          </button>
+          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={uploadPhoto} />
+        </div>
         <div className="text-center sm:text-left">
           <h1 className="text-white text-2xl font-bold">{profile.name}</h1>
           <p className="text-gold text-sm font-medium mt-1">{profile.role.replace('_', ' ')}</p>
@@ -112,6 +146,7 @@ export default function EducatorProfilePage() {
             </p>
           )}
           <p className="text-white/30 text-xs mt-2">Member since {joinDate}</p>
+          {photoError && <p className="text-red-300 text-xs mt-1">{photoError}</p>}
         </div>
         {saved && (
           <div className="sm:ml-auto flex items-center gap-2 bg-forest/80 text-white text-sm px-4 py-2 rounded-full">
@@ -230,16 +265,17 @@ export default function EducatorProfilePage() {
       </div>
 
       {/* Quick nav */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           { href: '/educator/dashboard', label: 'My Journey', bg: 'bg-midnight' },
           { href: '/educator/tasks', label: 'My Tasks', bg: 'bg-olive' },
           { href: '/educator/certificate', label: 'Certificate', bg: 'bg-forest' },
-        ].map(({ href, label, bg }) => (
+          { href: '/educator/recognition', label: 'Recognition', bg: 'bg-gold', text: 'text-midnight' },
+        ].map(({ href, label, bg, text }) => (
           <a
             key={href}
             href={href}
-            className={`${bg} text-white rounded-xl px-4 py-3 text-sm font-semibold text-center hover:opacity-90 transition-opacity`}
+            className={`${bg} ${text ?? 'text-white'} rounded-xl px-4 py-3 text-sm font-semibold text-center hover:opacity-90 transition-opacity`}
           >
             {label}
           </a>
