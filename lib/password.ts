@@ -21,6 +21,7 @@ export async function ensurePasswordColumns() {
   try {
     await db.$executeRawUnsafe(`ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "password" TEXT`)
     await db.$executeRawUnsafe(`ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "passwordSetAt" TIMESTAMP(3)`)
+    await db.$executeRawUnsafe(`ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "avatarUrl" TEXT`)
     columnsEnsured = true
   } catch {
     // best-effort — if it fails, the query below will surface the real error
