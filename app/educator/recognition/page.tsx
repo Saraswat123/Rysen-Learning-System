@@ -29,6 +29,39 @@ function periodLabel(period: string) {
   return new Date(`${period}-01`).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
 }
 
+function arrayBufferToBase64(buf: ArrayBuffer): string {
+  let binary = ''
+  const bytes = new Uint8Array(buf)
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i])
+  return btoa(binary)
+}
+
+// TTF for jsPDF custom font embedding — returns null on failure so the caller
+// can fall back to a built-in font rather than break the download.
+async function fetchFontBase64(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url)
+    if (!res.ok) return null
+    return arrayBufferToBase64(await res.arrayBuffer())
+  } catch { return null }
+}
+
+async function fetchImageBase64(path: string): Promise<{ data: string; aspect: number } | null> {
+  try {
+    const res = await fetch(path)
+    if (!res.ok) return null
+    const buf = await res.arrayBuffer()
+    const data = `data:image/png;base64,${arrayBufferToBase64(buf)}`
+    const aspect = await new Promise<number>((resolve, reject) => {
+      const img = new Image()
+      img.onload = () => resolve(img.naturalWidth / img.naturalHeight || 1)
+      img.onerror = reject
+      img.src = data
+    })
+    return { data, aspect }
+  } catch { return null }
+}
+
 function RankIcon({ rank }: { rank: number }) {
   if (rank === 1) return <div className="w-9 h-9 rounded-full bg-gold flex items-center justify-center flex-shrink-0"><Trophy size={16} className="text-midnight" /></div>
   if (rank === 2) return <div className="w-9 h-9 rounded-full bg-gray-300 flex items-center justify-center flex-shrink-0"><Medal size={16} className="text-white" /></div>
@@ -68,56 +101,153 @@ export default function RecognitionPage() {
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
     const m = data.myDetail
     const catName = data.categoryName ?? 'Recognition'
+    const W = 297, H = 210, CX = W / 2
 
-    doc.setFillColor(3, 61, 76)
-    doc.rect(0, 0, 297, 210, 'F')
-    doc.setFillColor(254, 203, 8)
-    doc.rect(10, 10, 277, 3, 'F')
-    doc.rect(10, 197, 277, 3, 'F')
+    // Embed a calligraphy script face for the name and an elegant serif for headings —
+    // jsPDF ships only Helvetica/Times/Courier, so real certificate typography has to be
+    // fetched and registered at render time.
+    const [scriptFont, serifFont, logoData] = await Promise.all([
+      fetchFontBase64('https://raw.githubusercontent.com/google/fonts/main/ofl/greatvibes/GreatVibes-Regular.ttf'),
+      fetchFontBase64('https://raw.githubusercontent.com/google/fonts/main/ofl/marcellus/Marcellus-Regular.ttf'),
+      fetchImageBase64('/rysen-logo.png'),
+    ])
+    if (scriptFont) {
+      doc.addFileToVFS('GreatVibes-Regular.ttf', scriptFont)
+      doc.addFont('GreatVibes-Regular.ttf', 'GreatVibes', 'normal')
+    }
+    if (serifFont) {
+      doc.addFileToVFS('Marcellus-Regular.ttf', serifFont)
+      doc.addFont('Marcellus-Regular.ttf', 'Marcellus', 'normal')
+    }
+    const heading = serifFont ? 'Marcellus' : 'times'
+    const script = scriptFont ? 'GreatVibes' : 'times'
 
-    doc.setTextColor(254, 203, 8)
-    doc.setFontSize(28)
-    doc.setFont('helvetica', 'bold')
-    doc.text('RYSEN GROUP OF SCHOOLS', 148, 40, { align: 'center' })
-    doc.setFontSize(13)
+    // Deep ivory-on-midnight ground, no faded/alpha text — every color below is a solid tone.
+    const midnight: [number, number, number] = [8, 32, 41]
+    const midnightDeep: [number, number, number] = [4, 20, 27]
+    const gold: [number, number, number] = [212, 168, 60]
+    const goldBright: [number, number, number] = [244, 200, 96]
+    const ivory: [number, number, number] = [237, 228, 205]
+    const ivoryMuted: [number, number, number] = [176, 168, 143]
+
+    // Ground + vignette-style corner panels for depth (flat fill vs. gradient jsPDF can't do)
+    doc.setFillColor(...midnight)
+    doc.rect(0, 0, W, H, 'F')
+    doc.setFillColor(...midnightDeep)
+    doc.triangle(0, 0, 70, 0, 0, 55, 'F')
+    doc.triangle(W, H, W - 70, H, W, H - 55, 'F')
+
+    // Ornamental double border
+    doc.setDrawColor(...gold)
+    doc.setLineWidth(0.9)
+    doc.rect(7, 7, W - 14, H - 14)
+    doc.setLineWidth(0.3)
+    doc.rect(10.5, 10.5, W - 21, H - 21)
+    // Corner flourish ticks
+    const corners: [number, number, number, number][] = [
+      [7, 7, 1, 1], [W - 7, 7, -1, 1], [7, H - 7, 1, -1], [W - 7, H - 7, -1, -1],
+    ]
+    doc.setLineWidth(0.9)
+    corners.forEach(([x, y, dx, dy]) => {
+      doc.line(x, y, x + dx * 12, y)
+      doc.line(x, y, x, y + dy * 12)
+    })
+
+    // Logo, centered top — small white card behind it since the source PNG has a
+    // white (non-transparent) background, same treatment RysenLogo.tsx uses on dark grounds
+    if (logoData) {
+      const logoH = 15
+      const logoW = logoH * logoData.aspect
+      const pad = 2
+      doc.setFillColor(255, 255, 255)
+      doc.roundedRect(CX - logoW / 2 - pad, 10 - pad, logoW + pad * 2, logoH + pad * 2, 1.5, 1.5, 'F')
+      try {
+        doc.addImage(logoData.data, 'PNG', CX - logoW / 2, 10, logoW, logoH)
+      } catch { /* image decode failed — proceed without it */ }
+    }
+
+    doc.setTextColor(...gold)
+    doc.setFont(heading, 'normal')
+    doc.setFontSize(20)
+    doc.text('RYSEN GROUP OF SCHOOLS', CX, 38, { align: 'center', charSpace: 0.6 })
+    doc.setFontSize(9)
+    doc.setTextColor(...ivoryMuted)
+    doc.text('R Y S E N   L E A R N I N G   C E N T R E   ·   R I S E   T O   S U C C E S S', CX, 44, { align: 'center' })
+
+    // Small rule under the masthead
+    doc.setDrawColor(...gold)
+    doc.setLineWidth(0.25)
+    doc.line(CX - 30, 48, CX + 30, 48)
+
+    doc.setTextColor(...ivory)
     doc.setFont('helvetica', 'normal')
-    doc.text('Rise To Success', 148, 48, { align: 'center' })
+    doc.setFontSize(11.5)
+    doc.text('This certificate is proudly presented to', CX, 60, { align: 'center' })
 
-    doc.setTextColor(255, 255, 255)
-    doc.setFontSize(14)
-    doc.text('This certificate is proudly presented to', 148, 68, { align: 'center' })
+    // Recipient name in the calligraphy face — the centerpiece
+    doc.setTextColor(...goldBright)
+    doc.setFont(script, 'normal')
+    doc.setFontSize(40)
+    doc.text(m.name, CX, 80, { align: 'center' })
+    doc.setDrawColor(...gold)
+    doc.setLineWidth(0.25)
+    doc.line(CX - 45, 84, CX + 45, 84)
 
-    doc.setFontSize(30)
-    doc.setFont('helvetica', 'bold')
-    doc.text(m.name, 148, 85, { align: 'center' })
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(10.5)
+    doc.setTextColor(...ivoryMuted)
+    doc.text(m.branch?.name ?? '', CX, 91, { align: 'center' })
 
     doc.setFontSize(12)
-    doc.setFont('helvetica', 'normal')
-    doc.text(m.branch?.name ?? '', 148, 94, { align: 'center' })
+    doc.setTextColor(...ivory)
+    doc.text('in recognition of outstanding performance as', CX, 104, { align: 'center' })
 
-    doc.setFontSize(15)
-    doc.text('for being recognised as', 148, 112, { align: 'center' })
-
-    doc.setFontSize(24)
-    doc.setFont('helvetica', 'bold')
-    doc.setTextColor(254, 203, 8)
     const title = m.rank === 1 ? `${catName.toUpperCase()} — EDUCATOR OF THE MONTH` : m.rank === 2 ? `${catName.toUpperCase()} — RUNNER UP` : `${catName.toUpperCase()} — 3RD PLACE`
-    doc.text(title, 148, 128, { align: 'center' })
+    doc.setFont(heading, 'normal')
+    doc.setFontSize(18)
+    doc.setTextColor(...goldBright)
+    doc.text(title, CX, 118, { align: 'center' })
 
-    doc.setTextColor(255, 255, 255)
-    doc.setFontSize(13)
     doc.setFont('helvetica', 'normal')
-    doc.text(`${periodLabel(data.period)} · Overall Score: ${m.average}/10 · Rank #${m.rank}`, 148, 142, { align: 'center' })
+    doc.setFontSize(11)
+    doc.setTextColor(...ivory)
+    doc.text(`${periodLabel(data.period)}  ·  Overall Score ${m.average}/10  ·  Rank #${m.rank}`, CX, 132, { align: 'center' })
 
-    doc.setFontSize(10)
-    doc.setTextColor(255, 255, 255, 0.7 as unknown as number)
-    const critLine = m.scores.map((s) => s.label).join(' · ')
-    const wrapped = doc.splitTextToSize(`Awarded across ${critLine}`, 240)
-    doc.text(wrapped, 148, 158, { align: 'center' })
+    doc.setFontSize(8.5)
+    doc.setTextColor(...ivoryMuted)
+    const critLine = m.scores.map((s) => s.label).join('  ·  ')
+    const wrapped = doc.splitTextToSize(`Awarded across  ${critLine}`, 210)
+    doc.text(wrapped, CX, 144, { align: 'center' })
 
-    doc.setTextColor(254, 203, 8)
-    doc.setFontSize(10)
-    doc.text('RYSEN Group of Schools · Run by IITians and Doctors', 148, 185, { align: 'center' })
+    // Decorative seal, bottom right — concentric rings + star, standing in for a signature/stamp
+    const sealX = W - 46, sealY = H - 38
+    doc.setFillColor(...gold)
+    doc.circle(sealX, sealY, 12, 'F')
+    doc.setFillColor(...midnight)
+    doc.circle(sealX, sealY, 9.3, 'F')
+    doc.setDrawColor(...gold)
+    doc.setLineWidth(0.4)
+    doc.circle(sealX, sealY, 10.6)
+    doc.setFont(heading, 'normal')
+    doc.setFontSize(13)
+    doc.setTextColor(...goldBright)
+    doc.text('R', sealX, sealY, { align: 'center' })
+    doc.setFontSize(4.2)
+    doc.setFont('helvetica', 'normal')
+    doc.text('EST. RYSEN', sealX, sealY + 6.2, { align: 'center' })
+
+    // Signature line, bottom left
+    doc.setDrawColor(...ivoryMuted)
+    doc.setLineWidth(0.25)
+    doc.line(30, H - 34, 90, H - 34)
+    doc.setFontSize(8.5)
+    doc.setTextColor(...ivoryMuted)
+    doc.text('Programme Director, RYSEN Group of Schools', 60, H - 29, { align: 'center' })
+
+    doc.setFont(heading, 'normal')
+    doc.setFontSize(9)
+    doc.setTextColor(...gold)
+    doc.text('Run by IITians and Doctors', CX, H - 16, { align: 'center' })
 
     doc.save(`RYSEN_${catName.replace(/\s+/g, '_')}_${periodLabel(data.period).replace(' ', '_')}_${m.name.replace(/\s+/g, '_')}.pdf`)
   }
