@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react'
 import {
   Trophy, Medal, Award, Lock, CheckCircle2, ChevronDown, ChevronUp, Save, Loader2,
-  Sparkles, Settings, Plus, X, Pencil, Trash2, UserPlus, Square, SquareCheck, Users,
+  Sparkles, Settings, Plus, X, Pencil, Trash2, UserPlus, Square, SquareCheck, Users, FileSpreadsheet,
 } from 'lucide-react'
+import * as XLSX from 'xlsx'
 
 interface Criterion { id: string; label: string; order: number; isAutoTest: boolean }
 interface Category { id: string; name: string; memberCount: number; criteria: Criterion[] }
@@ -222,6 +223,44 @@ export default function AdminRewardsPage() {
     })
   }
 
+  function exportExcel() {
+    if (rows.length === 0) return
+    const catName = categories.find((c) => c.id === categoryId)?.name ?? 'Recognition'
+    const scoreLabels = rows[0]?.scores.map((s) => s.label) ?? []
+
+    const aoa: (string | number)[][] = [
+      ['RYSEN GROUP OF SCHOOLS'],
+      ['Rise To Success'],
+      [`${catName} — Monthly Performance Report`],
+      [periodLabel(period)],
+      [],
+      ['Rank', 'Campus', 'Educator Name', 'Email', ...scoreLabels, 'Average (/10)', 'Status', 'Admin Remark'],
+      ...rows.map((r) => [
+        r.rank,
+        r.branch?.name ?? 'No campus',
+        r.name,
+        r.email,
+        ...r.scores.map((s) => s.score),
+        r.average,
+        r.finalized ? 'Finalized' : 'Draft',
+        r.comment ?? '',
+      ]),
+    ]
+
+    const ws = XLSX.utils.aoa_to_sheet(aoa)
+    ws['!cols'] = [8, 20, 22, 26, ...scoreLabels.map(() => 14), 12, 10, 30].map((w) => ({ wch: w }))
+    ws['!merges'] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 5 + scoreLabels.length } },
+      { s: { r: 1, c: 0 }, e: { r: 1, c: 5 + scoreLabels.length } },
+      { s: { r: 2, c: 0 }, e: { r: 2, c: 5 + scoreLabels.length } },
+      { s: { r: 3, c: 0 }, e: { r: 3, c: 5 + scoreLabels.length } },
+    ]
+
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, catName.slice(0, 28))
+    XLSX.writeFile(wb, `RYSEN_${catName.replace(/\s+/g, '_')}_${period}.xlsx`)
+  }
+
   const currentCategory = categories.find((c) => c.id === categoryId)
   const anyFinalized = rows.some((r) => r.finalized)
 
@@ -250,6 +289,12 @@ export default function AdminRewardsPage() {
             <button onClick={openMembers}
               className="flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border border-gray-200 text-charcoal/60 hover:bg-gray-50 transition-colors">
               <Users size={13} /> Members
+            </button>
+          )}
+          {categoryId && rows.length > 0 && (
+            <button onClick={exportExcel}
+              className="flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border border-forest/30 text-forest hover:bg-forest/5 transition-colors">
+              <FileSpreadsheet size={13} /> Download Excel
             </button>
           )}
           {categoryId && (
