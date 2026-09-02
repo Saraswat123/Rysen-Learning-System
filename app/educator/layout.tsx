@@ -12,6 +12,7 @@ export default function EducatorLayout({ children }: { children: React.ReactNode
   const pathname = usePathname()
   const [user, setUser] = useState<{ name: string; branch: { name: string } | null } | null>(null)
   const [studentsOpen, setStudentsOpen] = useState(false)
+  const [achievementsOpen, setAchievementsOpen] = useState(false)
 
   useEffect(() => {
     fetch('/api/auth/me').then((r) => {
@@ -20,9 +21,10 @@ export default function EducatorLayout({ children }: { children: React.ReactNode
     }).then((d) => d && setUser(d.user))
   }, [router])
 
-  // Close dropdown when navigating away from student section
+  // Close dropdowns when navigating away from their section
   useEffect(() => {
     if (!pathname.startsWith('/educator/student')) setStudentsOpen(false)
+    if (!pathname.startsWith('/educator/recognition') && !pathname.startsWith('/educator/certificate') && pathname !== '/leaderboard') setAchievementsOpen(false)
   }, [pathname])
 
   async function logout() {
@@ -31,6 +33,7 @@ export default function EducatorLayout({ children }: { children: React.ReactNode
   }
 
   const inStudents = pathname.startsWith('/educator/student')
+  const inAchievements = pathname.startsWith('/educator/recognition') || pathname.startsWith('/educator/certificate') || pathname === '/leaderboard'
 
   return (
     <div className="min-h-screen bg-cream">
@@ -103,18 +106,30 @@ export default function EducatorLayout({ children }: { children: React.ReactNode
                 <UserCircle size={15} /> Profile
               </Link>
 
-              <Link href="/educator/certificate"
-                className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg transition-colors ${pathname === '/educator/certificate' ? 'bg-white/15 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
-                <Award size={15} /> Certificate
-              </Link>
-              <Link href="/educator/recognition"
-                className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg transition-colors ${pathname.startsWith('/educator/recognition') ? 'bg-gold text-midnight font-semibold' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
-                <Trophy size={15} /> Recognition
-              </Link>
-              <Link href="/leaderboard"
-                className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg transition-colors ${pathname === '/leaderboard' ? 'bg-white/15 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
-                <Trophy size={15} /> Leaderboard
-              </Link>
+              {/* Achievements dropdown — Recognition, Leaderboard, Certificate all in one place */}
+              <div className="relative">
+                <button
+                  onClick={() => setAchievementsOpen((v) => !v)}
+                  className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg transition-colors ${inAchievements ? 'bg-gold text-midnight font-semibold' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
+                  <Trophy size={15} /> Achievements <ChevronDown size={13} className={`transition-transform ${achievementsOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {achievementsOpen && (
+                  <div className="absolute top-full left-0 mt-1 w-56 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-50">
+                    <Link href="/educator/recognition" onClick={() => setAchievementsOpen(false)}
+                      className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-charcoal hover:bg-midnight/5 hover:text-midnight transition-colors">
+                      <Trophy size={15} className="text-midnight/50" /> Recognition & Monthly Scores
+                    </Link>
+                    <Link href="/leaderboard" onClick={() => setAchievementsOpen(false)}
+                      className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-charcoal hover:bg-midnight/5 hover:text-midnight transition-colors">
+                      <Users size={15} className="text-midnight/50" /> Campus Leaderboard
+                    </Link>
+                    <Link href="/educator/certificate" onClick={() => setAchievementsOpen(false)}
+                      className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-charcoal hover:bg-midnight/5 hover:text-midnight transition-colors">
+                      <Award size={15} className="text-midnight/50" /> Training Certificate
+                    </Link>
+                  </div>
+                )}
+              </div>
             </nav>
           </div>
 
@@ -139,6 +154,7 @@ export default function EducatorLayout({ children }: { children: React.ReactNode
 
       {/* Click outside to close dropdown */}
       {studentsOpen && <div className="fixed inset-0 z-10" onClick={() => setStudentsOpen(false)} />}
+      {achievementsOpen && <div className="fixed inset-0 z-10" onClick={() => setAchievementsOpen(false)} />}
 
       <main className="max-w-6xl mx-auto px-4 py-8">{children}</main>
     </div>

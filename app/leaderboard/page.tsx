@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { Trophy, Users, Award, MapPin, ArrowLeft, RefreshCw } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
-interface Educator { id: string; name: string; stagesPassed: number; completion: number }
+interface Educator { id: string; name: string; stagesPassed: number; completion: number; total: number }
 interface BranchStat {
   id: string; name: string; location: string
   total: number; fullyCertified: number; avgCompletion: number
@@ -140,7 +140,7 @@ export default function LeaderboardPage() {
                             <span className="text-base">{MEDALS[j] ?? '•'}</span>
                             <span className="text-charcoal font-medium">{edu.name}</span>
                           </div>
-                          <span className="text-xs text-charcoal/50">{edu.stagesPassed}/{data.totalStages} stages · {edu.completion}%</span>
+                          <span className="text-xs text-charcoal/50">{edu.stagesPassed}/{edu.total} stages · {edu.completion}%</span>
                         </div>
                       ))}
                     </div>
