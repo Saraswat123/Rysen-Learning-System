@@ -72,7 +72,8 @@ export default function LeaderboardPage() {
                   const bgColors = ['bg-silver', 'bg-gold', 'bg-amber-600']
                   return (
                     <div key={s.id} className={`${heights[idx]} rounded-2xl flex flex-col items-center justify-end pb-3 ${idx === 0 ? 'bg-gold/20 border-2 border-gold' : 'bg-white border border-gray-100'}`}>
-                      <div className="text-2xl mb-1">{MEDALS[rank - 1]}</div>
+                      <div className="text-2xl mb-0.5">{MEDALS[rank - 1]}</div>
+                      <p className="text-xs font-black text-midnight/70 tracking-wide mb-1">RANK #{rank}</p>
                       <p className="text-xs font-bold text-midnight text-center px-2 leading-tight">{s.name}</p>
                       <p className="text-xs text-charcoal/50">{s.location}</p>
                       <p className="text-sm font-bold text-midnight mt-1">{s.avgCompletion}%</p>
@@ -90,15 +91,18 @@ export default function LeaderboardPage() {
                   className="w-full px-5 py-4 flex items-center gap-4 hover:bg-cream/50 transition-colors text-left"
                 >
                   {/* Rank */}
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 ${i === 0 ? 'bg-gold text-midnight' : i === 1 ? 'bg-gray-300 text-charcoal' : i === 2 ? 'bg-amber-600 text-white' : 'bg-cream text-charcoal/60'}`}>
-                    {i < 3 ? MEDALS[i] : i + 1}
+                  <div className="flex flex-col items-center flex-shrink-0 w-10">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${i === 0 ? 'bg-gold text-midnight' : i === 1 ? 'bg-gray-300 text-charcoal' : i === 2 ? 'bg-amber-600 text-white' : 'bg-cream text-charcoal/60'}`}>
+                      {i < 3 ? MEDALS[i] : i + 1}
+                    </div>
+                    <p className="text-[10px] font-black text-charcoal/40 tracking-wide mt-0.5">#{i + 1}</p>
                   </div>
 
                   {/* Info */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="font-semibold text-midnight truncate">{branch.name}</p>
-                      {i < 3 && <span className="text-xs bg-gold/20 text-midnight px-1.5 py-0.5 rounded-full flex-shrink-0">Top {i + 1}</span>}
+                      <span className={`text-xs px-1.5 py-0.5 rounded-full flex-shrink-0 font-bold ${i < 3 ? 'bg-gold/20 text-midnight' : 'bg-gray-100 text-charcoal/50'}`}>Rank #{i + 1}</span>
                     </div>
                     <div className="flex items-center gap-1 text-xs text-charcoal/50">
                       <MapPin size={11} /> {branch.location}
@@ -137,7 +141,7 @@ export default function LeaderboardPage() {
                       {branch.topEducators.map((edu, j) => (
                         <div key={edu.id} className="flex items-center justify-between text-sm">
                           <div className="flex items-center gap-2">
-                            <span className="text-base">{MEDALS[j] ?? '•'}</span>
+                            <span className="text-xs font-black text-charcoal/40 w-8">{MEDALS[j] ?? `#${j + 1}`}</span>
                             <span className="text-charcoal font-medium">{edu.name}</span>
                           </div>
                           <span className="text-xs text-charcoal/50">{edu.stagesPassed}/{edu.total} stages · {edu.completion}%</span>
