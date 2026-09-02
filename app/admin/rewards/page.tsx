@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import {
   Trophy, Medal, Award, Lock, CheckCircle2, ChevronDown, ChevronUp, Save, Loader2,
-  Sparkles, Settings, Plus, X, Pencil, Trash2, UserPlus, Square, SquareCheck, Users, FileSpreadsheet,
+  Sparkles, Settings, Plus, X, Pencil, Trash2, UserPlus, Square, SquareCheck, Users, FileSpreadsheet, FileText,
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 
@@ -261,6 +261,84 @@ export default function AdminRewardsPage() {
     XLSX.writeFile(wb, `RYSEN_${catName.replace(/\s+/g, '_')}_${period}.xlsx`)
   }
 
+  async function exportPDF() {
+    if (rows.length === 0) return
+    const catName = categories.find((c) => c.id === categoryId)?.name ?? 'Recognition'
+    const scoreLabels = rows[0]?.scores.map((s) => s.label) ?? []
+    const { default: jsPDF } = await import('jspdf')
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+    const pageWidth = 297, pageHeight = 210, margin = 10
+
+    function drawHeader() {
+      doc.setFillColor(3, 61, 76)
+      doc.rect(0, 0, pageWidth, 22, 'F')
+      doc.setTextColor(254, 203, 8)
+      doc.setFontSize(14)
+      doc.setFont('helvetica', 'bold')
+      doc.text('RYSEN GROUP OF SCHOOLS', margin, 10)
+      doc.setFontSize(10)
+      doc.setFont('helvetica', 'normal')
+      doc.text(`${catName} — Monthly Performance Report — ${periodLabel(period)}`, margin, 17)
+    }
+
+    const cols = ['Rank', 'Campus', 'Educator', ...scoreLabels, 'Avg', 'Status']
+    const nCols = cols.length
+    const usableWidth = pageWidth - margin * 2
+    const rankW = 14, campusW = 32, nameW = 40, avgW = 16, statusW = 20
+    const critW = (usableWidth - rankW - campusW - nameW - avgW - statusW) / scoreLabels.length
+    const colWidths = [rankW, campusW, nameW, ...scoreLabels.map(() => critW), avgW, statusW]
+
+    function drawTableHeader(y: number) {
+      doc.setFillColor(240, 240, 240)
+      doc.rect(margin, y, usableWidth, 8, 'F')
+      doc.setTextColor(60, 60, 60)
+      doc.setFontSize(7.5)
+      doc.setFont('helvetica', 'bold')
+      let x = margin
+      cols.forEach((c, i) => {
+        doc.text(c, x + 1.5, y + 5.5, { maxWidth: colWidths[i] - 2 })
+        x += colWidths[i]
+      })
+      return y + 8
+    }
+
+    drawHeader()
+    let y = drawTableHeader(28)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(7.5)
+
+    rows.forEach((r) => {
+      if (y > pageHeight - 15) {
+        doc.addPage('a4', 'landscape')
+        drawHeader()
+        y = drawTableHeader(28)
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(7.5)
+      }
+      const isTop3 = r.rank <= 3
+      if (isTop3) {
+        doc.setFillColor(254, 245, 210)
+        doc.rect(margin, y, usableWidth, 7, 'F')
+      }
+      doc.setTextColor(30, 30, 30)
+      let x = margin
+      const values = [String(r.rank), r.branch?.name ?? '—', r.name, ...r.scores.map((s) => String(s.score)), String(r.average), r.finalized ? 'Final' : 'Draft']
+      values.forEach((v, i) => {
+        doc.text(v, x + 1.5, y + 5, { maxWidth: colWidths[i] - 2 })
+        x += colWidths[i]
+      })
+      y += 7
+      doc.setDrawColor(230)
+      doc.line(margin, y, margin + usableWidth, y)
+    })
+
+    doc.setFontSize(8)
+    doc.setTextColor(150)
+    doc.text('RYSEN Group of Schools · Rise To Success', margin, pageHeight - 6)
+
+    doc.save(`RYSEN_${catName.replace(/\s+/g, '_')}_${period}.pdf`)
+  }
+
   const currentCategory = categories.find((c) => c.id === categoryId)
   const anyFinalized = rows.some((r) => r.finalized)
 
@@ -294,7 +372,13 @@ export default function AdminRewardsPage() {
           {categoryId && rows.length > 0 && (
             <button onClick={exportExcel}
               className="flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border border-forest/30 text-forest hover:bg-forest/5 transition-colors">
-              <FileSpreadsheet size={13} /> Download Excel
+              <FileSpreadsheet size={13} /> Excel
+            </button>
+          )}
+          {categoryId && rows.length > 0 && (
+            <button onClick={exportPDF}
+              className="flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border border-red-300 text-red-600 hover:bg-red-50 transition-colors">
+              <FileText size={13} /> PDF
             </button>
           )}
           {categoryId && (
