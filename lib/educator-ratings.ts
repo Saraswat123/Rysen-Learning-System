@@ -8,6 +8,16 @@ let tablesEnsured = false
 export async function ensureRecognitionTables() {
   if (tablesEnsured) return
   try {
+    // Drop the legacy fixed-KRA table (columns kra1-6, no categoryId) if it's still
+    // around from before the dynamic-criteria rewrite — CREATE TABLE IF NOT EXISTS
+    // below is a no-op against an existing table with the wrong shape otherwise.
+    await db.$executeRawUnsafe(`
+      DO $$ BEGIN
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='EducatorRating' AND column_name='kra1') THEN
+          DROP TABLE "EducatorRating";
+        END IF;
+      END $$;
+    `)
     await db.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "RecognitionCategory" (
       "id" TEXT PRIMARY KEY,
       "name" TEXT NOT NULL,
