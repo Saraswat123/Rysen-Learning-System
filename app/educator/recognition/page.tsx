@@ -236,14 +236,6 @@ export default function RecognitionPage() {
     doc.setFont('helvetica', 'normal')
     doc.text('EST. RYSEN', sealX, sealY + 6.2, { align: 'center' })
 
-    // Signature line, bottom left
-    doc.setDrawColor(...ivoryMuted)
-    doc.setLineWidth(0.25)
-    doc.line(30, H - 34, 90, H - 34)
-    doc.setFontSize(8.5)
-    doc.setTextColor(...ivoryMuted)
-    doc.text('Programme Director, RYSEN Group of Schools', 60, H - 29, { align: 'center' })
-
     doc.setFont(heading, 'normal')
     doc.setFontSize(9)
     doc.setTextColor(...gold)
