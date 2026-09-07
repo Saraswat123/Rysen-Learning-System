@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic'
 
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/auth'
 import { Role } from '@/app/generated/prisma/client'
@@ -72,16 +72,9 @@ const QUIZZES = [
 // with "pre" (pre-primary) or "side" in the name. No new group/folder/directory created,
 // just plain StudentTest + StudentQuestion rows like any other test in the admin panel.
 // Skips a (title, branchId) pair that already exists, so it's safe to re-run.
-export async function POST(req: NextRequest) {
-  // Temporary bypass so this one-time seed can be triggered without a browser session —
-  // remove this block once the seed has been run.
-  const secret = new URL(req.url).searchParams.get('secret')
-  const bypassed = secret === 'rysen-bikaner-quiz-2026'
-
-  if (!bypassed) {
-    const user = await getSession()
-    if (!user || !isAdmin(user.role)) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
-  }
+export async function POST() {
+  const user = await getSession()
+  if (!user || !isAdmin(user.role)) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
 
   const branches = await db.branch.findMany({
     where: {
