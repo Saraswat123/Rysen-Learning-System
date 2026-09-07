@@ -67,37 +67,28 @@ const QUIZZES = [
   },
 ]
 
-// GET — dry run: list every branch whose location mentions Bikaner, so the admin can
-// pick exact branch names/ids before anything is written (avoids guessing spellings).
-export async function GET() {
+// POST — creates the 3 quizzes (10 MCQs each) directly under Student Tests for the
+// main Vyas Colony, Bikaner branch. Auto-matches by name/location — excludes anything
+// with "pre" (pre-primary) or "side" in the name. No new group/folder/directory created,
+// just plain StudentTest + StudentQuestion rows like any other test in the admin panel.
+// Skips a (title, branchId) pair that already exists, so it's safe to re-run.
+export async function POST() {
   const user = await getSession()
   if (!user || !isAdmin(user.role)) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
 
   const branches = await db.branch.findMany({
-    where: { location: { contains: 'Bikaner', mode: 'insensitive' } },
-    select: { id: true, name: true, location: true },
-    orderBy: { name: 'asc' },
+    where: {
+      location: { contains: 'Bikaner', mode: 'insensitive' },
+      name: { contains: 'Vyas', mode: 'insensitive' },
+      NOT: [
+        { name: { contains: 'pre', mode: 'insensitive' } },
+        { name: { contains: 'side', mode: 'insensitive' } },
+      ],
+    },
   })
-
-  return NextResponse.json({
-    branches,
-    note: 'Review this list, then POST { branchNames: ["exact name", ...] } with only the MAIN branches you want (exclude pre-primary / side branches).',
-  })
-}
-
-// POST { branchNames: string[] } — creates the 3 quizzes (10 MCQs each) for each named branch.
-// Skips a (title, branchId) pair that already exists, so it's safe to re-run.
-export async function POST(req: NextRequest) {
-  const user = await getSession()
-  if (!user || !isAdmin(user.role)) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
-
-  const { branchNames } = await req.json() as { branchNames: string[] }
-  if (!Array.isArray(branchNames) || branchNames.length === 0) {
-    return NextResponse.json({ error: 'branchNames array required' }, { status: 400 })
+  if (branches.length === 0) {
+    return NextResponse.json({ error: 'No main Vyas Colony, Bikaner branch found (excluding pre-primary/side branches)' }, { status: 404 })
   }
-
-  const branches = await db.branch.findMany({ where: { name: { in: branchNames } } })
-  if (branches.length === 0) return NextResponse.json({ error: 'No matching branches found' }, { status: 404 })
 
   const results: string[] = []
 
