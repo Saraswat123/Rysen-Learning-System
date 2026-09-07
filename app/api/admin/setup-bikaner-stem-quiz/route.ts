@@ -49,8 +49,8 @@ const QUIZZES = [
     ],
   },
   {
-    title: 'STEM & Coding Quiz — Class 7',
-    targetClass: '7',
+    title: 'STEM & Coding Quiz — Class 7-8',
+    targetClass: '7-8',
     subject: 'STEM',
     questions: [
       { text: 'What makes the ESP32 board different from a basic Arduino Uno?', options: ['It has no pins', 'It has built-in Wi-Fi and Bluetooth', 'It cannot run code', 'It only works with batteries'], correct: 1 },
@@ -67,19 +67,17 @@ const QUIZZES = [
   },
 ]
 
-// POST — creates the 3 quizzes (10 MCQs each) directly under Student Tests for the
-// main Vyas Colony, Bikaner branch. Auto-matches by name/location — excludes anything
-// with "pre" (pre-primary) or "side" in the name. No new group/folder/directory created,
-// just plain StudentTest + StudentQuestion rows like any other test in the admin panel.
-// Skips a (title, branchId) pair that already exists, so it's safe to re-run.
+// POST — creates the 3 quizzes (10 MCQs each, Class 1-3 / 4-6 / 7-8) directly under
+// Student Tests for every MAIN branch across all locations. Excludes anything with
+// "pre" (pre-primary) or "side" in the branch name. No new group/folder/directory
+// created — just plain StudentTest + StudentQuestion rows like any other admin-created
+// test. Skips a (title, branchId) pair that already exists, so it's safe to re-run.
 export async function POST() {
   const user = await getSession()
   if (!user || !isAdmin(user.role)) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
 
   const branches = await db.branch.findMany({
     where: {
-      location: { contains: 'Bikaner', mode: 'insensitive' },
-      name: { contains: 'Vyas', mode: 'insensitive' },
       NOT: [
         { name: { contains: 'pre', mode: 'insensitive' } },
         { name: { contains: 'side', mode: 'insensitive' } },
@@ -87,7 +85,7 @@ export async function POST() {
     },
   })
   if (branches.length === 0) {
-    return NextResponse.json({ error: 'No main Vyas Colony, Bikaner branch found (excluding pre-primary/side branches)' }, { status: 404 })
+    return NextResponse.json({ error: 'No main branches found (excluding pre-primary/side branches)' }, { status: 404 })
   }
 
   const results: string[] = []
@@ -103,7 +101,7 @@ export async function POST() {
       const test = await db.studentTest.create({
         data: {
           title: quiz.title,
-          description: `RYSEN STEM curriculum quiz for ${quiz.targetClass === '7' ? 'Class 7' : `Classes ${quiz.targetClass}`}`,
+          description: `RYSEN STEM curriculum quiz for Classes ${quiz.targetClass}`,
           subject: quiz.subject,
           targetClass: quiz.targetClass,
           timeLimitMinutes: 15,

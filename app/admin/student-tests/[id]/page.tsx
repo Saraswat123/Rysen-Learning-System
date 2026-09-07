@@ -16,8 +16,9 @@ interface Question {
 interface TestMeta {
   id: string; title: string; description: string | null
   subject: string; targetClass: string; timeLimitMinutes: number
-  passScore: number; isPublished: boolean
+  passScore: number; isPublished: boolean; branchId: string | null
 }
+interface Branch { id: string; name: string; location: string }
 
 const Q_TYPES = ['MCQ', 'TEXT', 'IMAGE', 'VIDEO']
 const MAX_IMG_KB = 400
@@ -119,20 +120,28 @@ export default function StudentTestEditorPage({ params }: { params: Promise<{ id
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [meta, setMeta] = useState<Partial<TestMeta>>({})
+  const [branches, setBranches] = useState<Branch[]>([])
 
   useEffect(() => {
     async function load() {
-      const [t, q] = await Promise.all([
+      const [t, q, b] = await Promise.all([
         fetch(`/api/student-tests/${id}`).then((r) => r.json()),
         fetch(`/api/student-tests/${id}/questions`).then((r) => r.json()),
+        fetch('/api/branches').then((r) => r.json()),
       ])
       setTest(t)
-      setMeta({ title: t.title, description: t.description, subject: t.subject, targetClass: t.targetClass, timeLimitMinutes: t.timeLimitMinutes, passScore: t.passScore, isPublished: t.isPublished })
+      setMeta({ title: t.title, description: t.description, subject: t.subject, targetClass: t.targetClass, timeLimitMinutes: t.timeLimitMinutes, passScore: t.passScore, isPublished: t.isPublished, branchId: t.branchId })
       setQuestions(Array.isArray(q) ? q : [])
+      setBranches(Array.isArray(b) ? b : [])
       setLoading(false)
     }
     load()
   }, [id])
+
+  const locationGroups = branches.reduce<Record<string, Branch[]>>((acc, b) => {
+    acc[b.location] = [...(acc[b.location] ?? []), b]
+    return acc
+  }, {})
 
   function addQuestion() {
     setQuestions((prev) => [...prev, newQuestion(prev.length)])
@@ -245,6 +254,19 @@ export default function StudentTestEditorPage({ params }: { params: Promise<{ id
             <input type="number" min="0" max="100" value={meta.passScore ?? 60}
               onChange={(e) => setMeta((m) => ({ ...m, passScore: parseInt(e.target.value) }))}
               className="px-4 py-2.5 border border-gray-300 rounded-lg text-sm text-charcoal focus:outline-none focus:ring-2 focus:ring-midnight" />
+          </div>
+          <div className="flex flex-col gap-1 col-span-2">
+            <label className="text-sm font-semibold text-charcoal">Visibility</label>
+            <select value={meta.branchId ?? ''} onChange={(e) => setMeta((m) => ({ ...m, branchId: e.target.value || null }))}
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm text-charcoal bg-white focus:outline-none focus:ring-2 focus:ring-midnight">
+              <option value="">🌐 All Branches (visible to everyone)</option>
+              {Object.entries(locationGroups).map(([loc, bs]) => (
+                <optgroup key={loc} label={loc}>
+                  {bs.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+                </optgroup>
+              ))}
+            </select>
+            <p className="text-xs text-charcoal/40">Leave as "All Branches" to show to all students, or pick a branch to restrict visibility. Click Save to apply.</p>
           </div>
         </div>
       </div>

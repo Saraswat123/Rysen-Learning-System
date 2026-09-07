@@ -64,6 +64,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         ...(body.passScore !== undefined && { passScore: body.passScore }),
         ...(body.isPublished !== undefined && { isPublished: body.isPublished }),
         ...(body.order !== undefined && { order: body.order }),
+        ...(body.branchId !== undefined && { branchId: body.branchId || null }),
       },
     })
     return NextResponse.json(test)
