@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Email and password are required' }, { status: 400 })
     }
 
-    const user = await db.user.findUnique({ where: { email: email.toLowerCase().trim() } })
+    const user = await db.user.findUnique({ where: { email: email.toLowerCase().trim() }, omit: { password: false } })
 
     if (!user || (user.role !== Role.ADMIN && user.role !== Role.SUPER_ADMIN) || !user.isActive) {
       return NextResponse.json({ error: 'Admin account not found.' }, { status: 401 })

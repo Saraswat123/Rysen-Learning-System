@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Email and password are required' }, { status: 400 })
     }
 
-    const user = await db.user.findUnique({ where: { email: email.toLowerCase().trim() } })
+    const user = await db.user.findUnique({ where: { email: email.toLowerCase().trim() }, omit: { password: false } })
 
     if (!user || user.role !== Role.EDUCATOR || !user.isActive) {
       return NextResponse.json({ error: 'Account not found. Contact your admin.' }, { status: 401 })

@@ -14,6 +14,11 @@ export async function GET() {
   const admins = await db.user.findMany({
     where: { role: { in: [Role.ADMIN, Role.SUPER_ADMIN] } },
     orderBy: { createdAt: 'asc' },
+    select: {
+      id: true, name: true, email: true, phone: true, role: true,
+      isActive: true, createdAt: true, updatedAt: true, branchId: true,
+      // Deliberately excludes: password (bcrypt hash), passwordSetAt
+    },
   })
   return NextResponse.json(admins)
 }
@@ -37,6 +42,7 @@ export async function POST(req: NextRequest) {
       role: Role.ADMIN,
       createdBy: user.id,
     },
+    select: { id: true, name: true, email: true, phone: true, role: true, isActive: true, createdAt: true },
   })
   return NextResponse.json(admin, { status: 201 })
 }
