@@ -178,8 +178,11 @@ export default function AIAssistantPage() {
 
   const isEmpty = messages.length === 0
 
+  // dvh not vh — mobile browser chrome (address bar) changes the visible viewport
+  // height dynamically; vh locks to the largest possible size and pushes the
+  // input row off-screen on phones. dvh tracks what's actually visible.
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)] max-h-[calc(100vh-4rem)]">
+    <div className="flex flex-col h-[calc(100dvh-4rem)] max-h-[calc(100dvh-4rem)]">
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-white flex-shrink-0">
         <div className="flex items-center gap-3">

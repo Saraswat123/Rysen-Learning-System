@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import RysenLogo from '@/components/RysenLogo'
-import { LayoutDashboard, Award, Trophy, LogOut, School, ClipboardList, ChevronDown, ListTodo, UserCircle, FolderOpen, Users, Layers, BarChart3, TrendingUp } from 'lucide-react'
+import { LayoutDashboard, Award, Trophy, LogOut, School, ClipboardList, ChevronDown, ListTodo, UserCircle, FolderOpen, Users, Layers, BarChart3, TrendingUp, Bot } from 'lucide-react'
 import NotificationBell from '@/components/NotificationBell'
 
 export default function EducatorLayout({ children }: { children: React.ReactNode }) {
@@ -143,6 +143,11 @@ export default function EducatorLayout({ children }: { children: React.ReactNode
             {/* Mobile: Tasks shortcut */}
             <Link href="/educator/tasks" className="sm:hidden text-white/70 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition-colors" title="My Tasks">
               <ListTodo size={18} />
+            </Link>
+            <Link href="/educator/ai-assistant"
+              className={`p-1.5 rounded-lg transition-colors ${pathname === '/educator/ai-assistant' ? 'bg-gold text-midnight' : 'text-white/70 hover:text-white hover:bg-white/10'}`}
+              title="Ask RYSEN AI">
+              <Bot size={18} />
             </Link>
             <NotificationBell taskPath="/educator/tasks" />
             <button onClick={logout} className="text-white/50 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition-colors">
