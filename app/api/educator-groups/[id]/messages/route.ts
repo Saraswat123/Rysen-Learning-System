@@ -47,11 +47,39 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   const { text } = await req.json()
   if (!text?.trim()) return NextResponse.json({ error: 'Empty message' }, { status: 400 })
+  const trimmed = text.trim()
 
   const message = await db.groupMessage.create({
-    data: { groupId, userId: user.id, text: text.trim() },
+    data: { groupId, userId: user.id, text: trimmed },
     include: { user: { select: { id: true, name: true, branch: { select: { name: true } } } } },
   })
+
+  // @mentions — match "@Full Name" against actual group members (longest name first
+  // so "@Priya Sharma" doesn't get matched as just "@Priya" by mistake), notify
+  // everyone mentioned except the sender.
+  const members = await db.educatorGroupMember.findMany({
+    where: { groupId, userId: { not: user.id } },
+    include: { user: { select: { id: true, name: true } } },
+  })
+  const sorted = members.map((m) => m.user).sort((a, b) => b.name.length - a.name.length)
+  const mentionedIds = new Set<string>()
+  for (const m of sorted) {
+    const pattern = new RegExp(`@${m.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i')
+    if (pattern.test(trimmed)) mentionedIds.add(m.id)
+  }
+  if (mentionedIds.size > 0) {
+    const group = await db.educatorGroup.findUnique({ where: { id: groupId }, select: { name: true } })
+    const snippet = trimmed.length > 80 ? `${trimmed.slice(0, 80)}…` : trimmed
+    await db.notification.createMany({
+      data: [...mentionedIds].map((uid) => ({
+        userId: uid,
+        title: `${user.name} mentioned you in ${group?.name ?? 'a group'}`,
+        message: snippet,
+        type: 'MENTION',
+        relatedId: groupId,
+      })),
+    }).catch(() => {})
+  }
 
   return NextResponse.json(message)
 }

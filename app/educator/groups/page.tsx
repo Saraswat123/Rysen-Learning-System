@@ -32,6 +32,36 @@ const TYPE_META: Record<string, { label: string; icon: React.ComponentType<{ siz
   TASK: { label: 'Task', icon: FileText },
 }
 
+// Renders "@Full Name" as a highlighted pill wherever it matches a real group
+// member — longest names matched first so "@Priya Sharma" isn't cut at "@Priya".
+function renderMessageText(text: string, members: { id: string; user: Member }[], myId: string, bubbleIsMine: boolean) {
+  const names = [...members].map((m) => m.user).sort((a, b) => b.name.length - a.name.length)
+  if (names.length === 0) return text
+
+  const pattern = new RegExp(`@(${names.map((n) => n.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})\\b`, 'gi')
+  const parts: React.ReactNode[] = []
+  let lastIndex = 0
+  let match: RegExpExecArray | null
+  let key = 0
+  while ((match = pattern.exec(text)) !== null) {
+    if (match.index > lastIndex) parts.push(text.slice(lastIndex, match.index))
+    const matchedName = match[1]
+    const person = names.find((n) => n.name.toLowerCase() === matchedName.toLowerCase())
+    const mentionsMe = person?.id === myId
+    // Mentions of me stand out gold regardless of whose bubble it's in; otherwise
+    // the pill just contrasts against whichever bubble background it sits on.
+    const pillClass = mentionsMe ? 'bg-gold text-midnight' : bubbleIsMine ? 'bg-white/20 text-white' : 'bg-midnight/10 text-midnight'
+    parts.push(
+      <span key={key++} className={`font-semibold rounded px-1 ${pillClass}`}>
+        @{matchedName}
+      </span>
+    )
+    lastIndex = match.index + match[0].length
+  }
+  if (lastIndex < text.length) parts.push(text.slice(lastIndex))
+  return parts
+}
+
 function formatTime(iso: string) {
   const d = new Date(iso)
   const now = new Date()
@@ -48,8 +78,11 @@ export default function EducatorGroupsPage() {
   const [sending, setSending] = useState(false)
   const [myId, setMyId] = useState('')
   const [activeTab, setActiveTab] = useState<'chat' | 'resources'>('chat')
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null)
+  const [mentionStart, setMentionStart] = useState(0)
   const bottomRef = useRef<HTMLDivElement>(null)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
     fetch('/api/auth/me').then(r => r.json()).then(d => setMyId(d.user?.id ?? ''))
@@ -92,10 +125,48 @@ export default function EducatorGroupsPage() {
     })
     if (res.ok) {
       setText('')
+      setMentionQuery(null)
       await loadMessages(activeGroup.id)
     }
     setSending(false)
   }
+
+  // Detect an active "@partial" being typed — the @ must be at the start of the
+  // message or right after whitespace, with no whitespace between it and the cursor.
+  function handleTextChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
+    const value = e.target.value
+    setText(value)
+    const cursor = e.target.selectionStart
+    const upToCursor = value.slice(0, cursor)
+    const at = upToCursor.lastIndexOf('@')
+    if (at === -1) { setMentionQuery(null); return }
+    const before = upToCursor[at - 1]
+    const between = upToCursor.slice(at + 1)
+    if ((at === 0 || before === ' ' || before === '\n') && !/\s/.test(between)) {
+      setMentionQuery(between)
+      setMentionStart(at)
+    } else {
+      setMentionQuery(null)
+    }
+  }
+
+  function selectMention(name: string) {
+    const cursor = textareaRef.current?.selectionStart ?? text.length
+    const newText = `${text.slice(0, mentionStart)}@${name} ${text.slice(cursor)}`
+    setText(newText)
+    setMentionQuery(null)
+    setTimeout(() => {
+      const pos = mentionStart + name.length + 2
+      textareaRef.current?.focus()
+      textareaRef.current?.setSelectionRange(pos, pos)
+    }, 0)
+  }
+
+  const mentionMatches = activeGroup && mentionQuery !== null
+    ? activeGroup.members
+        .filter((m) => m.user.id !== myId && m.user.name.toLowerCase().includes(mentionQuery.toLowerCase()))
+        .slice(0, 6)
+    : []
 
   if (groups.length === 0) {
     return (
@@ -192,7 +263,7 @@ export default function EducatorGroupsPage() {
                           <div className={`max-w-[70%] ${isMe ? 'items-end' : 'items-start'} flex flex-col gap-0.5`}>
                             {!isMe && <p className="text-[10px] text-charcoal/40 font-medium px-1">{msg.user.name}</p>}
                             <div className={`px-3.5 py-2 rounded-2xl text-sm leading-relaxed ${isMe ? 'bg-midnight text-white rounded-tr-sm' : 'bg-gray-100 text-charcoal rounded-tl-sm'}`}>
-                              {msg.text}
+                              {renderMessageText(msg.text, activeGroup.members, myId, isMe)}
                             </div>
                             <p className="text-[10px] text-charcoal/30 px-1">{formatTime(msg.createdAt)}</p>
                           </div>
@@ -204,12 +275,35 @@ export default function EducatorGroupsPage() {
                 </div>
 
                 {/* Input */}
-                <form onSubmit={sendMessage} className="px-4 py-3 border-t border-gray-100 flex gap-2 items-end">
+                <form onSubmit={sendMessage} className="relative px-4 py-3 border-t border-gray-100 flex gap-2 items-end">
+                  {/* @mention picker */}
+                  {mentionQuery !== null && mentionMatches.length > 0 && (
+                    <div className="absolute bottom-full left-4 mb-1 w-64 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden z-20">
+                      <p className="text-[10px] font-bold text-charcoal/30 uppercase tracking-wide px-3 pt-2 pb-1">Mention someone</p>
+                      {mentionMatches.map((m) => (
+                        <button key={m.user.id} type="button" onClick={() => selectMention(m.user.name)}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 text-left hover:bg-gray-50 transition-colors">
+                          <div className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-white text-[10px] font-bold"
+                            style={{ backgroundColor: activeGroup?.color }}>
+                            {m.user.name.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs font-semibold text-midnight truncate">{m.user.name}</p>
+                            {m.user.branch && <p className="text-[10px] text-charcoal/40 truncate">{m.user.branch.name}</p>}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                   <textarea
+                    ref={textareaRef}
                     value={text}
-                    onChange={(e) => setText(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(e as unknown as React.FormEvent) } }}
-                    placeholder="Type a message… (Enter to send)"
+                    onChange={handleTextChange}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape') setMentionQuery(null)
+                      if (e.key === 'Enter' && !e.shiftKey && mentionQuery === null) { e.preventDefault(); sendMessage(e as unknown as React.FormEvent) }
+                    }}
+                    placeholder="Type a message… @ to mention someone"
                     rows={1}
                     className="flex-1 resize-none px-4 py-2.5 border border-gray-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-midnight/20 max-h-32"
                   />

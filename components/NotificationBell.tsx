@@ -1,7 +1,8 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
-import { Bell, Check, CheckCheck, ClipboardList, MessageSquare, X } from 'lucide-react'
+import { Bell, Check, CheckCheck, ClipboardList, MessageSquare, AtSign, X } from 'lucide-react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 
 interface Notif {
   id: string; title: string; message: string; type: string
@@ -20,6 +21,7 @@ export default function NotificationBell({ taskPath = '/admin/tasks' }: { taskPa
   const [notifs, setNotifs] = useState<Notif[]>([])
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+  const router = useRouter()
 
   async function load() {
     try {
@@ -87,10 +89,15 @@ export default function NotificationBell({ taskPath = '/admin/tasks' }: { taskPa
             {notifs.map((n) => (
               <div key={n.id}
                 className={`flex items-start gap-3 px-4 py-3 border-b border-gray-50 hover:bg-gray-50/60 transition-colors cursor-pointer ${n.read ? 'opacity-60' : ''}`}
-                onClick={() => { markOne(n.id); setOpen(false) }}>
-                <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5 ${n.type === 'COMMENT' ? 'bg-olive/10' : 'bg-midnight/5'}`}>
+                onClick={() => {
+                  markOne(n.id); setOpen(false)
+                  if (n.type === 'MENTION') router.push('/educator/groups')
+                }}>
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5 ${n.type === 'COMMENT' ? 'bg-olive/10' : n.type === 'MENTION' ? 'bg-gold/10' : 'bg-midnight/5'}`}>
                   {n.type === 'COMMENT'
                     ? <MessageSquare size={14} className="text-olive" />
+                    : n.type === 'MENTION'
+                    ? <AtSign size={14} className="text-gold" />
                     : <ClipboardList size={14} className="text-midnight" />}
                 </div>
                 <div className="flex-1 min-w-0">
