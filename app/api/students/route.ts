@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
 
     const student = await db.student.create({
       data: {
-        name: name.trim(),
+        name: name.trim().replace(/\s+/g, ' '),
         class: cls.trim(),
         section: section?.trim() ?? '',
         subject: subject?.trim() ?? '',

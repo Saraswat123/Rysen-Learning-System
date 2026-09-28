@@ -9,11 +9,13 @@ export async function POST(req: NextRequest) {
     const { name, class: cls, section, branchId } = await req.json()
     if (!name || !cls) return NextResponse.json({ error: 'Name and class required' }, { status: 400 })
 
+    const normalizedName = name.trim().replace(/\s+/g, ' ')
+
     const student = await db.student.findFirst({
       where: {
-        name: { equals: name.trim(), mode: 'insensitive' },
-        class: cls.trim(),
-        ...(section ? { section: section.trim() } : {}),
+        name: { equals: normalizedName, mode: 'insensitive' },
+        class: { equals: cls.trim(), mode: 'insensitive' },
+        ...(section ? { section: { equals: section.trim(), mode: 'insensitive' } } : {}),
         ...(branchId ? { branchId } : {}),
         isActive: true,
       },
