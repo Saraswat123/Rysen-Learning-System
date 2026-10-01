@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import RysenLogo from '@/components/RysenLogo'
-import { LayoutDashboard, Award, Trophy, LogOut, School, ClipboardList, ChevronDown, ListTodo, UserCircle, FolderOpen, Users, Layers, BarChart3, TrendingUp, Bot } from 'lucide-react'
+import { LayoutDashboard, Award, Trophy, LogOut, School, ClipboardList, ChevronDown, ListTodo, UserCircle, FolderOpen, Users, Layers, BarChart3, TrendingUp, Bot, Menu, X } from 'lucide-react'
 import NotificationBell from '@/components/NotificationBell'
 
 export default function EducatorLayout({ children }: { children: React.ReactNode }) {
@@ -13,6 +13,7 @@ export default function EducatorLayout({ children }: { children: React.ReactNode
   const [user, setUser] = useState<{ name: string; branch: { name: string } | null } | null>(null)
   const [studentsOpen, setStudentsOpen] = useState(false)
   const [achievementsOpen, setAchievementsOpen] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
 
   useEffect(() => {
     fetch('/api/auth/me').then((r) => {
@@ -25,6 +26,7 @@ export default function EducatorLayout({ children }: { children: React.ReactNode
   useEffect(() => {
     if (!pathname.startsWith('/educator/student')) setStudentsOpen(false)
     if (!pathname.startsWith('/educator/recognition') && !pathname.startsWith('/educator/certificate') && pathname !== '/leaderboard') setAchievementsOpen(false)
+    setMobileOpen(false)
   }, [pathname])
 
   async function logout() {
@@ -140,10 +142,13 @@ export default function EducatorLayout({ children }: { children: React.ReactNode
                 <p className="text-white/40 text-xs">{user.branch?.name}</p>
               </div>
             )}
-            {/* Mobile: Tasks shortcut */}
-            <Link href="/educator/tasks" className="sm:hidden text-white/70 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition-colors" title="My Tasks">
-              <ListTodo size={18} />
-            </Link>
+            {/* Mobile: hamburger menu */}
+            <button
+              onClick={() => setMobileOpen((v) => !v)}
+              className="sm:hidden text-white/70 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition-colors"
+              title="Menu">
+              {mobileOpen ? <X size={18} /> : <Menu size={18} />}
+            </button>
             <Link href="/educator/ai-assistant"
               className={`p-1.5 rounded-lg transition-colors ${pathname === '/educator/ai-assistant' ? 'bg-gold text-midnight' : 'text-white/70 hover:text-white hover:bg-white/10'}`}
               title="Ask RYSEN AI">
@@ -155,6 +160,78 @@ export default function EducatorLayout({ children }: { children: React.ReactNode
             </button>
           </div>
         </div>
+
+        {/* Mobile nav panel */}
+        {mobileOpen && (
+          <nav className="sm:hidden border-t border-white/10 px-4 py-2 max-h-[70vh] overflow-y-auto">
+            <Link href="/educator/dashboard"
+              className={`flex items-center gap-2.5 text-sm px-3 py-2.5 rounded-lg transition-colors ${pathname === '/educator/dashboard' ? 'bg-white/15 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
+              <LayoutDashboard size={16} /> My Journey
+            </Link>
+            <p className="px-3 pt-3 pb-1 text-[10px] uppercase tracking-wide text-white/30">Students</p>
+            <Link href="/educator/students"
+              className="flex items-center gap-2.5 text-sm px-3 py-2.5 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors">
+              <School size={16} /> Manage Students
+            </Link>
+            <Link href="/educator/student-tests"
+              className="flex items-center gap-2.5 text-sm px-3 py-2.5 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors">
+              <ClipboardList size={16} /> Student Tests
+            </Link>
+            <Link href="/educator/students/progress"
+              className="flex items-center gap-2.5 text-sm px-3 py-2.5 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors">
+              <BarChart3 size={16} /> Student Progress
+            </Link>
+            <Link href="/educator/analytics"
+              className="flex items-center gap-2.5 text-sm px-3 py-2.5 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors">
+              <TrendingUp size={16} /> Class Analytics
+            </Link>
+            <a href="/student/leaderboard" target="_blank" rel="noreferrer"
+              className="flex items-center gap-2.5 text-sm px-3 py-2.5 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors">
+              <Trophy size={16} /> Student Leaderboard ↗
+            </a>
+            <div className="border-t border-white/10 my-2" />
+            <Link href="/educator/programs"
+              className={`flex items-center gap-2.5 text-sm px-3 py-2.5 rounded-lg transition-colors ${pathname.startsWith('/educator/programs') ? 'bg-white/15 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
+              <Layers size={16} /> Programs
+            </Link>
+            <Link href="/educator/tasks"
+              className={`flex items-center gap-2.5 text-sm px-3 py-2.5 rounded-lg transition-colors ${pathname.startsWith('/educator/tasks') ? 'bg-white/15 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
+              <ListTodo size={16} /> My Tasks
+            </Link>
+            <Link href="/educator/resources"
+              className={`flex items-center gap-2.5 text-sm px-3 py-2.5 rounded-lg transition-colors ${pathname === '/educator/resources' ? 'bg-white/15 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
+              <FolderOpen size={16} /> Resources
+            </Link>
+            <Link href="/educator/groups"
+              className={`flex items-center gap-2.5 text-sm px-3 py-2.5 rounded-lg transition-colors ${pathname.startsWith('/educator/groups') ? 'bg-gold text-midnight font-semibold' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
+              <Users size={16} /> My Groups
+            </Link>
+            <Link href="/educator/profile"
+              className={`flex items-center gap-2.5 text-sm px-3 py-2.5 rounded-lg transition-colors ${pathname === '/educator/profile' ? 'bg-white/15 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
+              <UserCircle size={16} /> Profile
+            </Link>
+            <div className="border-t border-white/10 my-2" />
+            <p className="px-3 pb-1 text-[10px] uppercase tracking-wide text-white/30">Achievements</p>
+            <Link href="/educator/recognition"
+              className="flex items-center gap-2.5 text-sm px-3 py-2.5 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors">
+              <Trophy size={16} /> Recognition & Monthly Scores
+            </Link>
+            <Link href="/leaderboard"
+              className="flex items-center gap-2.5 text-sm px-3 py-2.5 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors">
+              <Users size={16} /> Campus Leaderboard
+            </Link>
+            <Link href="/educator/certificate"
+              className="flex items-center gap-2.5 text-sm px-3 py-2.5 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors">
+              <Award size={16} /> Training Certificate
+            </Link>
+            {user && (
+              <div className="px-3 pt-3 pb-1 mt-2 border-t border-white/10">
+                <p className="text-white text-sm font-medium">{user.name}</p>
+                <p className="text-white/40 text-xs">{user.branch?.name}</p>
+              </div>
+            )}
+          </nav>
+        )}
       </header>
 
       {/* Click outside to close dropdown */}
