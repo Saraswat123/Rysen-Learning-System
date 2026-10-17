@@ -66,6 +66,10 @@ export default function EducatorLayout({ children }: { children: React.ReactNode
                       className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-charcoal hover:bg-midnight/5 hover:text-midnight transition-colors">
                       <ClipboardList size={15} className="text-midnight/50" /> Student Tests
                     </Link>
+                    <Link href="/educator/results" onClick={() => setStudentsOpen(false)}
+                      className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-charcoal hover:bg-midnight/5 hover:text-midnight transition-colors">
+                      <Award size={15} className="text-midnight/50" /> Student Results
+                    </Link>
                     <Link href="/educator/students/progress" onClick={() => setStudentsOpen(false)}
                       className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-charcoal hover:bg-midnight/5 hover:text-midnight transition-colors">
                       <BarChart3 size={15} className="text-midnight/50" /> Student Progress
@@ -176,6 +180,10 @@ export default function EducatorLayout({ children }: { children: React.ReactNode
             <Link href="/educator/student-tests"
               className="flex items-center gap-2.5 text-sm px-3 py-2.5 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors">
               <ClipboardList size={16} /> Student Tests
+            </Link>
+            <Link href="/educator/results"
+              className="flex items-center gap-2.5 text-sm px-3 py-2.5 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors">
+              <Award size={16} /> Student Results
             </Link>
             <Link href="/educator/students/progress"
               className="flex items-center gap-2.5 text-sm px-3 py-2.5 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors">

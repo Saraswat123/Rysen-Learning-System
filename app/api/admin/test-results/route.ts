@@ -63,11 +63,20 @@ export async function GET(req: NextRequest) {
   }))
 
   // Location-wise summary
-  const locationMap = new Map<string, { location: string; total: number; passed: number }>()
+  const locationMap = new Map<string, { location: string; total: number; passed: number; pctSum: number }>()
   for (const r of rows) {
-    const prev = locationMap.get(r.location) ?? { location: r.location, total: 0, passed: 0 }
-    locationMap.set(r.location, { location: r.location, total: prev.total + 1, passed: prev.passed + (r.passed ? 1 : 0) })
+    const prev = locationMap.get(r.location) ?? { location: r.location, total: 0, passed: 0, pctSum: 0 }
+    locationMap.set(r.location, {
+      location: r.location,
+      total: prev.total + 1,
+      passed: prev.passed + (r.passed ? 1 : 0),
+      pctSum: prev.pctSum + r.percentage,
+    })
   }
+
+  const avgScore = rows.length > 0
+    ? Math.round(rows.reduce((sum, r) => sum + r.percentage, 0) / rows.length)
+    : 0
 
   return NextResponse.json({
     rows,
@@ -78,7 +87,13 @@ export async function GET(req: NextRequest) {
       passed: rows.filter((r) => r.passed).length,
       failed: rows.filter((r) => !r.passed).length,
       passRate: rows.length > 0 ? Math.round((rows.filter((r) => r.passed).length / rows.length) * 100) : 0,
-      byLocation: Array.from(locationMap.values()),
+      avgScore,
+      byLocation: Array.from(locationMap.values()).map((l) => ({
+        location: l.location,
+        total: l.total,
+        passed: l.passed,
+        avgScore: l.total > 0 ? Math.round(l.pctSum / l.total) : 0,
+      })),
     },
   })
 }

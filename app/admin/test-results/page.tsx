@@ -12,8 +12,8 @@ interface Row {
   score: number; totalMarks: number; percentage: number
   passed: boolean; completedAt: string
 }
-interface LocationSummary { location: string; total: number; passed: number }
-interface Summary { total: number; passed: number; failed: number; passRate: number; byLocation: LocationSummary[] }
+interface LocationSummary { location: string; total: number; passed: number; avgScore: number }
+interface Summary { total: number; passed: number; failed: number; passRate: number; avgScore: number; byLocation: LocationSummary[] }
 
 function badge(passed: boolean) {
   return passed
@@ -108,12 +108,13 @@ export default function TestResultsPage() {
 
       {/* Summary KPIs */}
       {summary && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
           {[
             { icon: Users, label: 'Total Attempts', val: summary.total, color: 'bg-midnight text-white', ic: 'text-gold' },
             { icon: CheckCircle, label: 'Passed', val: summary.passed, color: 'bg-white border border-gray-100', ic: 'text-forest' },
             { icon: XCircle, label: 'Failed', val: summary.failed, color: 'bg-white border border-gray-100', ic: 'text-red-500' },
             { icon: TrendingUp, label: 'Pass Rate', val: `${summary.passRate}%`, color: 'bg-forest text-white', ic: 'text-white' },
+            { icon: TrendingUp, label: 'Avg Score (Campus)', val: `${summary.avgScore}%`, color: 'bg-gold text-midnight', ic: 'text-midnight' },
           ].map((k) => (
             <div key={k.label} className={`rounded-2xl p-4 text-center ${k.color}`}>
               <k.icon size={18} className={`${k.ic} mx-auto mb-1`} />
@@ -140,6 +141,9 @@ export default function TestResultsPage() {
                   <span className="text-xs text-charcoal/50">{l.total} attempts</span>
                   <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${rate >= 70 ? 'bg-forest/10 text-forest' : rate >= 40 ? 'bg-amber-100 text-amber-700' : 'bg-red-50 text-red-600'}`}>
                     {rate}% pass
+                  </span>
+                  <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-gold/15 text-midnight">
+                    {l.avgScore}% avg
                   </span>
                   <button
                     onClick={() => exportCSV(rows.filter((r) => r.location === l.location))}

@@ -18,11 +18,13 @@ export async function GET(req: NextRequest) {
     const branchId = searchParams.get('branchId')
     const cls = searchParams.get('class')
 
-    // Educators see only their branch's students
-    const effectiveBranchId = user.role === Role.EDUCATOR ? (user.branchId ?? undefined) : (branchId ?? undefined)
+    // Educators see only the students THEY added — not their whole branch
+    // (branch alone let every educator at a branch see each other's rosters).
+    const effectiveBranchId = user.role === Role.EDUCATOR ? undefined : (branchId ?? undefined)
 
     const students = await db.student.findMany({
       where: {
+        ...(user.role === Role.EDUCATOR ? { createdById: user.id } : {}),
         ...(effectiveBranchId ? { branchId: effectiveBranchId } : {}),
         ...(cls ? { class: cls } : {}),
       },
@@ -54,6 +56,7 @@ export async function POST(req: NextRequest) {
         section: section?.trim() ?? '',
         subject: subject?.trim() ?? '',
         branchId: effectiveBranchId,
+        createdById: user.id,
       },
       include: { branch: true },
     })

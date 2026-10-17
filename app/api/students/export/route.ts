@@ -13,6 +13,7 @@ export async function GET() {
     }
 
     const students = await db.student.findMany({
+      where: user.role === Role.EDUCATOR ? { createdById: user.id } : {},
       include: {
         branch: true,
         attempts: { include: { test: true }, orderBy: { completedAt: 'desc' } },

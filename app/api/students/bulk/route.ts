@@ -39,6 +39,7 @@ export async function POST(req: NextRequest) {
             section: s.section?.trim() ?? '',
             subject: s.subject?.trim() ?? '',
             branchId: effectiveBranchId,
+            createdById: user.id,
           },
         })
         results.added++
@@ -65,10 +66,10 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: 'No IDs provided' }, { status: 400 })
     }
 
-    // Educators can only delete their own branch's students
+    // Educators can only delete students they added themselves
     const whereClause =
       user.role === Role.EDUCATOR
-        ? { id: { in: ids }, branchId: user.branchId ?? undefined }
+        ? { id: { in: ids }, createdById: user.id }
         : { id: { in: ids } }
 
     const { count } = await db.student.deleteMany({ where: whereClause })

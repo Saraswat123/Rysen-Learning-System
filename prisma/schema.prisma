@@ -101,6 +101,7 @@ model User {
   textResponses     TextResponse[]
   enrollments       ProgramEnrollment[]
   createdTaskGroups TaskGroup[]          @relation("TaskGroupCreator")
+  createdStudents   Student[]            @relation("StudentCreator")
   createdTasks      Task[]               @relation("TaskCreator")
   taskAssignments   TaskAssignment[]     @relation("TaskAssignee")
   taskComments      TaskComment[]        @relation("TaskCommenter")
@@ -249,15 +250,17 @@ model TextResponse {
 }
 
 model Student {
-  id        String   @id @default(cuid())
-  name      String
-  class     String
-  section   String   @default("")
-  subject   String   @default("")
-  branchId  String?
-  branch    Branch?  @relation(fields: [branchId], references: [id])
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
+  id          String   @id @default(cuid())
+  name        String
+  class       String
+  section     String   @default("")
+  subject     String   @default("")
+  branchId    String?
+  branch      Branch?  @relation(fields: [branchId], references: [id])
+  createdById String?
+  createdByUser User?  @relation("StudentCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
 
   sessions StudentSession[]
   attempts StudentAttempt[]
