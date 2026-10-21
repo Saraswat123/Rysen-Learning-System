@@ -10,6 +10,7 @@ interface Row {
   passed: boolean; completedAt: string
 }
 interface Summary { total: number; passed: number; failed: number; passRate: number; avgScore: number }
+type Scope = 'ALL' | 'OWN_AND_LEGACY'
 
 function badge(passed: boolean) {
   return passed
@@ -24,7 +25,7 @@ function fmt(d: string) {
 export default function EducatorResultsPage() {
   const [rows, setRows] = useState<Row[]>([])
   const [summary, setSummary] = useState<Summary | null>(null)
-  const [scope, setScope] = useState<'ALL' | 'OWN_STUDENTS' | null>(null)
+  const [scope, setScope] = useState<Scope | null>(null)
   const [loading, setLoading] = useState(false)
 
   const load = useCallback(async () => {
@@ -62,7 +63,7 @@ export default function EducatorResultsPage() {
             <ClipboardList size={24} /> Student Results
           </h1>
           <p className="text-sm text-charcoal/50 mt-0.5">
-            {scope === 'ALL' ? 'All students, campus-wide' : "Only the students you've added"}
+            {scope === 'ALL' ? 'All students, campus-wide' : "Students you've added, plus legacy students at your branch"}
           </p>
         </div>
         <div className="flex items-center gap-2">

@@ -3,7 +3,8 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/auth'
-import { Role } from '@/app/generated/prisma/client'
+import { Role, Prisma } from '@/app/generated/prisma/client'
+import { educatorStudentWhere } from '@/lib/student-scope'
 
 function isStaff(role: Role) {
   return role === Role.SUPER_ADMIN || role === Role.ADMIN || role === Role.EDUCATOR
@@ -18,16 +19,19 @@ export async function GET(req: NextRequest) {
     const branchId = searchParams.get('branchId')
     const cls = searchParams.get('class')
 
-    // Educators see only the students THEY added — not their whole branch
-    // (branch alone let every educator at a branch see each other's rosters).
+    // Educators see students THEY added, plus pre-migration (legacy)
+    // students at their branch (those can't be reliably attributed to one
+    // educator — see lib/student-scope.ts). Branch-alone scoping let every
+    // educator at a branch see each other's rosters going forward, which
+    // this still prevents for anything added after the cutoff.
     const effectiveBranchId = user.role === Role.EDUCATOR ? undefined : (branchId ?? undefined)
 
     const students = await db.student.findMany({
       where: {
-        ...(user.role === Role.EDUCATOR ? { createdById: user.id } : {}),
+        ...(user.role === Role.EDUCATOR ? educatorStudentWhere(user.id, user.branchId) : {}),
         ...(effectiveBranchId ? { branchId: effectiveBranchId } : {}),
         ...(cls ? { class: cls } : {}),
-      },
+      } as Prisma.StudentWhereInput,
       include: { branch: true, _count: { select: { attempts: true } } },
       orderBy: [{ class: 'asc' }, { name: 'asc' }],
     })

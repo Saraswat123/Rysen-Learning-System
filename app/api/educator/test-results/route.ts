@@ -4,13 +4,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/auth'
 import { Role } from '@/app/generated/prisma/client'
+import { educatorStudentWhere } from '@/lib/student-scope'
 
 function isStaff(role: Role) {
   return role === Role.SUPER_ADMIN || role === Role.ADMIN || role === Role.EDUCATOR
 }
 
 // Student results, scoped per role:
-//  - Educator: only attempts by students THEY added (createdById)
+//  - Educator: attempts by students they added, plus legacy (pre-migration)
+//    students at their branch (see lib/student-scope.ts)
 //  - Admin/Super Admin: every attempt, campus-wide
 export async function GET(req: NextRequest) {
   const user = await getSession()
@@ -27,7 +29,7 @@ export async function GET(req: NextRequest) {
       ...(testId ? { testId } : {}),
       student: {
         isActive: true,
-        ...(isAdmin ? {} : { createdById: user.id }),
+        ...(isAdmin ? {} : educatorStudentWhere(user.id, user.branchId)),
         ...(targetClass ? { class: targetClass } : {}),
       },
     },
@@ -59,7 +61,7 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     rows,
-    scope: isAdmin ? 'ALL' : 'OWN_STUDENTS',
+    scope: isAdmin ? 'ALL' : 'OWN_AND_LEGACY',
     summary: {
       total: rows.length,
       passed: rows.filter((r) => r.passed).length,

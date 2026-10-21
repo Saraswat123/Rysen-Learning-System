@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/auth'
 import { Role } from '@/app/generated/prisma/client'
+import { educatorCanAccessStudent } from '@/lib/student-scope'
 
 function isStaff(role: Role) {
   return role === Role.SUPER_ADMIN || role === Role.ADMIN || role === Role.EDUCATOR
@@ -22,7 +23,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       },
     })
     if (!student) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-    if (user.role === Role.EDUCATOR && student.createdById !== user.id) {
+    if (user.role === Role.EDUCATOR && !educatorCanAccessStudent(user, student)) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 })
     }
     return NextResponse.json(student)
@@ -38,8 +39,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const { id } = await params
 
     if (user.role === Role.EDUCATOR) {
-      const existing = await db.student.findUnique({ where: { id }, select: { createdById: true } })
-      if (!existing || existing.createdById !== user.id) {
+      const existing = await db.student.findUnique({ where: { id }, select: { createdById: true, createdAt: true, branchId: true } })
+      if (!existing || !educatorCanAccessStudent(user, existing)) {
         return NextResponse.json({ error: 'Not found' }, { status: 404 })
       }
     }
@@ -70,8 +71,8 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     const { id } = await params
 
     if (user.role === Role.EDUCATOR) {
-      const existing = await db.student.findUnique({ where: { id }, select: { createdById: true } })
-      if (!existing || existing.createdById !== user.id) {
+      const existing = await db.student.findUnique({ where: { id }, select: { createdById: true, createdAt: true, branchId: true } })
+      if (!existing || !educatorCanAccessStudent(user, existing)) {
         return NextResponse.json({ error: 'Not found' }, { status: 404 })
       }
     }

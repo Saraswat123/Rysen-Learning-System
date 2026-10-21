@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/auth'
 import { Role } from '@/app/generated/prisma/client'
+import { educatorStudentWhere } from '@/lib/student-scope'
 
 export async function POST(req: NextRequest) {
   try {
@@ -66,10 +67,11 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: 'No IDs provided' }, { status: 400 })
     }
 
-    // Educators can only delete students they added themselves
+    // Educators can only bulk-delete students they can otherwise access
+    // (their own, or legacy branch students — see lib/student-scope.ts)
     const whereClause =
       user.role === Role.EDUCATOR
-        ? { id: { in: ids }, createdById: user.id }
+        ? { AND: [{ id: { in: ids } }, educatorStudentWhere(user.id, user.branchId)] }
         : { id: { in: ids } }
 
     const { count } = await db.student.deleteMany({ where: whereClause })

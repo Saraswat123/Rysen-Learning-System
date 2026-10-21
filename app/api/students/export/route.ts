@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/auth'
 import { Role } from '@/app/generated/prisma/client'
+import { educatorStudentWhere } from '@/lib/student-scope'
 
 export async function GET() {
   try {
@@ -13,7 +14,7 @@ export async function GET() {
     }
 
     const students = await db.student.findMany({
-      where: user.role === Role.EDUCATOR ? { createdById: user.id } : {},
+      where: user.role === Role.EDUCATOR ? educatorStudentWhere(user.id, user.branchId) : {},
       include: {
         branch: true,
         attempts: { include: { test: true }, orderBy: { completedAt: 'desc' } },
