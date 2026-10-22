@@ -4,8 +4,9 @@ import { useState, useEffect, useRef } from 'react'
 import {
   Download, Plus, Search, Trash2, UserCheck, UserX, Upload, X,
   CheckCircle, AlertCircle, FileText, ChevronDown, RefreshCw,
-  Sheet, Building2, Users
+  Sheet, Building2, Users, FileSpreadsheet
 } from 'lucide-react'
+import * as XLSX from 'xlsx'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 
@@ -122,6 +123,57 @@ export default function StudentsPage() {
 
   function exportCSV() { window.open('/api/students/export', '_blank') }
 
+  // Excel-sheet names: max 31 chars, no / \ ? * [ ] :
+  function safeSheetName(name: string) {
+    return name.replace(/[/\\?*[\]:]/g, '-').slice(0, 31)
+  }
+
+  function exportExcel() {
+    const allGroups = groupByBranch(students)
+    const wb = XLSX.utils.book_new()
+
+    // Summary sheet — one row per campus
+    const summaryRows = [
+      ['Campus', 'Location', 'Total Students', 'Active', 'Inactive'],
+      ...allGroups.map((g) => {
+        const active = g.students.filter((s) => s.isActive).length
+        return [
+          g.branch?.name ?? 'No Campus',
+          g.branch?.location ?? '',
+          g.students.length,
+          active,
+          g.students.length - active,
+        ]
+      }),
+      ['TOTAL', '', students.length, students.filter((s) => s.isActive).length, students.filter((s) => !s.isActive).length],
+    ]
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summaryRows), 'Summary')
+
+    const studentRow = (s: Student) => [
+      s.name, s.class, s.section, s.subject, s.branch?.name ?? 'No Campus',
+      s.isActive ? 'Active' : 'Inactive', s._count.attempts,
+      new Date(s.createdAt).toLocaleDateString('en-IN'),
+    ]
+    const headers = ['Name', 'Class', 'Section', 'Subject', 'Campus', 'Status', 'Tests Taken', 'Added On']
+
+    // One sheet per campus
+    const usedNames = new Set<string>()
+    for (const g of allGroups) {
+      let name = safeSheetName(g.branch?.name ?? 'No Campus')
+      let suffix = 2
+      while (usedNames.has(name)) { name = safeSheetName(`${g.branch?.name ?? 'No Campus'} ${suffix++}`) }
+      usedNames.add(name)
+      const rows = [headers, ...g.students.map(studentRow)]
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), name)
+    }
+
+    // Combined sheet with everyone
+    const allRows = [headers, ...students.map(studentRow)]
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(allRows), 'All Students')
+
+    XLSX.writeFile(wb, `rysen_students_all_campuses_${new Date().toISOString().slice(0, 10)}.xlsx`)
+  }
+
   function downloadTemplate() {
     const csv = 'Name,Class,Section,Subject,Phone\nArjun Sharma,10,A,Science,9876543210\nPriya Verma,9,B,Maths,'
     const blob = new Blob([csv], { type: 'text/csv' })
@@ -177,6 +229,9 @@ export default function StudentsPage() {
           </button>
           <Button onClick={exportCSV} size="sm" className="bg-forest text-white flex items-center gap-2">
             <Download size={15} /> Export CSV
+          </Button>
+          <Button onClick={exportExcel} size="sm" className="bg-forest/80 text-white flex items-center gap-2" title="One sheet per campus + summary + combined list">
+            <FileSpreadsheet size={15} /> Export Excel (All Campuses)
           </Button>
           <Button onClick={() => { setShowImport(true); setImportResult(null); setParsedRows([]) }} size="sm"
             className="bg-olive/90 text-white flex items-center gap-2">
