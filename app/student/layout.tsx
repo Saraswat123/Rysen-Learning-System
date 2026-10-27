@@ -4,10 +4,11 @@ import { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import RysenLogo from '@/components/RysenLogo'
-import { ClipboardList, Trophy, LogOut, Menu, X } from 'lucide-react'
+import { ClipboardList, Trophy, LogOut, Menu, X, BookOpen } from 'lucide-react'
 
 const NAV = [
   { href: '/student/dashboard', label: 'My Tests', icon: ClipboardList },
+  { href: '/student/study', label: 'Study Guide', icon: BookOpen },
   { href: '/student/leaderboard', label: 'Leaderboard', icon: Trophy },
 ]
 
