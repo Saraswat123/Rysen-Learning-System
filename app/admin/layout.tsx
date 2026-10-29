@@ -6,32 +6,67 @@ import Link from 'next/link'
 import RysenLogo from '@/components/RysenLogo'
 import {
   LayoutDashboard, Users, BookOpen, BarChart3,
-  UserCog, LogOut, Menu, Trophy, GraduationCap, Layers, School, ClipboardList, FileSpreadsheet, ListTodo, PieChart, Sparkles, Building2, FolderOpen, Megaphone, Settings, History, Award,
+  UserCog, LogOut, Menu, Trophy, GraduationCap, Layers, School, ClipboardList, FileSpreadsheet, ListTodo, PieChart, Sparkles, Building2, FolderOpen, Megaphone, Settings, History, Award, ChevronDown,
 } from 'lucide-react'
 import NotificationBell from '@/components/NotificationBell'
 
-const NAV = [
-  { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/admin/campuses', label: 'Campuses', icon: Building2 },
-  { href: '/admin/educators', label: 'Educators', icon: Users },
-  { href: '/admin/principals', label: 'Principals', icon: GraduationCap },
-  { href: '/admin/programs', label: 'Programs', icon: Layers },
-  { href: '/admin/stages', label: 'Stages & MCQ', icon: BookOpen },
-  { href: '/admin/students', label: 'Students', icon: School },
-  { href: '/admin/student-tests', label: 'Student Tests', icon: ClipboardList },
-  { href: '/admin/test-results', label: 'Results Sheet', icon: FileSpreadsheet },
-  { href: '/admin/tasks', label: 'Task Directory', icon: ListTodo },
-  { href: '/admin/task-history', label: 'Task History', icon: History },
-  { href: '/admin/educator-groups', label: 'Educator Groups', icon: Users },
-  { href: '/admin/rewards', label: 'Rewards & Achievements', icon: Award },
-  { href: '/admin/resources', label: 'Resources', icon: FolderOpen },
-  { href: '/admin/broadcasts', label: 'Broadcasts', icon: Megaphone },
-  { href: '/admin/ai-assistant', label: 'RYSEN AI', icon: Sparkles },
-  { href: '/admin/reports', label: 'Branch Reports', icon: PieChart },
-  { href: '/admin/analytics', label: 'AI Analytics', icon: BarChart3 },
-  { href: '/admin/admins', label: 'Admin Users', icon: UserCog },
-  { href: '/leaderboard', label: 'Leaderboard', icon: Trophy },
-  { href: '/admin/settings', label: 'Settings', icon: Settings },
+// 3 primary pillars (Campuses / Programs / Students) match how the work
+// actually flows: pick a campus, allocate programs to it, manage its
+// students. Everything campus-scoped (educators, principals, stages & MCQ,
+// tests, results) nests under its pillar instead of sitting flat in a
+// 20-item list. Routes are unchanged — this is nav grouping only.
+const NAV_GROUPS: { label: string; items: { href: string; label: string; icon: typeof LayoutDashboard }[] }[] = [
+  { label: '', items: [{ href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard }] },
+  {
+    label: 'Campuses',
+    items: [
+      { href: '/admin/campuses', label: 'All Campuses', icon: Building2 },
+      { href: '/admin/educators', label: 'Educators', icon: Users },
+      { href: '/admin/principals', label: 'Principals', icon: GraduationCap },
+    ],
+  },
+  {
+    label: 'Programs',
+    items: [
+      { href: '/admin/programs', label: 'Programs', icon: Layers },
+      { href: '/admin/stages', label: 'Stages & MCQ', icon: BookOpen },
+    ],
+  },
+  {
+    label: 'Students',
+    items: [
+      { href: '/admin/students', label: 'Roster', icon: School },
+      { href: '/admin/student-tests', label: 'Test Creation', icon: ClipboardList },
+      { href: '/admin/test-results', label: 'Result Sheet', icon: FileSpreadsheet },
+    ],
+  },
+  {
+    label: 'Operations',
+    items: [
+      { href: '/admin/tasks', label: 'Task Directory', icon: ListTodo },
+      { href: '/admin/task-history', label: 'Task History', icon: History },
+      { href: '/admin/educator-groups', label: 'Educator Groups', icon: Users },
+      { href: '/admin/rewards', label: 'Rewards & Achievements', icon: Award },
+      { href: '/admin/resources', label: 'Resources', icon: FolderOpen },
+      { href: '/admin/broadcasts', label: 'Broadcasts', icon: Megaphone },
+    ],
+  },
+  {
+    label: 'Insights',
+    items: [
+      { href: '/admin/ai-assistant', label: 'RYSEN AI', icon: Sparkles },
+      { href: '/admin/reports', label: 'Branch Reports', icon: PieChart },
+      { href: '/admin/analytics', label: 'AI Analytics', icon: BarChart3 },
+      { href: '/leaderboard', label: 'Leaderboard', icon: Trophy },
+    ],
+  },
+  {
+    label: 'System',
+    items: [
+      { href: '/admin/admins', label: 'Admin Users', icon: UserCog },
+      { href: '/admin/settings', label: 'Settings', icon: Settings },
+    ],
+  },
 ]
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -40,6 +75,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [open, setOpen] = useState(false)
   const [user, setUser] = useState<{ name: string; role: string } | null>(null)
   const [ready, setReady] = useState(false)
+
+  const activeGroupLabel = NAV_GROUPS.find((g) => g.items.some((i) => pathname.startsWith(i.href)))?.label ?? ''
+  const [openGroups, setOpenGroups] = useState<Set<string>>(new Set([activeGroupLabel]))
+
+  function toggleGroup(label: string) {
+    setOpenGroups((prev) => {
+      const next = new Set(prev)
+      next.has(label) ? next.delete(label) : next.add(label)
+      return next
+    })
+  }
 
   useEffect(() => {
     fetch('/api/auth/me').then(async (r) => {
@@ -76,19 +122,46 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <RysenLogo size="sm" light />
       </div>
 
-      <nav className="flex-1 p-4 flex flex-col gap-1">
-        {NAV.map((item) => {
-          const active = pathname.startsWith(item.href)
+      <nav className="flex-1 p-4 flex flex-col gap-1 overflow-y-auto">
+        {NAV_GROUPS.map((group) => {
+          if (!group.label) {
+            // Ungrouped items (Dashboard) render flat, no header.
+            return group.items.map((item) => {
+              const active = pathname.startsWith(item.href)
+              return (
+                <Link key={item.href} href={item.href} onClick={() => setOpen(false)}
+                  className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${active ? 'bg-gold text-midnight' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
+                  <item.icon size={18} />
+                  {item.label}
+                </Link>
+              )
+            })
+          }
+          const isOpen = openGroups.has(group.label)
+          const groupActive = group.items.some((i) => pathname.startsWith(i.href))
           return (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={() => setOpen(false)}
-              className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${active ? 'bg-gold text-midnight' : 'text-white/70 hover:text-white hover:bg-white/10'}`}
-            >
-              <item.icon size={18} />
-              {item.label}
-            </Link>
+            <div key={group.label} className="mt-1">
+              <button
+                onClick={() => toggleGroup(group.label)}
+                className={`w-full flex items-center justify-between px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wide transition-colors ${groupActive ? 'text-gold' : 'text-white/40 hover:text-white/70'}`}>
+                {group.label}
+                <ChevronDown size={14} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {isOpen && (
+                <div className="flex flex-col gap-1 mt-1">
+                  {group.items.map((item) => {
+                    const active = pathname.startsWith(item.href)
+                    return (
+                      <Link key={item.href} href={item.href} onClick={() => setOpen(false)}
+                        className={`flex items-center gap-3 pl-6 pr-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${active ? 'bg-gold text-midnight' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
+                        <item.icon size={16} />
+                        {item.label}
+                      </Link>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
           )
         })}
       </nav>

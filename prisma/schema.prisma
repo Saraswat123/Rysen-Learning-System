@@ -28,6 +28,7 @@ model Branch {
   students     Student[]
   studentTests StudentTest[]
   resources    Resource[]
+  programs     Program[]     @relation("ProgramBranches")
 }
 
 model Resource {
@@ -179,6 +180,12 @@ model Program {
   createdAt    DateTime @default(now())
   stages       Stage[]
   enrollments  ProgramEnrollment[]
+  // Which campuses this program applies to. Empty = every campus (old
+  // behavior, kept as the default so nothing already-published breaks).
+  // At 500-educator scale this is the only allocation that scales — a
+  // program targets campuses, every educator there gets it automatically,
+  // no per-educator picking.
+  branches     Branch[] @relation("ProgramBranches")
 }
 
 model ProgramEnrollment {

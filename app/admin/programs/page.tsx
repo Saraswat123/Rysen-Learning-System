@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Plus, X, ChevronRight, CheckCircle, Circle, Layers, Trash2, Users, UserPlus, UserMinus } from 'lucide-react'
+import { Plus, X, ChevronRight, CheckCircle, Circle, Layers, Trash2, Users, UserPlus, UserMinus, Building2 } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Toast from '@/components/Toast'
@@ -11,7 +11,9 @@ interface Program {
   id: string; name: string; description: string | null
   isPublished: boolean; applicableTo: string; order: number
   _count: { stages: number }
+  branches: { id: string; name: string }[]
 }
+interface Campus { id: string; name: string }
 interface Enrollment { id: string; enrolledAt: string; user: { id: string; name: string; email: string; branch: { name: string } | null } }
 interface AllEducator { id: string; name: string; email: string; branch: { name: string } | null }
 
@@ -21,6 +23,8 @@ export default function ProgramsPage() {
   const [showCreate, setShowCreate] = useState(false)
   const [creating, setCreating] = useState(false)
   const [form, setForm] = useState({ name: '', description: '', applicableTo: 'BOTH' })
+  const [campuses, setCampuses] = useState<Campus[]>([])
+  const [selectedBranchIds, setSelectedBranchIds] = useState<Set<string>>(new Set())
   const [confirmDelete, setConfirmDelete] = useState<Program | null>(null)
   const [manageProgram, setManageProgram] = useState<Program | null>(null)
   const [enrollments, setEnrollments] = useState<Enrollment[]>([])
@@ -36,7 +40,18 @@ export default function ProgramsPage() {
     } catch {}
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    load()
+    fetch('/api/branches').then((r) => r.json()).then((d) => setCampuses(Array.isArray(d) ? d : []))
+  }, [])
+
+  function toggleBranch(id: string) {
+    setSelectedBranchIds((prev) => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
 
   async function togglePublish(p: Program) {
     await fetch(`/api/programs/${p.id}`, {
@@ -52,12 +67,17 @@ export default function ProgramsPage() {
     setCreating(true)
     const res = await fetch('/api/programs', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: form.name.trim(), description: form.description.trim() || null, applicableTo: form.applicableTo, isPublished: false }),
+      body: JSON.stringify({
+        name: form.name.trim(), description: form.description.trim() || null,
+        applicableTo: form.applicableTo, isPublished: false,
+        branchIds: [...selectedBranchIds],
+      }),
     })
     if (res.ok) {
       setToast({ msg: `"${form.name}" created`, type: 'success' })
       setShowCreate(false)
       setForm({ name: '', description: '', applicableTo: 'BOTH' })
+      setSelectedBranchIds(new Set())
       load()
     } else {
       const err = await res.json().catch(() => ({}))
@@ -133,6 +153,10 @@ export default function ProgramsPage() {
                   <div className="flex items-center gap-3 mt-1.5 text-xs text-charcoal/40">
                     <span>{p._count.stages} stages</span>
                     <span>{APPLICABLE_LABEL[p.applicableTo] ?? p.applicableTo}</span>
+                    <span className="flex items-center gap-1">
+                      <Building2 size={11} />
+                      {p.branches.length === 0 ? 'All campuses' : `${p.branches.length} campus${p.branches.length !== 1 ? 'es' : ''}`}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -189,6 +213,21 @@ export default function ProgramsPage() {
                   <option value="EDUCATOR">Educators Only</option>
                   <option value="PRINCIPAL">Principals / Center Heads Only</option>
                 </select>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-semibold text-charcoal">Allocate to Campuses</label>
+                <p className="text-xs text-charcoal/40 -mt-0.5">Every educator at a selected campus gets this program automatically — no per-educator picking. Leave empty for every campus.</p>
+                <div className="max-h-36 overflow-y-auto border border-gray-200 rounded-lg p-2 flex flex-col gap-1">
+                  {campuses.length === 0 ? (
+                    <p className="text-xs text-charcoal/40 px-2 py-1">No campuses yet.</p>
+                  ) : campuses.map((c) => (
+                    <label key={c.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 cursor-pointer text-sm">
+                      <input type="checkbox" checked={selectedBranchIds.has(c.id)} onChange={() => toggleBranch(c.id)}
+                        className="rounded border-gray-300" />
+                      {c.name}
+                    </label>
+                  ))}
+                </div>
               </div>
               <p className="text-xs text-charcoal/40">Stages added after creation. Program starts as Draft — publish when ready.</p>
             </div>

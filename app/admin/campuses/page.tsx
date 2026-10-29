@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Pencil, Trash2, MapPin, Building2, Users, GraduationCap, X, Save, Loader2, School } from 'lucide-react'
+import Link from 'next/link'
+import { Plus, Pencil, Trash2, MapPin, Building2, Users, GraduationCap, X, Save, Loader2, School, ChevronRight } from 'lucide-react'
 
 interface Branch {
   id: string
@@ -239,21 +240,24 @@ export default function CampusesPage() {
               ) : (
                 /* Display row */
                 <div className="p-5 flex items-center gap-4">
-                  <div className="w-10 h-10 bg-midnight/8 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <Building2 size={18} className="text-midnight" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-midnight text-sm">{b.name}</p>
-                    <p className="text-xs text-charcoal/50 flex items-center gap-1 mt-0.5">
-                      <MapPin size={11} /> {b.location}
-                    </p>
-                  </div>
-                  {b._count && (
-                    <div className="hidden sm:flex items-center gap-4 text-xs text-charcoal/50">
-                      <span className="flex items-center gap-1"><GraduationCap size={12} /> {b._count.users} educators</span>
-                      <span className="flex items-center gap-1"><Users size={12} /> {b._count.students} students</span>
+                  <Link href={`/admin/campuses/${b.id}`} className="flex items-center gap-4 flex-1 min-w-0 group">
+                    <div className="w-10 h-10 bg-midnight/8 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-midnight/15 transition-colors">
+                      <Building2 size={18} className="text-midnight" />
                     </div>
-                  )}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-midnight text-sm group-hover:underline">{b.name}</p>
+                      <p className="text-xs text-charcoal/50 flex items-center gap-1 mt-0.5">
+                        <MapPin size={11} /> {b.location}
+                      </p>
+                    </div>
+                    {b._count && (
+                      <div className="hidden sm:flex items-center gap-4 text-xs text-charcoal/50">
+                        <span className="flex items-center gap-1"><GraduationCap size={12} /> {b._count.users} educators</span>
+                        <span className="flex items-center gap-1"><Users size={12} /> {b._count.students} students</span>
+                      </div>
+                    )}
+                    <ChevronRight size={16} className="text-charcoal/30 flex-shrink-0" />
+                  </Link>
                   <div className="flex items-center gap-1 flex-shrink-0">
                     <button
                       onClick={() => openEdit(b)}

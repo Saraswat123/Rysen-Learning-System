@@ -14,6 +14,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
         orderBy: { number: 'asc' },
         include: { _count: { select: { questions: true } } },
       },
+      branches: { select: { id: true, name: true } },
     },
   })
   if (!program) return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -26,8 +27,17 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   }
   const { id } = await params
-  const data = await req.json()
-  const program = await db.program.update({ where: { id }, data })
+  const { branchIds, ...data } = await req.json()
+  const program = await db.program.update({
+    where: { id },
+    data: {
+      ...data,
+      ...(Array.isArray(branchIds)
+        ? { branches: { set: branchIds.map((bid: string) => ({ id: bid })) } }
+        : {}),
+    },
+    include: { branches: { select: { id: true, name: true } } },
+  })
   return NextResponse.json(program)
 }
 
