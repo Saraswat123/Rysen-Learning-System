@@ -14,13 +14,19 @@ export async function GET(req: NextRequest) {
     if (forStudent) {
       const student = await getStudentSession()
       if (!student) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-      // Show published tests where branchId is null (all branches) OR matches student's branch
+      const now = new Date()
+      // Show published tests where branchId is null (all branches) OR matches student's
+      // branch, and only within the schedule window (null bound = unbounded on that side).
       const tests = await db.studentTest.findMany({
         where: {
           isPublished: true,
           OR: [
             { branchId: null },
             { branchId: student.branchId ?? undefined },
+          ],
+          AND: [
+            { OR: [{ startAt: null }, { startAt: { lte: now } }] },
+            { OR: [{ endAt: null }, { endAt: { gte: now } }] },
           ],
         },
         include: { _count: { select: { questions: true } } },
@@ -87,6 +93,8 @@ export async function POST(req: NextRequest) {
         order: (maxOrder._max.order ?? 0) + 1,
         createdBy: user.role,
         branchId,
+        startAt: body.startAt ? new Date(body.startAt) : null,
+        endAt: body.endAt ? new Date(body.endAt) : null,
       },
       include: { branch: { select: { id: true, name: true } } },
     })

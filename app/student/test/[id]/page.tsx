@@ -145,12 +145,14 @@ export default function StudentTestPage({ params }: { params: Promise<{ id: stri
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState<Result | null>(null)
   const [started, setStarted] = useState(false)
+  const [scheduleError, setScheduleError] = useState<{ error: string; startAt: string | null; endAt: string | null } | null>(null)
 
   useEffect(() => {
     Promise.all([
       fetch(`/api/student-tests/${id}`).then((r) => r.json()),
       fetch('/api/auth/student-me').then((r) => r.json()),
     ]).then(([t, m]) => {
+      if (t.error) { setScheduleError(t); setLoading(false); return }
       setTest(t)
       setStudent(m.student)
       setTimeLeft(t.timeLimitMinutes * 60)
@@ -197,6 +199,17 @@ export default function StudentTestPage({ params }: { params: Promise<{ id: stri
     </div>
   )
 
+  if (scheduleError) {
+    const fmt = (d: string) => new Date(d).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+    return (
+      <div className="text-center py-16">
+        <Clock size={40} className="mx-auto mb-3 text-charcoal/30" />
+        <p className="text-charcoal font-semibold">{scheduleError.error}</p>
+        {scheduleError.startAt && <p className="text-sm text-charcoal/50 mt-1">Opens: {fmt(scheduleError.startAt)}</p>}
+        {scheduleError.endAt && <p className="text-sm text-charcoal/50 mt-1">Closes: {fmt(scheduleError.endAt)}</p>}
+      </div>
+    )
+  }
   if (!test) return <p className="text-center py-16 text-charcoal/40">Test not found.</p>
 
   /* ── RESULT SCREEN ── */

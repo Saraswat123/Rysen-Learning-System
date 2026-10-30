@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, ClipboardList, Users, Clock, Eye, EyeOff, ChevronRight, Trash2, MapPin, Globe } from 'lucide-react'
+import { Plus, ClipboardList, Users, Clock, Eye, EyeOff, ChevronRight, Trash2, MapPin, Globe, CalendarClock } from 'lucide-react'
 import Link from 'next/link'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
@@ -13,7 +13,24 @@ interface StudentTest {
   passScore: number; isPublished: boolean; order: number
   branchId: string | null
   branch: { id: string; name: string; location: string } | null
+  startAt: string | null; endAt: string | null
   _count: { questions: number; attempts: number }
+}
+
+function scheduleStatus(test: { startAt: string | null; endAt: string | null }) {
+  if (!test.startAt && !test.endAt) return null
+  const now = Date.now()
+  if (test.startAt && now < new Date(test.startAt).getTime()) return { label: 'Scheduled', cls: 'bg-blue-100 text-blue-700' }
+  if (test.endAt && now > new Date(test.endAt).getTime()) return { label: 'Ended', cls: 'bg-gray-200 text-charcoal/60' }
+  return { label: 'Live now', cls: 'bg-forest/10 text-forest' }
+}
+
+function fmtWindow(test: { startAt: string | null; endAt: string | null }) {
+  const f = (d: string) => new Date(d).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+  if (test.startAt && test.endAt) return `${f(test.startAt)} → ${f(test.endAt)}`
+  if (test.startAt) return `From ${f(test.startAt)}`
+  if (test.endAt) return `Until ${f(test.endAt)}`
+  return null
 }
 
 export default function StudentTestsPage() {
@@ -21,7 +38,7 @@ export default function StudentTestsPage() {
   const [branches, setBranches] = useState<Branch[]>([])
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
-  const [form, setForm] = useState({ title: '', description: '', subject: '', targetClass: '', timeLimitMinutes: '30', passScore: '60', branchId: '' })
+  const [form, setForm] = useState({ title: '', description: '', subject: '', targetClass: '', timeLimitMinutes: '30', passScore: '60', branchId: '', startAt: '', endAt: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -55,7 +72,7 @@ export default function StudentTestsPage() {
     setSaving(false)
     if (!res.ok) { setError(data.error); return }
     setShowAdd(false)
-    setForm({ title: '', description: '', subject: '', targetClass: '', timeLimitMinutes: '30', passScore: '60', branchId: '' })
+    setForm({ title: '', description: '', subject: '', targetClass: '', timeLimitMinutes: '30', passScore: '60', branchId: '', startAt: '', endAt: '' })
     load()
   }
 
@@ -132,6 +149,23 @@ export default function StudentTestsPage() {
                 <p className="text-xs text-charcoal/40">Leave as "All Branches" to show to all students, or pick a branch to restrict visibility.</p>
               </div>
 
+              {/* Schedule window */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm font-semibold text-charcoal">Opens at</label>
+                  <input type="datetime-local" value={form.startAt}
+                    onChange={(e) => setForm((f) => ({ ...f, startAt: e.target.value }))}
+                    className="px-4 py-2.5 border border-gray-300 rounded-lg text-sm text-charcoal focus:outline-none focus:ring-2 focus:ring-midnight" />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm font-semibold text-charcoal">Closes at</label>
+                  <input type="datetime-local" value={form.endAt}
+                    onChange={(e) => setForm((f) => ({ ...f, endAt: e.target.value }))}
+                    className="px-4 py-2.5 border border-gray-300 rounded-lg text-sm text-charcoal focus:outline-none focus:ring-2 focus:ring-midnight" />
+                </div>
+              </div>
+              <p className="text-xs text-charcoal/40 -mt-2">Leave both blank to keep the test live all the time. Students can only attempt it inside this window — you and educators can still see/edit it anytime.</p>
+
               {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
               <div className="flex gap-3 mt-2">
                 <Button type="button" onClick={() => setShowAdd(false)} className="flex-1 bg-gray-100 text-charcoal hover:bg-gray-200">Cancel</Button>
@@ -148,7 +182,10 @@ export default function StudentTestsPage() {
         </div>
       ) : (
         <div className="flex flex-col gap-3">
-          {tests.map((test) => (
+          {tests.map((test) => {
+            const sched = scheduleStatus(test)
+            const scheduleWindow = fmtWindow(test)
+            return (
             <div key={test.id} className="bg-white rounded-2xl border border-gray-100 p-5 flex items-center gap-4">
               <div className="w-12 h-12 rounded-xl bg-midnight/5 flex items-center justify-center flex-shrink-0">
                 <ClipboardList size={22} className="text-midnight" />
@@ -159,6 +196,7 @@ export default function StudentTestsPage() {
                   <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${test.isPublished ? 'bg-forest/10 text-forest' : 'bg-amber-100 text-amber-700'}`}>
                     {test.isPublished ? 'Published' : 'Draft'}
                   </span>
+                  {sched && <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${sched.cls}`}>{sched.label}</span>}
                   {/* Branch badge */}
                   {test.branch ? (
                     <span className="text-xs bg-midnight/5 text-midnight px-2 py-0.5 rounded-full flex items-center gap-1">
@@ -178,6 +216,7 @@ export default function StudentTestsPage() {
                   <span className="flex items-center gap-1"><Clock size={11} /> {test.timeLimitMinutes} min</span>
                   <span className="flex items-center gap-1"><Users size={11} /> {test._count.attempts} attempts</span>
                   <span>Pass: {test.passScore}%</span>
+                  {scheduleWindow && <span className="flex items-center gap-1"><CalendarClock size={11} /> {scheduleWindow}</span>}
                 </div>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
@@ -196,7 +235,7 @@ export default function StudentTestsPage() {
                 </Link>
               </div>
             </div>
-          ))}
+          )})}
           {tests.length === 0 && (
             <div className="text-center py-16 text-charcoal/40">
               <ClipboardList size={40} className="mx-auto mb-3 opacity-20" />

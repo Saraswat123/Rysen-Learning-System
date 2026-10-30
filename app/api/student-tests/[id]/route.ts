@@ -27,6 +27,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     if (!test) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
     if (student) {
+      const now = new Date()
+      if (test.startAt && now < test.startAt) {
+        return NextResponse.json({ error: 'Test has not started yet', startAt: test.startAt, endAt: test.endAt }, { status: 403 })
+      }
+      if (test.endAt && now > test.endAt) {
+        return NextResponse.json({ error: 'Test window has closed', startAt: test.startAt, endAt: test.endAt }, { status: 403 })
+      }
       // Per-student shuffle — same student sees the same order every time they
       // reload/resume, but no two students in the same room get matching order.
       const shuffledQuestions = seededShuffle(test.questions, `${student.id}:${test.id}`)
@@ -69,6 +76,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         ...(body.isPublished !== undefined && { isPublished: body.isPublished }),
         ...(body.order !== undefined && { order: body.order }),
         ...(body.branchId !== undefined && { branchId: body.branchId || null }),
+        ...(body.startAt !== undefined && { startAt: body.startAt ? new Date(body.startAt) : null }),
+        ...(body.endAt !== undefined && { endAt: body.endAt ? new Date(body.endAt) : null }),
       },
     })
     return NextResponse.json(test)

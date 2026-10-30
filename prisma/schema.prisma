@@ -296,6 +296,11 @@ model StudentTest {
   branchId         String?
   branch           Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
   createdAt        DateTime @default(now())
+  // Schedule window — gates student-side visibility/access only. Null = always
+  // live (old behavior, nothing published before this breaks). Admin/educator
+  // side always shows the test regardless of window, with a schedule badge.
+  startAt          DateTime?
+  endAt            DateTime?
 
   questions StudentQuestion[]
   attempts  StudentAttempt[]
