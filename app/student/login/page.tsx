@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import RysenLogo from '@/components/RysenLogo'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
+import TurnstileWidget from '@/components/auth/TurnstileWidget'
 
 interface Branch { id: string; name: string; location: string }
 
@@ -12,6 +13,7 @@ export default function StudentLoginPage() {
   const router = useRouter()
   const [branches, setBranches] = useState<Branch[]>([])
   const [form, setForm] = useState({ name: '', class: '', section: '', branchId: '' })
+  const [turnstileToken, setTurnstileToken] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -27,7 +29,7 @@ export default function StudentLoginPage() {
       const res = await fetch('/api/auth/student', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, turnstileToken }),
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error); return }
@@ -113,6 +115,8 @@ export default function StudentLoginPage() {
                   {branches.map((b) => <option key={b.id} value={b.id}>{b.name} — {b.location}</option>)}
                 </select>
               </div>
+
+              <TurnstileWidget onVerify={setTurnstileToken} />
 
               {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
 

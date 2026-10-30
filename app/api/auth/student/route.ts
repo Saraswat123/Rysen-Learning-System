@@ -3,11 +3,17 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { createStudentSession, STUDENT_SESSION_COOKIE } from '@/lib/student-auth'
+import { verifyTurnstile } from '@/lib/turnstile'
 
 export async function POST(req: NextRequest) {
   try {
-    const { name, class: cls, section, branchId } = await req.json()
+    const { name, class: cls, section, branchId, turnstileToken } = await req.json()
     if (!name || !cls) return NextResponse.json({ error: 'Name and class required' }, { status: 400 })
+
+    const human = await verifyTurnstile(turnstileToken, req.headers.get('x-forwarded-for'))
+    if (!human) {
+      return NextResponse.json({ error: 'Captcha verification failed. Please try again.' }, { status: 403 })
+    }
 
     const normalizedName = name.trim().replace(/\s+/g, ' ')
 

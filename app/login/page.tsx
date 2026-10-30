@@ -8,6 +8,7 @@ import Input from '@/components/ui/Input'
 import PasswordInput from '@/components/ui/PasswordInput'
 import { Layers, CheckCircle, BookOpen, ChevronDown, X, ArrowRight, KeyRound, UserPlus } from 'lucide-react'
 import SetupPasswordForm from '@/components/auth/SetupPasswordForm'
+import TurnstileWidget from '@/components/auth/TurnstileWidget'
 
 interface Branch { id: string; name: string; location: string }
 interface Program { id: string; name: string; description: string | null; applicableTo: string; isPublished: boolean; _count: { stages: number } }
@@ -20,6 +21,7 @@ export default function EducatorLogin() {
   const [programs, setPrograms] = useState<Program[]>([])
   const [mode, setMode] = useState<'signin' | 'setup'>('signin')
   const [signinForm, setSigninForm] = useState({ email: '', password: '', branchId: '' })
+  const [turnstileToken, setTurnstileToken] = useState('')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [error, setError] = useState('')
@@ -75,7 +77,7 @@ export default function EducatorLogin() {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(signinForm),
+        body: JSON.stringify({ ...signinForm, turnstileToken }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -254,6 +256,8 @@ export default function EducatorLogin() {
                   </div>
 
                   {programPicker}
+
+                  <TurnstileWidget onVerify={setTurnstileToken} />
 
                   {error && <p className={`text-sm px-3 py-2 rounded-lg ${error.includes('below') ? 'text-amber-700 bg-amber-50' : 'text-red-600 bg-red-50'}`}>{error}</p>}
 

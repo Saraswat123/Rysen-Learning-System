@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import PasswordInput from '@/components/ui/PasswordInput'
+import TurnstileWidget from '@/components/auth/TurnstileWidget'
 
 // Two-step first-time setup: (1) name+email → emailed OTP code, (2) code +
 // new password → account claimed. Replaces the old single-step flow that only
@@ -13,6 +14,7 @@ export default function SetupPasswordForm({ onSuccess, extra }: { onSuccess: () 
   const [nameEmail, setNameEmail] = useState({ name: '', email: '' })
   const [token, setToken] = useState('')
   const [otp, setOtp] = useState('')
+  const [turnstileToken, setTurnstileToken] = useState('')
   const [passwords, setPasswords] = useState({ password: '', confirmPassword: '' })
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
@@ -25,7 +27,7 @@ export default function SetupPasswordForm({ onSuccess, extra }: { onSuccess: () 
       const res = await fetch('/api/auth/request-setup-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(nameEmail),
+        body: JSON.stringify({ ...nameEmail, turnstileToken }),
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error ?? 'Something went wrong.'); return }
@@ -61,6 +63,7 @@ export default function SetupPasswordForm({ onSuccess, extra }: { onSuccess: () 
           value={nameEmail.name} onChange={(e) => setNameEmail((f) => ({ ...f, name: e.target.value }))} required />
         <Input label="Email Address" type="email" placeholder="your@email.com"
           value={nameEmail.email} onChange={(e) => setNameEmail((f) => ({ ...f, email: e.target.value }))} required />
+        <TurnstileWidget onVerify={setTurnstileToken} />
         {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
         <Button type="submit" loading={loading} size="lg" className="mt-2">Send Verification Code</Button>
       </form>

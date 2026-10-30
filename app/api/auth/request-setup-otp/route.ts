@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { ensurePasswordColumns } from '@/lib/password'
 import { generateOtp, signSetupToken } from '@/lib/account-setup-otp'
+import { verifyTurnstile } from '@/lib/turnstile'
 import { Role } from '@/app/generated/prisma/client'
 
 // Step 1 of first-time setup — proves the requester actually owns the email on
@@ -13,9 +14,14 @@ import { Role } from '@/app/generated/prisma/client'
 export async function POST(req: NextRequest) {
   try {
     await ensurePasswordColumns()
-    const { name, email } = await req.json()
+    const { name, email, turnstileToken } = await req.json()
     if (!name || !email) {
       return NextResponse.json({ error: 'Name and email are required' }, { status: 400 })
+    }
+
+    const human = await verifyTurnstile(turnstileToken, req.headers.get('x-forwarded-for'))
+    if (!human) {
+      return NextResponse.json({ error: 'Captcha verification failed. Please try again.' }, { status: 403 })
     }
 
     const user = await db.user.findUnique({ where: { email: email.toLowerCase().trim() }, omit: { password: false } })

@@ -4,16 +4,22 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { createSession, SESSION_COOKIE, SESSION_DURATION_MS } from '@/lib/auth'
 import { verifyPassword, ensurePasswordColumns } from '@/lib/password'
+import { verifyTurnstile } from '@/lib/turnstile'
 import { Role } from '@/app/generated/prisma/client'
 
 export async function POST(req: NextRequest) {
   try {
     await ensurePasswordColumns()
 
-    const { email, password } = await req.json()
+    const { email, password, turnstileToken } = await req.json()
 
     if (!email || !password) {
       return NextResponse.json({ error: 'Email and password are required' }, { status: 400 })
+    }
+
+    const human = await verifyTurnstile(turnstileToken, req.headers.get('x-forwarded-for'))
+    if (!human) {
+      return NextResponse.json({ error: 'Captcha verification failed. Please try again.' }, { status: 403 })
     }
 
     const user = await db.user.findUnique({ where: { email: email.toLowerCase().trim() }, omit: { password: false } })

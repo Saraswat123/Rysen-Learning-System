@@ -8,11 +8,13 @@ import Input from '@/components/ui/Input'
 import PasswordInput from '@/components/ui/PasswordInput'
 import { ShieldCheck, KeyRound, UserPlus } from 'lucide-react'
 import SetupPasswordForm from '@/components/auth/SetupPasswordForm'
+import TurnstileWidget from '@/components/auth/TurnstileWidget'
 
 export default function AdminLogin() {
   const router = useRouter()
   const [mode, setMode] = useState<'signin' | 'setup'>('signin')
   const [signinForm, setSigninForm] = useState({ email: '', password: '' })
+  const [turnstileToken, setTurnstileToken] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -24,7 +26,7 @@ export default function AdminLogin() {
       const res = await fetch('/api/auth/admin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(signinForm),
+        body: JSON.stringify({ ...signinForm, turnstileToken }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -108,6 +110,8 @@ export default function AdminLogin() {
                     value={signinForm.email} onChange={(e) => setSigninForm((f) => ({ ...f, email: e.target.value }))} required />
                   <PasswordInput label="Password" placeholder="••••••••"
                     value={signinForm.password} onChange={(e) => setSigninForm((f) => ({ ...f, password: e.target.value }))} required />
+
+                  <TurnstileWidget onVerify={setTurnstileToken} />
 
                   {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
 
