@@ -5,6 +5,7 @@ import { Plus, Trash2, GripVertical, ImageIcon, Video, Eye, EyeOff, Save, ArrowL
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Link from 'next/link'
+import QuestionPdfImport from '@/components/QuestionPdfImport'
 
 interface Option { id: string; text: string }
 interface Question {
@@ -225,6 +226,7 @@ export default function StudentTestEditorPage({ params }: { params: Promise<{ id
           </div>
         </div>
         <div className="flex gap-2">
+          <QuestionPdfImport onImport={(imported) => setQuestions((prev) => [...prev, ...imported.map((q, i) => ({ ...q, order: prev.length + i }))])} />
           <button onClick={togglePublish}
             className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${meta.isPublished ? 'bg-forest/10 text-forest hover:bg-forest/20' : 'bg-amber-50 text-amber-700 hover:bg-amber-100'}`}>
             {meta.isPublished ? <><EyeOff size={13} /> Unpublish</> : <><Eye size={13} /> Publish</>}
