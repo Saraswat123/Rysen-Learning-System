@@ -111,28 +111,52 @@ export default function AdminRewardsPage() {
     for (const c of row.scores.filter((s) => !s.isAutoTest)) {
       scores[c.criterionId] = d.scores?.[c.criterionId] ?? c.score
     }
-    await fetch('/api/admin/educator-ratings', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: row.userId, categoryId, period, scores, comment: d.comment ?? row.comment }),
-    })
-    setSaving(null)
-    setToast(`Saved ${row.name}'s scores`)
-    setTimeout(() => setToast(''), 2500)
-    loadRatings()
+    try {
+      const res = await fetch('/api/admin/educator-ratings', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: row.userId, categoryId, period, scores, comment: d.comment ?? row.comment }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setToast(`Failed to save ${row.name}'s scores — ${data.error ?? `HTTP ${res.status}`}`)
+        setTimeout(() => setToast(''), 5000)
+        return
+      }
+      setToast(`Saved ${row.name}'s scores`)
+      setTimeout(() => setToast(''), 2500)
+      loadRatings()
+    } catch (err) {
+      setToast(`Failed to save ${row.name}'s scores — network error`)
+      setTimeout(() => setToast(''), 5000)
+    } finally {
+      setSaving(null)
+    }
   }
 
   async function finalizeMonth() {
     const catName = categories.find((c) => c.id === categoryId)?.name ?? 'this category'
     if (!confirm(`Finalize ${catName} — ${periodLabel(period)}? This locks scores and notifies every educator of their rank + certificate eligibility.`)) return
     setFinalizing(true)
-    await fetch('/api/admin/educator-ratings/finalize', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ categoryId, period }),
-    })
-    setFinalizing(false)
-    setToast('Month finalized — educators notified')
-    setTimeout(() => setToast(''), 3000)
-    loadRatings()
+    try {
+      const res = await fetch('/api/admin/educator-ratings/finalize', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ categoryId, period }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setToast(`Finalize failed — ${data.error ?? `HTTP ${res.status}`}`)
+        setTimeout(() => setToast(''), 5000)
+        return
+      }
+      setToast('Month finalized — educators notified')
+      setTimeout(() => setToast(''), 3000)
+      loadRatings()
+    } catch {
+      setToast('Finalize failed — network error')
+      setTimeout(() => setToast(''), 5000)
+    } finally {
+      setFinalizing(false)
+    }
   }
 
   // ── Category management ──
@@ -154,34 +178,38 @@ export default function AdminRewardsPage() {
 
   async function saveCategoryName(id: string) {
     if (!editCatName.trim()) return
-    await fetch(`/api/admin/recognition-categories/${id}`, {
+    const res = await fetch(`/api/admin/recognition-categories/${id}`, {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: editCatName.trim() }),
     })
+    if (!res.ok) { const d = await res.json().catch(() => ({})); setToast(d.error ?? 'Failed to rename category'); return }
     setEditingCatId(null)
     loadCategories()
   }
 
   async function deleteCategory(id: string, name: string) {
     if (!confirm(`Delete recognition category "${name}"? All its ratings will be permanently lost. The educator group itself is not deleted.`)) return
-    await fetch(`/api/admin/recognition-categories/${id}`, { method: 'DELETE' })
+    const res = await fetch(`/api/admin/recognition-categories/${id}`, { method: 'DELETE' })
+    if (!res.ok) { const d = await res.json().catch(() => ({})); setToast(d.error ?? 'Failed to delete category'); return }
     if (categoryId === id) setCategoryId('')
     loadCategories()
   }
 
   async function addCriterion() {
     if (!newCriterionLabel.trim() || !categoryId) return
-    await fetch(`/api/admin/recognition-categories/${categoryId}/criteria`, {
+    const res = await fetch(`/api/admin/recognition-categories/${categoryId}/criteria`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ label: newCriterionLabel.trim() }),
     })
+    if (!res.ok) { const d = await res.json().catch(() => ({})); setToast(d.error ?? 'Failed to add criterion'); return }
     setNewCriterionLabel('')
     loadCategories(); loadRatings()
   }
 
   async function deleteCriterion(criterionId: string, label: string) {
     if (!confirm(`Delete rating category "${label}"? Existing scores for it will no longer count.`)) return
-    await fetch(`/api/admin/recognition-categories/${categoryId}/criteria/${criterionId}`, { method: 'DELETE' })
+    const res = await fetch(`/api/admin/recognition-categories/${categoryId}/criteria/${criterionId}`, { method: 'DELETE' })
+    if (!res.ok) { const d = await res.json().catch(() => ({})); setToast(d.error ?? 'Failed to delete criterion'); return }
     loadCategories(); loadRatings()
   }
 
@@ -191,16 +219,18 @@ export default function AdminRewardsPage() {
     setSelectedToRemove(new Set())
     const res = await fetch(`/api/admin/recognition-categories/${categoryId}/members`)
     const data = await res.json()
+    if (!res.ok) { setToast(data.error ?? 'Failed to load members'); return }
     setMembers(data.members ?? [])
     setCandidates(data.candidates ?? [])
   }
 
   async function addMember() {
     if (!addCandidateId) return
-    await fetch(`/api/admin/recognition-categories/${categoryId}/members`, {
+    const res = await fetch(`/api/admin/recognition-categories/${categoryId}/members`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId: addCandidateId }),
     })
+    if (!res.ok) { const d = await res.json().catch(() => ({})); setToast(d.error ?? 'Failed to add member'); return }
     setAddCandidateId('')
     openMembers(); loadCategories(); loadRatings()
   }
@@ -208,10 +238,11 @@ export default function AdminRewardsPage() {
   async function removeSelectedMembers() {
     if (selectedToRemove.size === 0) return
     if (!confirm(`Remove ${selectedToRemove.size} educator(s) from this category?`)) return
-    await fetch(`/api/admin/recognition-categories/${categoryId}/members`, {
+    const res = await fetch(`/api/admin/recognition-categories/${categoryId}/members`, {
       method: 'DELETE', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userIds: [...selectedToRemove] }),
     })
+    if (!res.ok) { const d = await res.json().catch(() => ({})); setToast(d.error ?? 'Failed to remove members'); return }
     openMembers(); loadCategories(); loadRatings()
   }
 
