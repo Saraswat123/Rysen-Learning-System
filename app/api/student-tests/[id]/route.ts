@@ -5,6 +5,7 @@ import { db } from '@/lib/db'
 import { getSession } from '@/lib/auth'
 import { getStudentSession } from '@/lib/student-auth'
 import { Role } from '@/app/generated/prisma/client'
+import { seededShuffle } from '@/lib/shuffle'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -26,13 +27,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     if (!test) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
     if (student) {
-      const questions = test.questions.map((q) => ({
+      // Per-student shuffle — same student sees the same order every time they
+      // reload/resume, but no two students in the same room get matching order.
+      const shuffledQuestions = seededShuffle(test.questions, `${student.id}:${test.id}`)
+      const questions = shuffledQuestions.map((q) => ({
         id: q.id,
         type: q.type,
         text: q.text,
         imageUrl: q.imageUrl,
         videoUrl: q.videoUrl,
-        options: q.options,
+        options: Array.isArray(q.options) ? seededShuffle(q.options, `${student.id}:${q.id}`) : q.options,
         marks: q.marks,
         order: q.order,
       }))
