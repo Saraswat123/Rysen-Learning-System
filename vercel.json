@@ -5,6 +5,10 @@
     {
       "path": "/api/admin/cleanup",
       "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/admin/weekly-digest",
+      "schedule": "30 12 * * 0"
     }
   ]
 }

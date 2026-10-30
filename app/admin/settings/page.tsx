@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Trash2, RefreshCw, Database, Bell, HardDrive, CheckCircle, AlertCircle, Clock } from 'lucide-react'
+import { Trash2, RefreshCw, Database, Bell, HardDrive, CheckCircle, AlertCircle, Clock, Mail, Trophy } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import Toast from '@/components/Toast'
 
@@ -27,10 +27,34 @@ function StatCard({ icon: Icon, label, value, color }: { icon: React.ComponentTy
   )
 }
 
+interface DigestResult {
+  ok: boolean; sentTo: number; totalRecipients?: number; error?: string; ranAt?: string
+  data?: { topEducators: { name: string; total: number }[]; tasks: { created: number; completed: number }; resources: { added: number } }
+}
+
 export default function SettingsPage() {
   const [running, setRunning] = useState(false)
   const [lastResult, setLastResult] = useState<CleanupResult | null>(null)
+  const [digestRunning, setDigestRunning] = useState(false)
+  const [digestResult, setDigestResult] = useState<DigestResult | null>(null)
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null)
+
+  async function runDigest() {
+    setDigestRunning(true)
+    try {
+      const res = await fetch('/api/admin/weekly-digest', { method: 'POST' })
+      const data: DigestResult = await res.json()
+      setDigestResult(data)
+      if (res.ok && data.ok) {
+        setToast({ msg: `Digest sent to ${data.sentTo}/${data.totalRecipients} admin(s)`, type: 'success' })
+      } else {
+        setToast({ msg: data.error ?? 'Digest failed to send', type: 'error' })
+      }
+    } catch {
+      setToast({ msg: 'Network error', type: 'error' })
+    }
+    setDigestRunning(false)
+  }
 
   async function runCleanup() {
     setRunning(true)
@@ -137,6 +161,62 @@ export default function SettingsPage() {
               Powered by Vercel Cron — no manual action needed. Use "Run Now" above to trigger immediately.
             </p>
           </div>
+        </div>
+      </div>
+
+      {/* Weekly Digest Email */}
+      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+        <div className="p-6 border-b border-gray-50">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h2 className="text-base font-bold text-midnight flex items-center gap-2">
+                <Mail size={16} className="text-blue-400" /> Weekly Digest Email
+              </h2>
+              <p className="text-sm text-charcoal/50 mt-1">
+                Top educators, task activity, new resources and student test stats — one email, zero setup.
+              </p>
+            </div>
+            <Button onClick={runDigest} loading={digestRunning} size="sm" className="flex-shrink-0 flex items-center gap-1.5">
+              <RefreshCw size={13} className={digestRunning ? 'animate-spin' : ''} />
+              Send Now
+            </Button>
+          </div>
+        </div>
+
+        <div className="p-6 space-y-4">
+          <div className="flex items-start gap-3 p-4 bg-blue-50 rounded-xl">
+            <CheckCircle size={16} className="text-blue-500 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-midnight">Sends automatically every Sunday</p>
+              <p className="text-xs text-charcoal/50 mt-0.5">
+                Powered by Vercel Cron, mailed to every active Admin via Resend — nothing to configure. "Send Now" below sends it immediately for testing.
+              </p>
+            </div>
+          </div>
+
+          {digestResult && (
+            <div className="space-y-3 pt-2">
+              <p className="text-xs font-bold uppercase tracking-widest text-charcoal/40">Last Send Result</p>
+              {digestResult.ok ? (
+                <>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    <StatCard icon={Mail} label="Sent to admins" value={`${digestResult.sentTo}/${digestResult.totalRecipients ?? 0}`} color="bg-blue-400" />
+                    <StatCard icon={Trophy} label="Top educator" value={digestResult.data?.topEducators[0]?.name ?? '—'} color="bg-amber-400" />
+                    <StatCard icon={Database} label="Tasks completed" value={digestResult.data?.tasks.completed ?? 0} color="bg-forest" />
+                  </div>
+                  {digestResult.ranAt && (
+                    <div className="flex items-center gap-1.5 text-xs text-charcoal/40">
+                      <Clock size={12} /> Sent at {new Date(digestResult.ranAt).toLocaleString('en-IN')}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="flex items-center gap-2 p-3 bg-red-50 rounded-xl text-red-700 text-xs">
+                  <AlertCircle size={14} /> {digestResult.error}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
