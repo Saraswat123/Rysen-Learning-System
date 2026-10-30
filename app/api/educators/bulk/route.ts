@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/auth'
 import { Role } from '@/app/generated/prisma/client'
+import { sendWelcomeEmail } from '@/lib/welcome-email'
 
 export async function POST(req: NextRequest) {
   const user = await getSession()
@@ -35,6 +36,7 @@ export async function POST(req: NextRequest) {
       continue
     }
 
+    sendWelcomeEmail({ name, email, role: Role.EDUCATOR }).catch(() => {})
     await db.user.create({
       data: { name, email, role: Role.EDUCATOR, createdBy: user.id },
     })

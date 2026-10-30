@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import RysenLogo from '@/components/RysenLogo'
 import Button from '@/components/ui/Button'
@@ -13,6 +13,9 @@ import TurnstileWidget from '@/components/auth/TurnstileWidget'
 export default function AdminLogin() {
   const router = useRouter()
   const [mode, setMode] = useState<'signin' | 'setup'>('signin')
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('setup') === '1') setMode('setup')
+  }, [])
   const [signinForm, setSigninForm] = useState({ email: '', password: '' })
   const [turnstileToken, setTurnstileToken] = useState('')
   const [error, setError] = useState('')

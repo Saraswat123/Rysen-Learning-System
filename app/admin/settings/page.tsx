@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Trash2, RefreshCw, Database, Bell, HardDrive, CheckCircle, AlertCircle, Clock, Mail, Trophy } from 'lucide-react'
+import { Trash2, RefreshCw, Database, Bell, HardDrive, CheckCircle, AlertCircle, Clock, Mail, Trophy, UserPlus } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import Toast from '@/components/Toast'
 
@@ -37,7 +37,27 @@ export default function SettingsPage() {
   const [lastResult, setLastResult] = useState<CleanupResult | null>(null)
   const [digestRunning, setDigestRunning] = useState(false)
   const [digestResult, setDigestResult] = useState<DigestResult | null>(null)
+  const [welcomeRunning, setWelcomeRunning] = useState(false)
+  const [welcomeResult, setWelcomeResult] = useState<{ sentTo: number; total: number } | null>(null)
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null)
+
+  async function runWelcomeEmails() {
+    if (!confirm("Send the welcome/activate email to every account that hasn't set a password yet? This covers all old + new educators, principals, and admins.")) return
+    setWelcomeRunning(true)
+    try {
+      const res = await fetch('/api/admin/send-welcome-emails', { method: 'POST' })
+      const data = await res.json()
+      if (res.ok && data.ok) {
+        setWelcomeResult({ sentTo: data.sentTo, total: data.total })
+        setToast({ msg: data.total === 0 ? data.message : `Welcome emails sent to ${data.sentTo}/${data.total} account(s)`, type: 'success' })
+      } else {
+        setToast({ msg: data.error ?? 'Failed to send welcome emails', type: 'error' })
+      }
+    } catch {
+      setToast({ msg: 'Network error', type: 'error' })
+    }
+    setWelcomeRunning(false)
+  }
 
   async function runDigest() {
     setDigestRunning(true)
@@ -215,6 +235,43 @@ export default function SettingsPage() {
                   <AlertCircle size={14} /> {digestResult.error}
                 </div>
               )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Welcome / Activate Account Email */}
+      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+        <div className="p-6 border-b border-gray-50">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h2 className="text-base font-bold text-midnight flex items-center gap-2">
+                <UserPlus size={16} className="text-forest" /> Welcome / Activate Account Email
+              </h2>
+              <p className="text-sm text-charcoal/50 mt-1">
+                Every new educator, principal, or admin now gets this automatically when created. Use the button below to send it to everyone who was added before this existed and hasn't activated yet.
+              </p>
+            </div>
+            <Button onClick={runWelcomeEmails} loading={welcomeRunning} size="sm" className="flex-shrink-0 flex items-center gap-1.5">
+              <RefreshCw size={13} className={welcomeRunning ? 'animate-spin' : ''} />
+              Send to Everyone Unactivated
+            </Button>
+          </div>
+        </div>
+        <div className="p-6">
+          <div className="flex items-start gap-3 p-4 bg-forest/5 rounded-xl">
+            <CheckCircle size={16} className="text-forest mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-midnight">Automatic on every new account — zero setup going forward</p>
+              <p className="text-xs text-charcoal/50 mt-0.5">
+                Skips anyone who already set a password, so people already using the system won't get a confusing "welcome" email.
+              </p>
+            </div>
+          </div>
+          {welcomeResult && (
+            <div className="grid grid-cols-2 gap-3 mt-4">
+              <StatCard icon={Mail} label="Emails sent" value={welcomeResult.sentTo} color="bg-forest" />
+              <StatCard icon={UserPlus} label="Accounts targeted" value={welcomeResult.total} color="bg-midnight" />
             </div>
           )}
         </div>

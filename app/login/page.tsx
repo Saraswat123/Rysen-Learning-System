@@ -20,6 +20,9 @@ export default function EducatorLogin() {
   const [branches, setBranches] = useState<Branch[]>([])
   const [programs, setPrograms] = useState<Program[]>([])
   const [mode, setMode] = useState<'signin' | 'setup'>('signin')
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('setup') === '1') setMode('setup')
+  }, [])
   const [signinForm, setSigninForm] = useState({ email: '', password: '', branchId: '' })
   const [turnstileToken, setTurnstileToken] = useState('')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())

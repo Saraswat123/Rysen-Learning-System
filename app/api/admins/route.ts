@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/auth'
 import { Role } from '@/app/generated/prisma/client'
+import { sendWelcomeEmail } from '@/lib/welcome-email'
 
 export async function GET() {
   const user = await getSession()
@@ -44,5 +45,6 @@ export async function POST(req: NextRequest) {
     },
     select: { id: true, name: true, email: true, phone: true, role: true, isActive: true, createdAt: true },
   })
+  sendWelcomeEmail(admin).catch(() => {})
   return NextResponse.json(admin, { status: 201 })
 }
