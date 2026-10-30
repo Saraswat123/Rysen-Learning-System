@@ -521,14 +521,26 @@ EXAMPLE FLOWS the user might say:
           max_tokens: 2000,
         })
       } catch (groqErr) {
-        // Groq rejects its own hallucinated tool names (e.g. "list_task_groups?") — retry without tools
+        // Malformed tool-call generation (bad args/name) — retry once with the same
+        // tools still attached. Dropping `tools` here is wrong: the model still tries
+        // to call a real tool, and Groq rejects that since tool_choice defaults to
+        // 'none' once `tools` is omitted ("Tool choice is none, but model called a tool").
         const errMsg = groqErr instanceof Error ? groqErr.message : String(groqErr)
         if (errMsg.includes('tool_use_failed') || errMsg.includes('tool call validation')) {
-          response = await groq.chat.completions.create({
-            model: 'openai/gpt-oss-120b',
-            messages: msgHistory,
-            max_tokens: 2000,
-          })
+          try {
+            response = await groq.chat.completions.create({
+              model: 'openai/gpt-oss-120b',
+              messages: msgHistory,
+              tools: TOOLS,
+              tool_choice: 'auto',
+              max_tokens: 2000,
+            })
+          } catch {
+            return NextResponse.json({
+              reply: "Sorry, I couldn't process that request. Try rephrasing it?",
+              actions,
+            })
+          }
         } else {
           throw groqErr
         }

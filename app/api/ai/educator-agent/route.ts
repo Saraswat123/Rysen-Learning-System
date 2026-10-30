@@ -260,9 +260,25 @@ RULES:
           max_tokens: 1200,
         })
       } catch (groqErr) {
+        // Retry once with the same tools attached — dropping `tools` makes Groq
+        // default tool_choice to 'none', and it then rejects the model's next tool
+        // call attempt ("Tool choice is none, but model called a tool").
         const errMsg = groqErr instanceof Error ? groqErr.message : String(groqErr)
         if (errMsg.includes('tool_use_failed') || errMsg.includes('tool call validation')) {
-          response = await groq.chat.completions.create({ model: 'openai/gpt-oss-120b', messages: msgHistory, max_tokens: 1200 })
+          try {
+            response = await groq.chat.completions.create({
+              model: 'openai/gpt-oss-120b',
+              messages: msgHistory,
+              tools: TOOLS,
+              tool_choice: 'auto',
+              max_tokens: 1200,
+            })
+          } catch {
+            return NextResponse.json({
+              reply: "Sorry, I couldn't process that request. Try rephrasing it?",
+              actions,
+            })
+          }
         } else {
           throw groqErr
         }
