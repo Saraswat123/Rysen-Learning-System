@@ -411,15 +411,38 @@ async function executeTool(name: string, args: Record<string, unknown>, userId: 
       if (!tests.length) return { error: `No student test found matching "${testTitle ?? ''}"` }
 
       const branches = await db.branch.findMany({ select: { id: true, name: true } })
+      // Student.class is free-text from a bulk import ("1", "1ST", "1-A", "U.KG", even
+      // stray names) — can't exact-match it against a targetClass range like "4-6".
+      // Pull the leading number out and test it against the range; anything that
+      // doesn't parse to a number just isn't counted in the eligible denominator.
+      const parseClassNum = (c: string): number | null => {
+        const m = c.match(/^(\d+)/)
+        return m ? parseInt(m[1], 10) : null
+      }
+      const matchesTargetClass = (classNum: number | null, targetClass: string): boolean => {
+        if (!targetClass || classNum === null) return false
+        const range = targetClass.match(/^(\d+)\s*-\s*(\d+)$/)
+        if (range) return classNum >= parseInt(range[1], 10) && classNum <= parseInt(range[2], 10)
+        const single = targetClass.match(/^(\d+)$/)
+        return single ? classNum === parseInt(single[1], 10) : false
+      }
+
       const results: Record<string, unknown>[] = []
       for (const test of tests) {
         const scopedBranches = test.branchId ? branches.filter((b) => b.id === test.branchId) : branches
         for (const branch of scopedBranches) {
-          const studentWhere = { branchId: branch.id, isActive: true, ...(test.targetClass ? { class: test.targetClass } : {}) }
-          const [totalStudents, attempts] = await Promise.all([
-            db.student.count({ where: studentWhere }),
-            db.studentAttempt.findMany({ where: { testId: test.id, student: studentWhere }, select: { studentId: true, score: true, totalMarks: true, passed: true } }),
+          const [branchStudents, attempts] = await Promise.all([
+            db.student.findMany({ where: { branchId: branch.id, isActive: true }, select: { class: true } }),
+            // Attempts are tied to testId alone — a test is already locked to one branch
+            // (or all, when branchId is null), never re-filter attempts by class match.
+            db.studentAttempt.findMany({
+              where: { testId: test.id, ...(test.branchId ? {} : { student: { branchId: branch.id } }) },
+              select: { studentId: true, score: true, totalMarks: true, passed: true },
+            }),
           ])
+          const totalStudents = test.targetClass
+            ? branchStudents.filter((s) => matchesTargetClass(parseClassNum(s.class), test.targetClass)).length
+            : branchStudents.length
           const attemptedStudentIds = new Set(attempts.map((a) => a.studentId))
           const passedCount = attempts.filter((a) => a.passed).length
           const avgScorePct = attempts.length
