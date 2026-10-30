@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/auth'
+import { sendEmail } from '@/lib/email'
 import { Role } from '@/app/generated/prisma/client'
 
 export async function POST(req: NextRequest) {
@@ -55,21 +56,15 @@ export async function POST(req: NextRequest) {
   const emailResults: { name: string; email: string; sent: boolean; error?: string }[] = []
   const waLinks: { name: string; phone: string; link: string }[] = []
 
-  // ── Email via Resend batch ────────────────────────────────────────────────
+  // ── Email via the shared sender (Brevo first, Resend fallback) ────────────
   if (channels.includes('email')) {
-    const resendKey = process.env.RESEND_API_KEY
-    const fromAddr = process.env.RESEND_FROM_EMAIL ?? 'onboarding@resend.dev'
+    const hasProvider = !!(process.env.BREVO_API_KEY || process.env.RESEND_API_KEY)
     const emailMembers = members.filter((m) => m.email)
 
-    if (resendKey && emailMembers.length > 0) {
-      try {
-        const { Resend } = await import('resend')
-        const resend = new Resend(resendKey)
-        const payloads = emailMembers.map((m) => ({
-          from: fromAddr,
-          to: m.email!,
-          subject: subject?.trim() || 'Message from RYSEN Admin',
-          html: `<!DOCTYPE html><html><body style="font-family:sans-serif;background:#f9f9f9;margin:0;padding:20px">
+    if (hasProvider && emailMembers.length > 0) {
+      await Promise.all(emailMembers.map(async (m) => {
+        const subjectLine = subject?.trim() || 'Message from RYSEN Admin'
+        const html = `<!DOCTYPE html><html><body style="font-family:sans-serif;background:#f9f9f9;margin:0;padding:20px">
 <div style="max-width:560px;margin:0 auto;background:white;border-radius:16px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08)">
   <div style="background:#033D4C;padding:28px 32px">
     <h1 style="color:#FECB08;margin:0;font-size:22px;font-weight:700">RYSEN Learning Centre</h1>
@@ -103,26 +98,13 @@ export async function POST(req: NextRequest) {
   <div style="background:#f5f5f5;padding:16px 32px;text-align:center">
     <p style="color:#999;font-size:11px;margin:0">RYSEN Group of Schools · Learning Centre</p>
   </div>
-</div></body></html>`,
-        }))
-
-        const BATCH = 100
-        for (let i = 0; i < payloads.length; i += BATCH) {
-          const chunk = payloads.slice(i, i + BATCH)
-          const { error } = await resend.batch.send(chunk)
-          for (const p of chunk) {
-            emailResults.push({ name: members.find((m) => m.email === p.to)?.name ?? '', email: p.to, sent: !error, error: error?.message })
-          }
-          if (i + BATCH < payloads.length) await new Promise((r) => setTimeout(r, 1100))
-        }
-      } catch (e) {
-        for (const m of emailMembers) {
-          emailResults.push({ name: m.name, email: m.email!, sent: false, error: String(e) })
-        }
-      }
-    } else if (!resendKey) {
+</div></body></html>`
+        const sent = await sendEmail(m.email!, subjectLine, html)
+        emailResults.push({ name: m.name, email: m.email!, sent, error: sent ? undefined : 'Send rejected by provider' })
+      }))
+    } else if (!hasProvider && emailMembers.length > 0) {
       for (const m of emailMembers) {
-        emailResults.push({ name: m.name, email: m.email!, sent: false, error: 'RESEND_API_KEY not set' })
+        emailResults.push({ name: m.name, email: m.email!, sent: false, error: 'No email provider configured' })
       }
     }
   }

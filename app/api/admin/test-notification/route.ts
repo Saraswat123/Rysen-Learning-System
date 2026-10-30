@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
+import { sendEmail } from '@/lib/email'
 import { Role } from '@/app/generated/prisma/client'
 
 export async function POST(req: NextRequest) {
@@ -15,19 +16,14 @@ export async function POST(req: NextRequest) {
 
   // ── Test Email ────────────────────────────────────────────────────────────
   if (email?.trim()) {
-    const resendKey = process.env.RESEND_API_KEY
-    const fromAddr = process.env.RESEND_FROM_EMAIL ?? 'onboarding@resend.dev'
-    if (!resendKey) {
-      results.push({ channel: 'email', status: 'error', detail: 'RESEND_API_KEY not set in environment' })
+    const provider = process.env.BREVO_API_KEY ? 'Brevo' : process.env.RESEND_API_KEY ? 'Resend' : null
+    if (!provider) {
+      results.push({ channel: 'email', status: 'error', detail: 'No email provider configured (BREVO_API_KEY or RESEND_API_KEY)' })
     } else {
-      try {
-        const { Resend } = await import('resend')
-        const resend = new Resend(resendKey)
-        const { error } = await resend.emails.send({
-          from: fromAddr,
-          to: email.trim(),
-          subject: '✅ RYSEN – Test Email',
-          html: `<!DOCTYPE html><html><body style="font-family:sans-serif;background:#f9f9f9;margin:0;padding:20px">
+      const sent = await sendEmail(
+        email.trim(),
+        '✅ RYSEN – Test Email',
+        `<!DOCTYPE html><html><body style="font-family:sans-serif;background:#f9f9f9;margin:0;padding:20px">
 <div style="max-width:520px;margin:0 auto;background:white;border-radius:16px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08)">
   <div style="background:#033D4C;padding:28px 32px">
     <h1 style="color:#FECB08;margin:0;font-size:22px;font-weight:700">RYSEN Learning Centre</h1>
@@ -35,19 +31,14 @@ export async function POST(req: NextRequest) {
   </div>
   <div style="padding:32px">
     <p style="color:#40403E;font-size:16px;margin:0 0 12px">✅ Email is working!</p>
-    <p style="color:#40403E;font-size:14px">This is a test email from RYSEN Learning Centre admin panel.</p>
-    <p style="color:#888;font-size:12px;margin-top:24px">Sent from: ${fromAddr}<br/>Sent by: ${user.name}</p>
+    <p style="color:#40403E;font-size:14px">This is a test email from RYSEN Learning Centre admin panel, sent via ${provider}.</p>
+    <p style="color:#888;font-size:12px;margin-top:24px">Sent by: ${user.name}</p>
   </div>
 </div></body></html>`,
-        })
-        if (error) {
-          results.push({ channel: 'email', status: 'error', detail: error.message })
-        } else {
-          results.push({ channel: 'email', status: 'sent', detail: `Delivered to ${email.trim()}` })
-        }
-      } catch (e) {
-        results.push({ channel: 'email', status: 'error', detail: String(e) })
-      }
+      )
+      results.push(sent
+        ? { channel: 'email', status: 'sent', detail: `Delivered to ${email.trim()} via ${provider}` }
+        : { channel: 'email', status: 'error', detail: `${provider} rejected the send — check server logs` })
     }
   } else {
     results.push({ channel: 'email', status: 'skipped', detail: 'No email provided' })

@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/auth'
+import { sendEmail } from '@/lib/email'
 import { Role } from '@/app/generated/prisma/client'
 
 interface RemindTarget { userId: string; channels: ('email' | 'whatsapp')[] }
@@ -68,52 +69,23 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 </div></body></html>`
   }
 
-  // ── Batch email via Resend (one API call for all recipients) ──────────────
+  // ── Email via the shared sender (Brevo first, Resend fallback) ────────────
   const emailTargets = targets.filter((t) => t.channels.includes('email'))
-  const resendKey = process.env.RESEND_API_KEY
-  const fromAddr = process.env.RESEND_FROM_EMAIL ?? 'onboarding@resend.dev'
+  const hasProvider = !!(process.env.BREVO_API_KEY || process.env.RESEND_API_KEY)
 
-  if (emailTargets.length > 0 && resendKey) {
-    try {
-      const { Resend } = await import('resend')
-      const resend = new Resend(resendKey)
-      const emailPayloads = emailTargets
-        .map((t) => educators.find((e) => e.id === t.userId))
-        .filter((e): e is NonNullable<typeof e> => !!e?.email)
-        .map((edu) => ({
-          from: fromAddr,
-          to: edu.email!,
-          subject: `Task Reminder: ${task.title}`,
-          html: buildEmailHtml(edu.name),
-        }))
+  if (emailTargets.length > 0 && hasProvider) {
+    const emailEducators = emailTargets
+      .map((t) => educators.find((e) => e.id === t.userId))
+      .filter((e): e is NonNullable<typeof e> => !!e?.email)
 
-      // Resend batch: up to 100 emails per call, no per-email rate limit
-      const BATCH = 100
-      for (let i = 0; i < emailPayloads.length; i += BATCH) {
-        const chunk = emailPayloads.slice(i, i + BATCH)
-        const { error } = await resend.batch.send(chunk)
-        for (const payload of chunk) {
-          const edu = educators.find((e) => e.email === payload.to)!
-          const idx = results.findIndex((r) => r.userId === edu.id)
-          if (idx === -1) {
-            results.push({ userId: edu.id, name: edu.name, email: edu.email!, emailSent: !error, emailError: error?.message })
-          } else {
-            results[idx].emailSent = !error
-            if (error) results[idx].emailError = error.message
-          }
-        }
-        if (i + BATCH < emailPayloads.length) await new Promise((r) => setTimeout(r, 1100))
-      }
-    } catch (e) {
-      for (const t of emailTargets) {
-        const edu = educators.find((ex) => ex.id === t.userId)
-        if (edu) results.push({ userId: edu.id, name: edu.name, email: edu.email ?? undefined, emailSent: false, emailError: String(e) })
-      }
-    }
-  } else if (emailTargets.length > 0 && !resendKey) {
+    await Promise.all(emailEducators.map(async (edu) => {
+      const sent = await sendEmail(edu.email!, `Task Reminder: ${task.title}`, buildEmailHtml(edu.name))
+      results.push({ userId: edu.id, name: edu.name, email: edu.email!, emailSent: sent, emailError: sent ? undefined : 'Send rejected by provider' })
+    }))
+  } else if (emailTargets.length > 0 && !hasProvider) {
     for (const t of emailTargets) {
       const edu = educators.find((e) => e.id === t.userId)
-      if (edu) results.push({ userId: edu.id, name: edu.name, emailSent: false, emailError: 'RESEND_API_KEY not set' })
+      if (edu) results.push({ userId: edu.id, name: edu.name, emailSent: false, emailError: 'No email provider configured' })
     }
   }
 

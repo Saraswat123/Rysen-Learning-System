@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/auth'
 import { Role } from '@/app/generated/prisma/client'
+import { sendEmail } from '@/lib/email'
 import Groq from 'groq-sdk'
 
 // ── Tool definitions ──────────────────────────────────────────────────────────
@@ -484,20 +485,12 @@ async function executeTool(name: string, args: Record<string, unknown>, userId: 
           : `Hi ${edu.name}, reminder for task:\n\n*${task.title}*\nDeadline: ${deadlineStr}\n\nView: ${taskUrl}`
         // Email
         if (useChannels.includes('email') && edu.email) {
-          try {
-            const resendKey = process.env.RESEND_API_KEY
-            if (resendKey) {
-              const { Resend } = await import('resend')
-              const resend = new Resend(resendKey)
-              await resend.emails.send({
-                from: process.env.RESEND_FROM_EMAIL ?? 'onboarding@resend.dev',
-                to: edu.email,
-                subject: `Reminder: ${task.title}`,
-                html: `<div style="font-family:sans-serif;padding:20px"><h2 style="color:#033D4C">RYSEN Task Reminder</h2><p>Hi <b>${edu.name}</b>,</p><p>${message ?? `Please complete your task before ${deadlineStr}.`}</p><h3>${task.title}</h3><a href="${taskUrl}" style="background:#033D4C;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;display:inline-block;margin-top:12px">View Task →</a></div>`,
-              })
-              results.push(`✓ Email → ${edu.name}`)
-            }
-          } catch { results.push(`✗ Email failed → ${edu.name}`) }
+          const sent = await sendEmail(
+            edu.email,
+            `Reminder: ${task.title}`,
+            `<div style="font-family:sans-serif;padding:20px"><h2 style="color:#033D4C">RYSEN Task Reminder</h2><p>Hi <b>${edu.name}</b>,</p><p>${message ?? `Please complete your task before ${deadlineStr}.`}</p><h3>${task.title}</h3><a href="${taskUrl}" style="background:#033D4C;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;display:inline-block;margin-top:12px">View Task →</a></div>`,
+          )
+          results.push(sent ? `✓ Email → ${edu.name}` : `✗ Email failed → ${edu.name}`)
         }
         // WhatsApp
         if (useChannels.includes('whatsapp') && edu.phone) {

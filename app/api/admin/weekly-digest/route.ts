@@ -5,6 +5,7 @@ import { db } from '@/lib/db'
 import { getSession } from '@/lib/auth'
 import { Role } from '@/app/generated/prisma/client'
 import { computeWeeklyDigest, renderDigestEmailHtml } from '@/lib/weekly-digest'
+import { sendEmail } from '@/lib/email'
 
 async function sendDigest() {
   const data = await computeWeeklyDigest()
@@ -16,21 +17,15 @@ async function sendDigest() {
     select: { email: true },
   })
 
-  const resendKey = process.env.RESEND_API_KEY
-  if (!resendKey) return { ok: false, error: 'RESEND_API_KEY not configured', sentTo: 0 }
+  if (!process.env.BREVO_API_KEY && !process.env.RESEND_API_KEY) {
+    return { ok: false, error: 'No email provider configured (BREVO_API_KEY or RESEND_API_KEY)', sentTo: 0 }
+  }
   if (!recipients.length) return { ok: false, error: 'No active admin recipients found', sentTo: 0 }
 
-  const { Resend } = await import('resend')
-  const resend = new Resend(resendKey)
-  const results = await Promise.allSettled(
-    recipients.map((r) => resend.emails.send({
-      from: process.env.RESEND_FROM_EMAIL ?? 'onboarding@resend.dev',
-      to: r.email,
-      subject: `RYSEN Weekly Digest — Top Educators & Activity Report`,
-      html,
-    }))
+  const results = await Promise.all(
+    recipients.map((r) => sendEmail(r.email, 'RYSEN Weekly Digest — Top Educators & Activity Report', html))
   )
-  const sentTo = results.filter((r) => r.status === 'fulfilled').length
+  const sentTo = results.filter(Boolean).length
   return { ok: true, sentTo, totalRecipients: recipients.length, data, ranAt: new Date().toISOString() }
 }
 
