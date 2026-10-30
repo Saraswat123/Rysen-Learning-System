@@ -7,6 +7,7 @@ import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import PasswordInput from '@/components/ui/PasswordInput'
 import { Layers, CheckCircle, BookOpen, ChevronDown, X, ArrowRight, KeyRound, UserPlus } from 'lucide-react'
+import SetupPasswordForm from '@/components/auth/SetupPasswordForm'
 
 interface Branch { id: string; name: string; location: string }
 interface Program { id: string; name: string; description: string | null; applicableTo: string; isPublished: boolean; _count: { stages: number } }
@@ -19,7 +20,6 @@ export default function EducatorLogin() {
   const [programs, setPrograms] = useState<Program[]>([])
   const [mode, setMode] = useState<'signin' | 'setup'>('signin')
   const [signinForm, setSigninForm] = useState({ email: '', password: '', branchId: '' })
-  const [setupForm, setSetupForm] = useState({ name: '', email: '', password: '', confirmPassword: '' })
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [error, setError] = useState('')
@@ -81,31 +81,12 @@ export default function EducatorLogin() {
       if (!res.ok) {
         if (data.code === 'NO_PASSWORD') {
           setMode('setup')
-          setSetupForm((f) => ({ ...f, email: signinForm.email }))
           setError('No password set up yet — create one below.')
         } else {
           setError(data.error)
         }
         return
       }
-      await afterAuthSuccess()
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  async function handleSetup(e: React.FormEvent) {
-    e.preventDefault()
-    setError('')
-    setLoading(true)
-    try {
-      const res = await fetch('/api/auth/set-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(setupForm),
-      })
-      const data = await res.json()
-      if (!res.ok) { setError(data.error); return }
       await afterAuthSuccess()
     } finally {
       setLoading(false)
@@ -291,22 +272,8 @@ export default function EducatorLogin() {
                 <h1 className="text-2xl font-bold text-midnight mb-1">Set Up Your Password</h1>
                 <p className="text-sm text-charcoal/60 mb-6">Verify your account, then choose a password for future sign-ins</p>
 
-                <form onSubmit={handleSetup} className="flex flex-col gap-4">
-                  <Input label="Full Name" placeholder="As registered by admin"
-                    value={setupForm.name} onChange={(e) => setSetupForm((f) => ({ ...f, name: e.target.value }))} required />
-                  <Input label="Email Address" type="email" placeholder="your@email.com"
-                    value={setupForm.email} onChange={(e) => setSetupForm((f) => ({ ...f, email: e.target.value }))} required />
-                  <PasswordInput label="New Password" placeholder="At least 6 characters"
-                    value={setupForm.password} onChange={(e) => setSetupForm((f) => ({ ...f, password: e.target.value }))} required minLength={6} />
-                  <PasswordInput label="Confirm Password" placeholder="Re-enter password"
-                    value={setupForm.confirmPassword} onChange={(e) => setSetupForm((f) => ({ ...f, confirmPassword: e.target.value }))} required minLength={6} />
-
-                  {programPicker}
-
-                  {error && <p className={`text-sm px-3 py-2 rounded-lg ${error.includes('below') ? 'text-amber-700 bg-amber-50' : 'text-red-600 bg-red-50'}`}>{error}</p>}
-
-                  <Button type="submit" loading={loading} size="lg" className="mt-2">Set Password & Sign In</Button>
-                </form>
+                {error && <p className="text-sm text-amber-700 bg-amber-50 px-3 py-2 rounded-lg mb-4">{error}</p>}
+                <SetupPasswordForm onSuccess={afterAuthSuccess} extra={programPicker} />
 
                 <p className="text-xs text-center text-charcoal/50 mt-4">
                   Already set up?{' '}
