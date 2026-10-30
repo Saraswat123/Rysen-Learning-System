@@ -29,6 +29,7 @@ model Branch {
   studentTests StudentTest[]
   resources    Resource[]
   programs     Program[]     @relation("ProgramBranches")
+  studentPrograms StudentProgram[]
 }
 
 model Resource {
@@ -103,6 +104,7 @@ model User {
   enrollments       ProgramEnrollment[]
   createdTaskGroups TaskGroup[]          @relation("TaskGroupCreator")
   createdStudents   Student[]            @relation("StudentCreator")
+  createdStudentPrograms StudentProgram[]
   createdTasks      Task[]               @relation("TaskCreator")
   taskAssignments   TaskAssignment[]     @relation("TaskAssignee")
   taskComments      TaskComment[]        @relation("TaskCommenter")
@@ -301,9 +303,31 @@ model StudentTest {
   // side always shows the test regardless of window, with a schedule badge.
   startAt          DateTime?
   endAt            DateTime?
+  programId        String?
+  program          StudentProgram? @relation(fields: [programId], references: [id], onDelete: SetNull)
 
   questions StudentQuestion[]
   attempts  StudentAttempt[]
+}
+
+// A named grouping of student tests an educator builds for their own class —
+// distinct from Program/Stage (admin's PD training content for educators).
+// Branch-scoped like StudentTest itself, not per-individual-educator, matching
+// how StudentTest already works (shared across educators at the same branch).
+model StudentProgram {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  targetClass String   @default("")
+  branchId    String?
+  branch      Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  createdById String?
+  createdByUser User?  @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  isPublished Boolean  @default(true)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  tests StudentTest[]
 }
 
 model StudentQuestion {

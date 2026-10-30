@@ -4,16 +4,72 @@ import { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import RysenLogo from '@/components/RysenLogo'
-import { LayoutDashboard, Award, Trophy, LogOut, School, ClipboardList, ChevronDown, ListTodo, UserCircle, FolderOpen, Users, Layers, BarChart3, TrendingUp, Bot, Menu, X } from 'lucide-react'
+import {
+  LayoutDashboard, Award, Trophy, LogOut, School, ClipboardList, ChevronDown,
+  ListTodo, UserCircle, FolderOpen, Users, Layers, BarChart3, TrendingUp, Bot, Menu, Star,
+} from 'lucide-react'
 import NotificationBell from '@/components/NotificationBell'
+
+// Left-sidebar nav, grouped the way an educator actually uses it — same
+// collapsible-group pattern as the admin side. Routes are unchanged; this is
+// nav structure only, plus the new Student Programs page under Programs.
+const NAV_GROUPS: { label: string; items: { href: string; label: string; icon: typeof LayoutDashboard; external?: boolean }[] }[] = [
+  { label: '', items: [{ href: '/educator/dashboard', label: 'Dashboard', icon: LayoutDashboard }] },
+  {
+    label: 'Students',
+    items: [
+      { href: '/educator/students', label: 'Manage Students', icon: School },
+      { href: '/educator/student-tests', label: 'Student Tests', icon: ClipboardList },
+      { href: '/educator/results', label: 'Student Results', icon: Award },
+      { href: '/educator/students/progress', label: 'Student Progress', icon: BarChart3 },
+      { href: '/educator/analytics', label: 'Class Analytics', icon: TrendingUp },
+      { href: '/student/leaderboard', label: 'Student Leaderboard ↗', icon: Trophy, external: true },
+    ],
+  },
+  {
+    label: 'Programs',
+    items: [
+      { href: '/educator/programs', label: 'Training Programs', icon: Layers },
+      { href: '/educator/student-programs', label: 'Student Programs', icon: Layers },
+    ],
+  },
+  { label: '', items: [{ href: '/educator/groups', label: 'My Groups', icon: Users }] },
+  { label: '', items: [{ href: '/educator/ai-assistant', label: 'Rysen AI', icon: Bot }] },
+  {
+    label: 'Operations',
+    items: [
+      { href: '/educator/tasks', label: 'My Tasks', icon: ListTodo },
+      { href: '/educator/resources', label: 'Resources', icon: FolderOpen },
+    ],
+  },
+  {
+    label: 'Achievements',
+    items: [
+      { href: '/educator/recognition', label: 'Recognition & Monthly Scores', icon: Trophy },
+      { href: '/educator/star-students', label: 'Star Students', icon: Star },
+      { href: '/leaderboard', label: 'Campus Leaderboard', icon: Users },
+      { href: '/educator/certificate', label: 'Training Certificate', icon: Award },
+    ],
+  },
+  { label: '', items: [{ href: '/educator/profile', label: 'Profile', icon: UserCircle }] },
+]
 
 export default function EducatorLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
   const [user, setUser] = useState<{ name: string; branch: { name: string } | null } | null>(null)
-  const [studentsOpen, setStudentsOpen] = useState(false)
-  const [achievementsOpen, setAchievementsOpen] = useState(false)
-  const [mobileOpen, setMobileOpen] = useState(false)
+  const [open, setOpen] = useState(false)
+
+  const activeGroupLabel = NAV_GROUPS.find((g) => g.items.some((i) => !i.external && pathname.startsWith(i.href)))?.label ?? ''
+  const [openGroups, setOpenGroups] = useState<Set<string>>(new Set([activeGroupLabel]))
+
+  function toggleGroup(label: string) {
+    setOpenGroups((prev) => {
+      const next = new Set(prev)
+      next.has(label) ? next.delete(label) : next.add(label)
+      return next
+    })
+  }
 
   useEffect(() => {
     fetch('/api/auth/me').then((r) => {
@@ -22,231 +78,94 @@ export default function EducatorLayout({ children }: { children: React.ReactNode
     }).then((d) => d && setUser(d.user))
   }, [router])
 
-  // Close dropdowns when navigating away from their section
-  useEffect(() => {
-    if (!pathname.startsWith('/educator/student')) setStudentsOpen(false)
-    if (!pathname.startsWith('/educator/recognition') && !pathname.startsWith('/educator/certificate') && pathname !== '/leaderboard') setAchievementsOpen(false)
-    setMobileOpen(false)
-  }, [pathname])
+  useEffect(() => { setOpen(false) }, [pathname])
 
   async function logout() {
     await fetch('/api/auth/logout', { method: 'POST' })
     router.push('/login')
   }
 
-  const inStudents = pathname.startsWith('/educator/student')
-  const inAchievements = pathname.startsWith('/educator/recognition') || pathname.startsWith('/educator/certificate') || pathname === '/leaderboard'
+  const sidebar = (
+    <aside className={`fixed inset-y-0 left-0 z-40 w-60 bg-midnight flex flex-col transform transition-transform lg:relative lg:translate-x-0 ${open ? 'translate-x-0' : '-translate-x-full'}`}>
+      <div className="p-6 border-b border-white/10">
+        <RysenLogo size="sm" light />
+      </div>
+
+      <nav className="flex-1 p-4 flex flex-col gap-1 overflow-y-auto">
+        {NAV_GROUPS.map((group, gi) => {
+          if (!group.label) {
+            return group.items.map((item) => {
+              const active = item.external ? false : pathname.startsWith(item.href)
+              const Comp = item.external ? 'a' : Link
+              return (
+                <Comp key={item.href} href={item.href} onClick={() => setOpen(false)}
+                  {...(item.external ? { target: '_blank', rel: 'noreferrer' } : {})}
+                  className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${active ? 'bg-gold text-midnight' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
+                  <item.icon size={18} />
+                  {item.label}
+                </Comp>
+              )
+            })
+          }
+          const isOpen = openGroups.has(group.label)
+          const groupActive = group.items.some((i) => !i.external && pathname.startsWith(i.href))
+          return (
+            <div key={`${group.label}-${gi}`} className="mt-1">
+              <button
+                onClick={() => toggleGroup(group.label)}
+                className={`w-full flex items-center justify-between px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wide transition-colors ${groupActive ? 'text-gold' : 'text-white/40 hover:text-white/70'}`}>
+                {group.label}
+                <ChevronDown size={14} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {isOpen && (
+                <div className="flex flex-col gap-1 mt-1">
+                  {group.items.map((item) => {
+                    const active = item.external ? false : pathname.startsWith(item.href)
+                    const Comp = item.external ? 'a' : Link
+                    return (
+                      <Comp key={item.href} href={item.href} onClick={() => setOpen(false)}
+                        {...(item.external ? { target: '_blank', rel: 'noreferrer' } : {})}
+                        className={`flex items-center gap-3 pl-6 pr-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${active ? 'bg-gold text-midnight' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
+                        <item.icon size={16} />
+                        {item.label}
+                      </Comp>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </nav>
+
+      <div className="p-4 border-t border-white/10">
+        {user && (
+          <div className="px-4 py-2 mb-2">
+            <p className="text-white text-sm font-medium truncate">{user.name}</p>
+            <p className="text-white/40 text-xs">{user.branch?.name}</p>
+          </div>
+        )}
+        <button onClick={logout} className="flex items-center gap-3 px-4 py-2.5 w-full rounded-xl text-sm font-medium text-white/60 hover:text-white hover:bg-white/10 transition-colors">
+          <LogOut size={18} />
+          Sign Out
+        </button>
+      </div>
+    </aside>
+  )
 
   return (
-    <div className="min-h-screen bg-cream">
-      <header className="bg-midnight sticky top-0 z-20">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <RysenLogo size="sm" light />
-            <nav className="hidden sm:flex items-center gap-1">
-              <Link href="/educator/dashboard"
-                className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg transition-colors ${pathname === '/educator/dashboard' ? 'bg-white/15 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
-                <LayoutDashboard size={15} /> My Journey
-              </Link>
-
-              {/* Students dropdown */}
-              <div className="relative">
-                <button
-                  onClick={() => setStudentsOpen((v) => !v)}
-                  className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg transition-colors ${inStudents ? 'bg-gold text-midnight font-semibold' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
-                  <School size={15} /> Students <ChevronDown size={13} className={`transition-transform ${studentsOpen ? 'rotate-180' : ''}`} />
-                </button>
-                {studentsOpen && (
-                  <div className="absolute top-full left-0 mt-1 w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-50">
-                    <Link href="/educator/students" onClick={() => setStudentsOpen(false)}
-                      className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-charcoal hover:bg-midnight/5 hover:text-midnight transition-colors">
-                      <School size={15} className="text-midnight/50" /> Manage Students
-                    </Link>
-                    <Link href="/educator/student-tests" onClick={() => setStudentsOpen(false)}
-                      className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-charcoal hover:bg-midnight/5 hover:text-midnight transition-colors">
-                      <ClipboardList size={15} className="text-midnight/50" /> Student Tests
-                    </Link>
-                    <Link href="/educator/results" onClick={() => setStudentsOpen(false)}
-                      className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-charcoal hover:bg-midnight/5 hover:text-midnight transition-colors">
-                      <Award size={15} className="text-midnight/50" /> Student Results
-                    </Link>
-                    <Link href="/educator/students/progress" onClick={() => setStudentsOpen(false)}
-                      className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-charcoal hover:bg-midnight/5 hover:text-midnight transition-colors">
-                      <BarChart3 size={15} className="text-midnight/50" /> Student Progress
-                    </Link>
-                    <Link href="/educator/analytics" onClick={() => setStudentsOpen(false)}
-                      className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-charcoal hover:bg-midnight/5 hover:text-midnight transition-colors">
-                      <TrendingUp size={15} className="text-midnight/50" /> Class Analytics
-                    </Link>
-                    <div className="border-t border-gray-100 my-1" />
-                    <a href="/student/leaderboard" target="_blank" rel="noreferrer"
-                      className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-charcoal hover:bg-midnight/5 hover:text-midnight transition-colors">
-                      <Trophy size={15} className="text-midnight/50" /> Student Leaderboard ↗
-                    </a>
-                  </div>
-                )}
-              </div>
-
-              <Link href="/educator/programs"
-                className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg transition-colors ${pathname.startsWith('/educator/programs') ? 'bg-white/15 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
-                <Layers size={15} /> Programs
-              </Link>
-
-              <Link href="/educator/tasks"
-                className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg transition-colors ${pathname.startsWith('/educator/tasks') ? 'bg-white/15 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
-                <ListTodo size={15} /> My Tasks
-              </Link>
-
-              <Link href="/educator/resources"
-                className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg transition-colors ${pathname === '/educator/resources' ? 'bg-white/15 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
-                <FolderOpen size={15} /> Resources
-              </Link>
-
-              <Link href="/educator/groups"
-                className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg transition-colors ${pathname.startsWith('/educator/groups') ? 'bg-gold text-midnight font-semibold' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
-                <Users size={15} /> My Groups
-              </Link>
-
-              <Link href="/educator/profile"
-                className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg transition-colors ${pathname === '/educator/profile' ? 'bg-white/15 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
-                <UserCircle size={15} /> Profile
-              </Link>
-
-              {/* Achievements dropdown — Recognition, Leaderboard, Certificate all in one place */}
-              <div className="relative">
-                <button
-                  onClick={() => setAchievementsOpen((v) => !v)}
-                  className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg transition-colors ${inAchievements ? 'bg-gold text-midnight font-semibold' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
-                  <Trophy size={15} /> Achievements <ChevronDown size={13} className={`transition-transform ${achievementsOpen ? 'rotate-180' : ''}`} />
-                </button>
-                {achievementsOpen && (
-                  <div className="absolute top-full left-0 mt-1 w-56 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-50">
-                    <Link href="/educator/recognition" onClick={() => setAchievementsOpen(false)}
-                      className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-charcoal hover:bg-midnight/5 hover:text-midnight transition-colors">
-                      <Trophy size={15} className="text-midnight/50" /> Recognition & Monthly Scores
-                    </Link>
-                    <Link href="/leaderboard" onClick={() => setAchievementsOpen(false)}
-                      className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-charcoal hover:bg-midnight/5 hover:text-midnight transition-colors">
-                      <Users size={15} className="text-midnight/50" /> Campus Leaderboard
-                    </Link>
-                    <Link href="/educator/certificate" onClick={() => setAchievementsOpen(false)}
-                      className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-charcoal hover:bg-midnight/5 hover:text-midnight transition-colors">
-                      <Award size={15} className="text-midnight/50" /> Training Certificate
-                    </Link>
-                  </div>
-                )}
-              </div>
-            </nav>
-          </div>
-
-          <div className="flex items-center gap-3">
-            {user && (
-              <div className="hidden sm:block text-right">
-                <p className="text-white text-sm font-medium">{user.name}</p>
-                <p className="text-white/40 text-xs">{user.branch?.name}</p>
-              </div>
-            )}
-            {/* Mobile: hamburger menu */}
-            <button
-              onClick={() => setMobileOpen((v) => !v)}
-              className="sm:hidden text-white/70 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition-colors"
-              title="Menu">
-              {mobileOpen ? <X size={18} /> : <Menu size={18} />}
-            </button>
-            <Link href="/educator/ai-assistant"
-              className={`p-1.5 rounded-lg transition-colors ${pathname === '/educator/ai-assistant' ? 'bg-gold text-midnight' : 'text-white/70 hover:text-white hover:bg-white/10'}`}
-              title="Ask RYSEN AI">
-              <Bot size={18} />
-            </Link>
-            <NotificationBell taskPath="/educator/tasks" />
-            <button onClick={logout} className="text-white/50 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition-colors">
-              <LogOut size={18} />
-            </button>
-          </div>
-        </div>
-
-        {/* Mobile nav panel */}
-        {mobileOpen && (
-          <nav className="sm:hidden border-t border-white/10 px-4 py-2 max-h-[70vh] overflow-y-auto">
-            <Link href="/educator/dashboard"
-              className={`flex items-center gap-2.5 text-sm px-3 py-2.5 rounded-lg transition-colors ${pathname === '/educator/dashboard' ? 'bg-white/15 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
-              <LayoutDashboard size={16} /> My Journey
-            </Link>
-            <p className="px-3 pt-3 pb-1 text-[10px] uppercase tracking-wide text-white/30">Students</p>
-            <Link href="/educator/students"
-              className="flex items-center gap-2.5 text-sm px-3 py-2.5 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors">
-              <School size={16} /> Manage Students
-            </Link>
-            <Link href="/educator/student-tests"
-              className="flex items-center gap-2.5 text-sm px-3 py-2.5 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors">
-              <ClipboardList size={16} /> Student Tests
-            </Link>
-            <Link href="/educator/results"
-              className="flex items-center gap-2.5 text-sm px-3 py-2.5 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors">
-              <Award size={16} /> Student Results
-            </Link>
-            <Link href="/educator/students/progress"
-              className="flex items-center gap-2.5 text-sm px-3 py-2.5 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors">
-              <BarChart3 size={16} /> Student Progress
-            </Link>
-            <Link href="/educator/analytics"
-              className="flex items-center gap-2.5 text-sm px-3 py-2.5 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors">
-              <TrendingUp size={16} /> Class Analytics
-            </Link>
-            <a href="/student/leaderboard" target="_blank" rel="noreferrer"
-              className="flex items-center gap-2.5 text-sm px-3 py-2.5 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors">
-              <Trophy size={16} /> Student Leaderboard ↗
-            </a>
-            <div className="border-t border-white/10 my-2" />
-            <Link href="/educator/programs"
-              className={`flex items-center gap-2.5 text-sm px-3 py-2.5 rounded-lg transition-colors ${pathname.startsWith('/educator/programs') ? 'bg-white/15 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
-              <Layers size={16} /> Programs
-            </Link>
-            <Link href="/educator/tasks"
-              className={`flex items-center gap-2.5 text-sm px-3 py-2.5 rounded-lg transition-colors ${pathname.startsWith('/educator/tasks') ? 'bg-white/15 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
-              <ListTodo size={16} /> My Tasks
-            </Link>
-            <Link href="/educator/resources"
-              className={`flex items-center gap-2.5 text-sm px-3 py-2.5 rounded-lg transition-colors ${pathname === '/educator/resources' ? 'bg-white/15 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
-              <FolderOpen size={16} /> Resources
-            </Link>
-            <Link href="/educator/groups"
-              className={`flex items-center gap-2.5 text-sm px-3 py-2.5 rounded-lg transition-colors ${pathname.startsWith('/educator/groups') ? 'bg-gold text-midnight font-semibold' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
-              <Users size={16} /> My Groups
-            </Link>
-            <Link href="/educator/profile"
-              className={`flex items-center gap-2.5 text-sm px-3 py-2.5 rounded-lg transition-colors ${pathname === '/educator/profile' ? 'bg-white/15 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
-              <UserCircle size={16} /> Profile
-            </Link>
-            <div className="border-t border-white/10 my-2" />
-            <p className="px-3 pb-1 text-[10px] uppercase tracking-wide text-white/30">Achievements</p>
-            <Link href="/educator/recognition"
-              className="flex items-center gap-2.5 text-sm px-3 py-2.5 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors">
-              <Trophy size={16} /> Recognition & Monthly Scores
-            </Link>
-            <Link href="/leaderboard"
-              className="flex items-center gap-2.5 text-sm px-3 py-2.5 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors">
-              <Users size={16} /> Campus Leaderboard
-            </Link>
-            <Link href="/educator/certificate"
-              className="flex items-center gap-2.5 text-sm px-3 py-2.5 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors">
-              <Award size={16} /> Training Certificate
-            </Link>
-            {user && (
-              <div className="px-3 pt-3 pb-1 mt-2 border-t border-white/10">
-                <p className="text-white text-sm font-medium">{user.name}</p>
-                <p className="text-white/40 text-xs">{user.branch?.name}</p>
-              </div>
-            )}
-          </nav>
-        )}
-      </header>
-
-      {/* Click outside to close dropdown */}
-      {studentsOpen && <div className="fixed inset-0 z-10" onClick={() => setStudentsOpen(false)} />}
-      {achievementsOpen && <div className="fixed inset-0 z-10" onClick={() => setAchievementsOpen(false)} />}
-
-      <main className="max-w-6xl mx-auto px-4 py-8">{children}</main>
+    <div className="min-h-screen flex bg-cream">
+      {sidebar}
+      {open && <div className="fixed inset-0 z-30 bg-black/50 lg:hidden" onClick={() => setOpen(false)} />}
+      <div className="flex-1 flex flex-col min-w-0">
+        <header className="sticky top-0 z-20 bg-midnight border-b border-white/10 px-4 py-3 flex items-center gap-3">
+          <button onClick={() => setOpen(true)} className="lg:hidden"><Menu size={22} className="text-white" /></button>
+          <div className="lg:hidden"><RysenLogo size="sm" light /></div>
+          <div className="flex-1" />
+          <NotificationBell taskPath="/educator/tasks" />
+        </header>
+        <main className="flex-1 p-6 lg:p-8 max-w-6xl w-full mx-auto">{children}</main>
+      </div>
     </div>
   )
 }
