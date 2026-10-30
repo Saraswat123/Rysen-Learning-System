@@ -514,7 +514,7 @@ EXAMPLE FLOWS the user might say:
       let response: Awaited<ReturnType<typeof groq.chat.completions.create>>
       try {
         response = await groq.chat.completions.create({
-          model: 'llama-3.3-70b-versatile',
+          model: 'openai/gpt-oss-120b',
           messages: msgHistory,
           tools: TOOLS,
           tool_choice: 'auto',
@@ -525,7 +525,7 @@ EXAMPLE FLOWS the user might say:
         const errMsg = groqErr instanceof Error ? groqErr.message : String(groqErr)
         if (errMsg.includes('tool_use_failed') || errMsg.includes('tool call validation')) {
           response = await groq.chat.completions.create({
-            model: 'llama-3.3-70b-versatile',
+            model: 'openai/gpt-oss-120b',
             messages: msgHistory,
             max_tokens: 2000,
           })
