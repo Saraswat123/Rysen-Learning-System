@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import {
   Trophy, Medal, Award, Lock, CheckCircle2, ChevronDown, ChevronUp, Save, Loader2,
-  Sparkles, Settings, Plus, X, Pencil, Trash2, UserPlus, Square, SquareCheck, Users, FileSpreadsheet, FileText,
+  Sparkles, Settings, Plus, X, Pencil, Trash2, UserPlus, Square, SquareCheck, Users, FileSpreadsheet, FileText, Wand2,
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 
@@ -39,6 +39,7 @@ export default function AdminRewardsPage() {
   const [drafts, setDrafts] = useState<Record<string, { scores?: Record<string, number>; comment?: string }>>({})
   const [saving, setSaving] = useState<string | null>(null)
   const [finalizing, setFinalizing] = useState(false)
+  const [suggesting, setSuggesting] = useState(false)
   const [toast, setToast] = useState('')
 
   // Category management modal
@@ -156,6 +157,35 @@ export default function AdminRewardsPage() {
       setTimeout(() => setToast(''), 5000)
     } finally {
       setFinalizing(false)
+    }
+  }
+
+  // Fills in only the criteria backed by real tracked data (e.g. Student Test
+  // Conduction, from actual attempt counts) — never invents a score for
+  // subjective criteria like Punctuality. Populates drafts for review; admin
+  // still has to click Save/Finalize, nothing is written by this call.
+  async function suggestScores() {
+    if (!categoryId) return
+    setSuggesting(true)
+    try {
+      const res = await fetch(`/api/admin/educator-ratings/suggest?categoryId=${categoryId}&period=${period}`)
+      const data = await res.json()
+      if (!res.ok) { setToast(data.error ?? 'Failed to compute suggestions'); return }
+      if (!data.criteriaCovered?.length) { setToast(data.message ?? 'No data-backed criteria in this category'); return }
+      setDrafts((prev) => {
+        const next = { ...prev }
+        for (const [userId, scores] of Object.entries(data.suggestions as Record<string, Record<string, number>>)) {
+          next[userId] = { ...next[userId], scores: { ...next[userId]?.scores, ...scores } }
+        }
+        return next
+      })
+      const labels = data.criteriaCovered.map((c: { label: string }) => c.label).join(', ')
+      setToast(`Suggested scores filled in for: ${labels} — review and save`)
+      setTimeout(() => setToast(''), 5000)
+    } catch {
+      setToast('Failed to compute suggestions — network error')
+    } finally {
+      setSuggesting(false)
     }
   }
 
@@ -398,6 +428,13 @@ export default function AdminRewardsPage() {
             <button onClick={openMembers}
               className="flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border border-gray-200 text-charcoal/60 hover:bg-gray-50 transition-colors">
               <Users size={13} /> Members
+            </button>
+          )}
+          {categoryId && rows.length > 0 && (
+            <button onClick={suggestScores} disabled={suggesting}
+              title="Fills in only criteria backed by real tracked data (e.g. Student Test Conduction) — review before saving"
+              className="flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border border-gold/40 text-midnight bg-gold/10 hover:bg-gold/20 transition-colors disabled:opacity-50">
+              <Wand2 size={13} /> {suggesting ? 'Computing…' : 'Suggest Scores'}
             </button>
           )}
           {categoryId && rows.length > 0 && (
