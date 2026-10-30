@@ -205,6 +205,20 @@ const TOOLS: Groq.Chat.Completions.ChatCompletionTool[] = [
   {
     type: 'function',
     function: {
+      name: 'get_test_completion_stats',
+      description:
+        'Get student test completion stats per campus/branch — how many students have attempted a given student test vs. total students eligible, pass rate, average score. Use this for any question about student test / quiz completion, results, or participation by campus.',
+      parameters: {
+        type: 'object',
+        properties: {
+          testTitle: { type: 'string', description: 'Search string to match the test title, e.g. "STEM" (optional — omit to cover all published student tests)' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'send_reminder',
       description: 'Send email and/or WhatsApp reminder for a task to specific educators or all assignees',
       parameters: {
@@ -388,6 +402,39 @@ async function executeTool(name: string, args: Record<string, unknown>, userId: 
       })
       return branches.map((b) => ({ id: b.id, name: b.name, location: b.location, educators: b._count.users }))
     }
+    case 'get_test_completion_stats': {
+      const testTitle = args.testTitle as string | undefined
+      const tests = await db.studentTest.findMany({
+        where: testTitle ? { title: { contains: testTitle, mode: 'insensitive' } } : { isPublished: true },
+        select: { id: true, title: true, targetClass: true, branchId: true, branch: { select: { id: true, name: true } } },
+      })
+      if (!tests.length) return { error: `No student test found matching "${testTitle ?? ''}"` }
+
+      const branches = await db.branch.findMany({ select: { id: true, name: true } })
+      const results: Record<string, unknown>[] = []
+      for (const test of tests) {
+        const scopedBranches = test.branchId ? branches.filter((b) => b.id === test.branchId) : branches
+        for (const branch of scopedBranches) {
+          const studentWhere = { branchId: branch.id, isActive: true, ...(test.targetClass ? { class: test.targetClass } : {}) }
+          const [totalStudents, attempts] = await Promise.all([
+            db.student.count({ where: studentWhere }),
+            db.studentAttempt.findMany({ where: { testId: test.id, student: studentWhere }, select: { studentId: true, score: true, totalMarks: true, passed: true } }),
+          ])
+          const attemptedStudentIds = new Set(attempts.map((a) => a.studentId))
+          const passedCount = attempts.filter((a) => a.passed).length
+          const avgScorePct = attempts.length
+            ? Math.round((attempts.reduce((sum, a) => sum + (a.totalMarks ? a.score / a.totalMarks : 0), 0) / attempts.length) * 100)
+            : 0
+          results.push({
+            test: test.title, campus: branch.name,
+            totalStudents, studentsAttempted: attemptedStudentIds.size,
+            completionPct: totalStudents ? Math.round((attemptedStudentIds.size / totalStudents) * 100) : 0,
+            passed: passedCount, avgScorePct,
+          })
+        }
+      }
+      return results
+    }
     case 'send_reminder': {
       const { taskId, userIds, channels, message } = args as { taskId: string; userIds?: string[]; channels?: string[]; message?: string }
       const task = await db.task.findUnique({
@@ -480,6 +527,7 @@ CAPABILITIES (use tools proactively — chain multiple tools in one response):
 - Send email + WhatsApp reminders for any task
 - Update or delete tasks
 - List tasks, groups, educators, branches
+- Report student test completion / results by campus (get_test_completion_stats) — use this for ANY question about how many campuses/students have done a test, pass rates, or average scores. Never say you don't have access to this data.
 
 WORKFLOW RULES:
 - CRITICAL: Call ONE tool per step. NEVER call create_task and add_resource or add_subtask in the same step. Wait for create_task to return the real task ID, then use that ID in the next step.

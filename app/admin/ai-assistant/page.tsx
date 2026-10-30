@@ -30,6 +30,7 @@ const TOOL_LABELS: Record<string, string> = {
   assign_group_to_task: '⊕ Group Assigned',
   get_task: '↓ Task Details Fetched',
   send_reminder: '🔔 Reminders Sent',
+  get_test_completion_stats: '↓ Test Stats Fetched',
 }
 
 const SUGGESTIONS = [
