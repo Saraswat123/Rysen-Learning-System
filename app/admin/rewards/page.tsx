@@ -6,6 +6,7 @@ import {
   Sparkles, Settings, Plus, X, Pencil, Trash2, UserPlus, Square, SquareCheck, Users, FileSpreadsheet, FileText, Wand2,
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
+import StarRating from '@/components/ui/StarRating'
 
 interface Criterion { id: string; label: string; order: number; isAutoTest: boolean }
 interface Category { id: string; name: string; memberCount: number; criteria: Criterion[] }
@@ -505,8 +506,8 @@ export default function AdminRewardsPage() {
                   </div>
                   <div className="flex items-center gap-4">
                     <div className="text-right">
-                      <p className="text-lg font-bold text-midnight">{row.average}<span className="text-xs text-charcoal/30">/10</span></p>
-                      <p className="text-xs text-charcoal/40">average</p>
+                      <StarRating score={row.average} readonly size={15} />
+                      <p className="text-xs text-charcoal/40 mt-0.5">{row.average}/10 average</p>
                     </div>
                     {isOpen ? <ChevronUp size={16} className="text-charcoal/30" /> : <ChevronDown size={16} className="text-charcoal/30" />}
                   </div>
@@ -522,12 +523,12 @@ export default function AdminRewardsPage() {
                             {s.label}{s.isAutoTest ? ' (auto)' : ''}
                           </span>
                           {s.isAutoTest ? (
-                            <span className="w-14 text-center text-sm font-bold text-midnight">{s.score}</span>
+                            <StarRating score={s.score} readonly size={15} />
                           ) : (
-                            <input type="number" min={0} max={10}
-                              value={getDraftScore(row, s.criterionId, s.score)}
-                              onChange={(e) => setDraftScore(row.userId, s.criterionId, Number(e.target.value))}
-                              className="w-14 text-center border border-gray-200 rounded-lg px-2 py-1 text-sm font-bold text-midnight focus:outline-none focus:ring-2 focus:ring-midnight/20" />
+                            <StarRating
+                              score={getDraftScore(row, s.criterionId, s.score)}
+                              onChange={(v) => setDraftScore(row.userId, s.criterionId, v)}
+                              size={18} />
                           )}
                         </div>
                       ))}

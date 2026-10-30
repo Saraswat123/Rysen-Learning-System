@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Trophy, Medal, Award, Download, Sparkles, Lock } from 'lucide-react'
+import StarRating from '@/components/ui/StarRating'
 
 interface LeaderboardRow {
   rank: number; userId: string; name: string; branch: string | null
@@ -375,7 +376,8 @@ export default function RecognitionPage() {
               <RankIcon rank={myDetail.rank} />
               <div>
                 <p className="text-white/60 text-xs">{periodLabel(data.period)}</p>
-                <p className="text-xl font-bold">Rank #{myDetail.rank} · {myDetail.average}/10</p>
+                <p className="text-xl font-bold">Rank #{myDetail.rank}</p>
+                <StarRating score={myDetail.average} readonly size={16} />
                 {isTop3 && <p className="text-gold text-sm font-semibold mt-0.5">🏆 {data.categoryName} recognition this month!</p>}
               </div>
             </div>
@@ -400,7 +402,7 @@ export default function RecognitionPage() {
                 <p className="text-xs text-white/50 truncate flex items-center gap-1">
                   {s.isAutoTest && <Sparkles size={10} className="text-gold" />}{s.label}
                 </p>
-                <p className="text-lg font-bold mt-0.5">{s.score}/10</p>
+                <div className="mt-1"><StarRating score={s.score} readonly size={13} /></div>
               </div>
             ))}
           </div>
@@ -437,7 +439,7 @@ export default function RecognitionPage() {
                   <p className="text-xs text-charcoal/40">{row.branch ?? 'No campus'}</p>
                 </div>
               </div>
-              <p className="text-sm font-bold text-midnight">{row.average}/10</p>
+              <StarRating score={row.average} readonly size={14} />
             </div>
           ))}
         </div>
