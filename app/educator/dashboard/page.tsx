@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Lock, CheckCircle, ChevronRight, BookOpen, Award, Layers, Plus, LogIn, GraduationCap, School, ClipboardList, Trophy, ListTodo } from 'lucide-react'
+import { Lock, CheckCircle, ChevronRight, BookOpen, Award, Layers, Plus, LogIn, GraduationCap, School, ClipboardList, Trophy, ListTodo, Bot } from 'lucide-react'
 
 interface Progress { passed: boolean; bestScore: number | null; attempts: number; docRead: boolean }
 interface StageData {
@@ -152,6 +152,20 @@ export default function EducatorDashboard() {
         <h1 className="text-2xl font-bold text-midnight">Welcome, {user?.name?.split(' ')[0]} 👋</h1>
         <p className="text-charcoal/60 text-sm mt-1">Your RYSEN Learning Journey</p>
       </div>
+
+      {/* Rysen AI — one tap to the assistant, right where the educator already is */}
+      <Link href="/educator/ai-assistant">
+        <div className="mb-8 bg-midnight rounded-2xl p-5 flex items-center gap-4 hover:bg-midnight/90 transition-colors cursor-pointer group">
+          <div className="w-12 h-12 rounded-xl bg-gold flex items-center justify-center flex-shrink-0">
+            <Bot size={22} className="text-midnight" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-white font-bold">Ask Rysen AI</p>
+            <p className="text-white/50 text-sm">Create tasks, check student progress, draft reminders — just ask</p>
+          </div>
+          <ChevronRight size={20} className="text-white/40 group-hover:text-white/70 transition-colors flex-shrink-0" />
+        </div>
+      </Link>
 
       {/* Student Management Quick Access */}
       <div className="mb-8">
