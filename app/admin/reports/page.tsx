@@ -40,26 +40,26 @@ export default function ReportsPage() {
       const XLSX = await import('xlsx')
       const wb = XLSX.utils.book_new()
 
-      // Educator sheet
-      const eduHeaders = ['Branch', 'Location', 'Total Educators', 'Programs Enrolled', 'Stage Attempts', 'Stages Passed', 'Pass %', 'Avg Score (%)', 'Fully Certified']
-      const eduRows = data.educatorReport.map((r) => [
-        r.branch, r.location, r.totalEducators, r.programsEnrolled,
-        r.stageAttempts, r.stagesPassed, r.passPercent, r.avgScore, r.fullyCertified,
-      ])
-      const ws1 = XLSX.utils.aoa_to_sheet([eduHeaders, ...eduRows])
-      ws1['!cols'] = [20, 18, 14, 16, 14, 14, 10, 14, 14].map((w) => ({ wch: w }))
-      XLSX.utils.book_append_sheet(wb, ws1, 'Educator Report')
-
-      // Student sheet
-      const stuHeaders = ['Branch', 'Location', 'Total Students', 'Total Attempts', 'Passed', 'Failed', 'Pass %', 'Avg Score (%)']
-      const stuRows = data.studentReport.map((r) => [
-        r.branch, r.location, r.totalStudents, r.totalAttempts, r.passed, r.failed, r.passPercent, r.avgScore,
-      ])
-      const ws2 = XLSX.utils.aoa_to_sheet([stuHeaders, ...stuRows])
-      ws2['!cols'] = [20, 18, 14, 14, 10, 10, 10, 14].map((w) => ({ wch: w }))
-      XLSX.utils.book_append_sheet(wb, ws2, 'Student Report')
-
-      XLSX.writeFile(wb, `rysen-branch-report-${new Date().toISOString().slice(0, 10)}.xlsx`)
+      if (tab === 'educator') {
+        const eduHeaders = ['Branch', 'Location', 'Total Educators', 'Programs Enrolled', 'Stage Attempts', 'Stages Passed', 'Pass %', 'Avg Score (%)', 'Fully Certified']
+        const eduRows = data.educatorReport.map((r) => [
+          r.branch, r.location, r.totalEducators, r.programsEnrolled,
+          r.stageAttempts, r.stagesPassed, r.passPercent, r.avgScore, r.fullyCertified,
+        ])
+        const ws = XLSX.utils.aoa_to_sheet([eduHeaders, ...eduRows])
+        ws['!cols'] = [20, 18, 14, 16, 14, 14, 10, 14, 14].map((w) => ({ wch: w }))
+        XLSX.utils.book_append_sheet(wb, ws, 'Educator Report')
+        XLSX.writeFile(wb, `rysen-educator-report-${new Date().toISOString().slice(0, 10)}.xlsx`)
+      } else {
+        const stuHeaders = ['Branch', 'Location', 'Total Students', 'Total Attempts', 'Passed', 'Failed', 'Pass %', 'Avg Score (%)']
+        const stuRows = data.studentReport.map((r) => [
+          r.branch, r.location, r.totalStudents, r.totalAttempts, r.passed, r.failed, r.passPercent, r.avgScore,
+        ])
+        const ws = XLSX.utils.aoa_to_sheet([stuHeaders, ...stuRows])
+        ws['!cols'] = [20, 18, 14, 14, 10, 10, 10, 14].map((w) => ({ wch: w }))
+        XLSX.utils.book_append_sheet(wb, ws, 'Student Report')
+        XLSX.writeFile(wb, `rysen-student-report-${new Date().toISOString().slice(0, 10)}.xlsx`)
+      }
     } catch (e) { console.error(e) }
     finally { setExporting(false) }
   }
@@ -92,7 +92,7 @@ export default function ReportsPage() {
         </div>
         <div className="flex gap-2">
           <Button onClick={exportExcel} loading={exporting} variant="ghost" size="sm" className="border border-forest/30 text-forest hover:bg-forest/5">
-            <Download size={14} /> Export Excel
+            <Download size={14} /> Export {tab === 'educator' ? 'Educator' : 'Student'} Report
           </Button>
           <Button onClick={load} loading={loading} variant="ghost" size="sm">
             <RefreshCw size={14} /> Refresh
