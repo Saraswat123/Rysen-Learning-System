@@ -2,7 +2,8 @@
 
 import { useState, useEffect, use } from 'react'
 import Link from 'next/link'
-import { ChevronLeft, Layers, ClipboardList, Check, Save } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { ChevronLeft, Layers, ClipboardList, Check, Save, Plus } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 
@@ -15,6 +16,7 @@ interface AllTest { id: string; title: string; targetClass: string; programId: s
 
 export default function StudentProgramDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
+  const router = useRouter()
   const [program, setProgram] = useState<Program | null>(null)
   const [allTests, setAllTests] = useState<AllTest[]>([])
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
@@ -22,6 +24,9 @@ export default function StudentProgramDetailPage({ params }: { params: Promise<{
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [showNewTopic, setShowNewTopic] = useState(false)
+  const [topicTitle, setTopicTitle] = useState('')
+  const [creatingTopic, setCreatingTopic] = useState(false)
 
   async function load() {
     setLoading(true)
@@ -59,6 +64,24 @@ export default function StudentProgramDetailPage({ params }: { params: Promise<{
     load()
   }
 
+  async function createTopic(e: React.FormEvent) {
+    e.preventDefault()
+    if (!topicTitle.trim()) return
+    setCreatingTopic(true)
+    const res = await fetch('/api/student-tests', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: topicTitle.trim(),
+        targetClass: form.targetClass || program?.targetClass || '',
+        programId: id,
+      }),
+    })
+    const data = await res.json()
+    setCreatingTopic(false)
+    if (res.ok) router.push(`/educator/student-tests/${data.id}`)
+  }
+
   if (loading || !program) {
     return <div className="flex justify-center py-16"><div className="w-8 h-8 border-4 border-midnight border-t-transparent rounded-full animate-spin" /></div>
   }
@@ -91,9 +114,31 @@ export default function StudentProgramDetailPage({ params }: { params: Promise<{
         </div>
       </div>
 
+      {showNewTopic && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md mx-4">
+            <h2 className="text-lg font-bold text-midnight mb-1">New Topic</h2>
+            <p className="text-xs text-charcoal/50 mb-4">Creates a new MCQ test inside this program. You'll add questions on the next screen.</p>
+            <form onSubmit={createTopic} className="flex flex-col gap-3">
+              <Input label="Topic Title" placeholder="e.g. Photosynthesis Basics" value={topicTitle} onChange={(e) => setTopicTitle(e.target.value)} required autoFocus />
+              <div className="flex gap-3 mt-2">
+                <Button type="button" onClick={() => { setShowNewTopic(false); setTopicTitle('') }} className="flex-1 bg-gray-100 text-charcoal hover:bg-gray-200">Cancel</Button>
+                <Button type="submit" loading={creatingTopic} className="flex-1">Create &amp; Add Questions</Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       <div className="bg-white rounded-2xl border border-gray-100 p-6">
-        <h2 className="text-sm font-bold text-midnight uppercase tracking-wide mb-1">Tests in this Program</h2>
-        <p className="text-xs text-charcoal/50 mb-4">Pick from your branch's existing tests. Students see these grouped under "{form.title || program.title}".</p>
+        <div className="flex items-center justify-between mb-1">
+          <h2 className="text-sm font-bold text-midnight uppercase tracking-wide">Topics in this Program</h2>
+          <button type="button" onClick={() => setShowNewTopic(true)}
+            className="flex items-center gap-1.5 text-xs font-bold text-midnight hover:underline">
+            <Plus size={13} /> New Topic
+          </button>
+        </div>
+        <p className="text-xs text-charcoal/50 mb-4">Create a new topic above, or attach one of your branch's existing tests below. Students see these grouped under "{form.title || program.title}".</p>
         <div className="flex flex-col gap-2 max-h-96 overflow-y-auto">
           {allTests.map((t) => {
             const locked = otherProgramTestIds.has(t.id)

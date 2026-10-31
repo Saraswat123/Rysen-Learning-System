@@ -93,6 +93,7 @@ export async function POST(req: NextRequest) {
         order: (maxOrder._max.order ?? 0) + 1,
         createdBy: user.role,
         branchId,
+        programId: body.programId ?? null,
         startAt: body.startAt ? new Date(body.startAt) : null,
         endAt: body.endAt ? new Date(body.endAt) : null,
       },
