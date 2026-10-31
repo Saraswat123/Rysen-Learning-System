@@ -6,6 +6,7 @@ import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Link from 'next/link'
 import QuestionPdfImport from '@/components/QuestionPdfImport'
+import TopicContentEditor, { type ContentBlock } from '@/components/TopicContentEditor'
 
 interface Option { id: string; text: string }
 interface Question {
@@ -122,18 +123,21 @@ export default function StudentTestEditorPage({ params }: { params: Promise<{ id
   const [saved, setSaved] = useState(false)
   const [meta, setMeta] = useState<Partial<TestMeta>>({})
   const [branches, setBranches] = useState<Branch[]>([])
+  const [contentBlocks, setContentBlocks] = useState<ContentBlock[]>([])
 
   useEffect(() => {
     async function load() {
-      const [t, q, b] = await Promise.all([
+      const [t, q, b, c] = await Promise.all([
         fetch(`/api/student-tests/${id}`).then((r) => r.json()),
         fetch(`/api/student-tests/${id}/questions`).then((r) => r.json()),
         fetch('/api/branches').then((r) => r.json()),
+        fetch(`/api/student-tests/${id}/content`).then((r) => r.json()),
       ])
       setTest(t)
       setMeta({ title: t.title, description: t.description, subject: t.subject, targetClass: t.targetClass, timeLimitMinutes: t.timeLimitMinutes, passScore: t.passScore, isPublished: t.isPublished, branchId: t.branchId })
       setQuestions(Array.isArray(q) ? q : [])
       setBranches(Array.isArray(b) ? b : [])
+      setContentBlocks(Array.isArray(c) ? c : [])
       setLoading(false)
     }
     load()
@@ -188,6 +192,11 @@ export default function StudentTestEditorPage({ params }: { params: Promise<{ id
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(questions.map((q, i) => ({ ...q, order: i }))),
+      }),
+      fetch(`/api/student-tests/${id}/content`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(contentBlocks.map((b, i) => ({ ...b, order: i }))),
       }),
     ])
     setSaving(false)
@@ -272,6 +281,8 @@ export default function StudentTestEditorPage({ params }: { params: Promise<{ id
           </div>
         </div>
       </div>
+
+      <TopicContentEditor testId={id} blocks={contentBlocks} onChange={setContentBlocks} />
 
       {/* Questions */}
       <div className="flex flex-col gap-4 mb-6">

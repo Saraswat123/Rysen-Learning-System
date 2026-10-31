@@ -6,6 +6,7 @@ import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Link from 'next/link'
 import QuestionPdfImport from '@/components/QuestionPdfImport'
+import TopicContentEditor, { type ContentBlock } from '@/components/TopicContentEditor'
 
 interface Option { id: string; text: string }
 interface Question {
@@ -116,6 +117,7 @@ export default function StudentTestEditorPage({ params }: { params: Promise<{ id
   const { id } = use(params)
   const [test, setTest] = useState<TestMeta | null>(null)
   const [questions, setQuestions] = useState<Question[]>([])
+  const [contentBlocks, setContentBlocks] = useState<ContentBlock[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -123,13 +125,15 @@ export default function StudentTestEditorPage({ params }: { params: Promise<{ id
 
   useEffect(() => {
     async function load() {
-      const [t, q] = await Promise.all([
+      const [t, q, c] = await Promise.all([
         fetch(`/api/student-tests/${id}`).then((r) => r.json()),
         fetch(`/api/student-tests/${id}/questions`).then((r) => r.json()),
+        fetch(`/api/student-tests/${id}/content`).then((r) => r.json()),
       ])
       setTest(t)
       setMeta({ title: t.title, description: t.description, subject: t.subject, targetClass: t.targetClass, timeLimitMinutes: t.timeLimitMinutes, passScore: t.passScore, isPublished: t.isPublished })
       setQuestions(Array.isArray(q) ? q : [])
+      setContentBlocks(Array.isArray(c) ? c : [])
       setLoading(false)
     }
     load()
@@ -179,6 +183,11 @@ export default function StudentTestEditorPage({ params }: { params: Promise<{ id
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(questions.map((q, i) => ({ ...q, order: i }))),
+      }),
+      fetch(`/api/student-tests/${id}/content`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(contentBlocks.map((b, i) => ({ ...b, order: i }))),
       }),
     ])
     setSaving(false)
@@ -250,6 +259,8 @@ export default function StudentTestEditorPage({ params }: { params: Promise<{ id
           </div>
         </div>
       </div>
+
+      <TopicContentEditor testId={id} blocks={contentBlocks} onChange={setContentBlocks} />
 
       {/* Questions */}
       <div className="flex flex-col gap-4 mb-6">

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, use } from 'react'
 import { useRouter } from 'next/navigation'
-import { Clock, ChevronLeft, ChevronRight, CheckCircle, XCircle, Send, Download, LayoutDashboard, Trophy } from 'lucide-react'
+import { Clock, ChevronLeft, ChevronRight, CheckCircle, XCircle, Send, Download, LayoutDashboard, Trophy, FileText, Video, Music, Link2, ExternalLink } from 'lucide-react'
 import Button from '@/components/ui/Button'
 
 interface Option { id: string; text: string }
@@ -14,8 +14,54 @@ interface Question {
 interface ResultQuestion extends Question {
   correctId: string; explanation: string | null; yourAnswer: string | null; correct: boolean
 }
+interface ContentBlock { id: string; type: string; title: string; url: string }
 interface TestData {
   id: string; title: string; timeLimitMinutes: number; passScore: number; questions: Question[]
+  contentBlocks: ContentBlock[]
+}
+
+function youtubeEmbedUrl(url: string) {
+  const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/)
+  return match ? `https://www.youtube.com/embed/${match[1]}` : null
+}
+
+function StudyMaterials({ blocks }: { blocks: ContentBlock[] }) {
+  return (
+    <div className="flex flex-col gap-3 mb-6">
+      {blocks.map((b) => {
+        const yt = b.type === 'VIDEO_LINK' ? youtubeEmbedUrl(b.url) : null
+        return (
+          <div key={b.id} className="bg-white rounded-2xl border border-gray-100 p-4">
+            <div className="flex items-center gap-2 mb-2">
+              {b.type === 'PDF' && <FileText size={16} className="text-midnight/60" />}
+              {(b.type === 'VIDEO_UPLOAD' || b.type === 'VIDEO_LINK') && <Video size={16} className="text-midnight/60" />}
+              {b.type === 'AUDIO' && <Music size={16} className="text-midnight/60" />}
+              {b.type === 'LINK' && <Link2 size={16} className="text-midnight/60" />}
+              <span className="text-sm font-semibold text-midnight">{b.title}</span>
+            </div>
+            {b.type === 'PDF' && (
+              <a href={b.url} target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-1.5 text-xs font-semibold text-midnight bg-midnight/5 hover:bg-midnight/10 px-3 py-2 rounded-lg w-fit transition-colors">
+                <ExternalLink size={12} /> Open Document
+              </a>
+            )}
+            {b.type === 'VIDEO_UPLOAD' && <video src={b.url} controls className="w-full rounded-xl max-h-72" />}
+            {b.type === 'VIDEO_LINK' && (
+              yt ? <iframe src={yt} className="w-full h-56 rounded-xl" allowFullScreen /> :
+                <a href={b.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs font-semibold text-midnight bg-midnight/5 hover:bg-midnight/10 px-3 py-2 rounded-lg w-fit transition-colors"><ExternalLink size={12} /> Watch Video</a>
+            )}
+            {b.type === 'AUDIO' && <audio src={b.url} controls className="w-full" />}
+            {b.type === 'LINK' && (
+              <a href={b.url} target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-1.5 text-xs font-semibold text-midnight bg-midnight/5 hover:bg-midnight/10 px-3 py-2 rounded-lg w-fit transition-colors">
+                <ExternalLink size={12} /> Open Link
+              </a>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
 }
 interface Result {
   score: number; totalMarks: number; passed: boolean; questions: ResultQuestion[]
@@ -145,6 +191,7 @@ export default function StudentTestPage({ params }: { params: Promise<{ id: stri
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState<Result | null>(null)
   const [started, setStarted] = useState(false)
+  const [materialsDone, setMaterialsDone] = useState(false)
   const [scheduleError, setScheduleError] = useState<{ error: string; startAt: string | null; endAt: string | null } | null>(null)
 
   useEffect(() => {
@@ -211,6 +258,31 @@ export default function StudentTestPage({ params }: { params: Promise<{ id: stri
     )
   }
   if (!test) return <p className="text-center py-16 text-charcoal/40">Test not found.</p>
+
+  /* ── STUDY MATERIALS ── shown first when the topic has any, before the quiz (or instead of it, if there are no questions) */
+  if (test.contentBlocks.length > 0 && !materialsDone) {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <h1 className="text-xl font-bold text-midnight mb-1">{test.title}</h1>
+        <p className="text-sm text-charcoal/50 mb-4">Study materials — go through these before {test.questions.length > 0 ? 'the quiz' : 'continuing'}.</p>
+        <StudyMaterials blocks={test.contentBlocks} />
+        <Button onClick={() => setMaterialsDone(true)} size="lg" className="w-full">
+          {test.questions.length > 0 ? 'Continue to Quiz' : 'Done'}
+        </Button>
+      </div>
+    )
+  }
+
+  if (test.questions.length === 0) {
+    return (
+      <div className="max-w-md mx-auto text-center pt-12">
+        <CheckCircle size={40} className="mx-auto mb-3 text-forest" />
+        <h1 className="text-xl font-bold text-midnight mb-2">{test.title}</h1>
+        <p className="text-charcoal/60 mb-6">No quiz for this topic — just the study materials.</p>
+        <Button onClick={() => router.push('/student/dashboard')} size="lg" className="w-full">Back to Dashboard</Button>
+      </div>
+    )
+  }
 
   /* ── RESULT SCREEN ── */
   if (result) {

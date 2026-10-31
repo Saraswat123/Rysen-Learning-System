@@ -21,6 +21,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       where: { id },
       include: {
         questions: { orderBy: { order: 'asc' } },
+        contentBlocks: { orderBy: { order: 'asc' } },
         _count: { select: { attempts: true } },
       },
     })

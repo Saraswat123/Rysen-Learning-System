@@ -306,8 +306,23 @@ model StudentTest {
   programId        String?
   program          StudentProgram? @relation(fields: [programId], references: [id], onDelete: SetNull)
 
-  questions StudentQuestion[]
-  attempts  StudentAttempt[]
+  questions     StudentQuestion[]
+  attempts      StudentAttempt[]
+  contentBlocks StudentTestContent[]
+}
+
+// Study material shown to the student before the quiz questions — PDF/doc,
+// video (uploaded file or external link), audio, or a plain link. Files go
+// to Vercel Blob; `url` holds either the blob URL or the pasted external link.
+model StudentTestContent {
+  id        String      @id @default(cuid())
+  testId    String
+  test      StudentTest @relation(fields: [testId], references: [id], onDelete: Cascade)
+  type      String // PDF | VIDEO_UPLOAD | VIDEO_LINK | AUDIO | LINK
+  title     String
+  url       String
+  order     Int         @default(0)
+  createdAt DateTime    @default(now())
 }
 
 // A named grouping of student tests an educator builds for their own class —
