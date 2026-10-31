@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import {
   Download, Plus, Search, Trash2, UserCheck, UserX, Upload, X,
   CheckCircle, AlertCircle, FileText, ChevronDown, RefreshCw,
-  Sheet, Building2, Users, FileSpreadsheet
+  Sheet, Building2, Users, FileSpreadsheet, Square, SquareCheck
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import Button from '@/components/ui/Button'
@@ -68,6 +68,10 @@ export default function StudentsPage() {
   const [syncMsg, setSyncMsg] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
 
+  // Bulk select state
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [bulkDeleting, setBulkDeleting] = useState(false)
+
   async function load() {
     setLoading(true)
     const params = new URLSearchParams()
@@ -110,6 +114,44 @@ export default function StudentsPage() {
     if (!confirm('Delete this student? All test attempts will be lost.')) return
     await fetch(`/api/students/${id}`, { method: 'DELETE' })
     load()
+  }
+
+  async function bulkDelete() {
+    if (selected.size === 0) return
+    if (!confirm(`Delete ${selected.size} selected student${selected.size > 1 ? 's' : ''}? All their test attempts will be lost. This cannot be undone.`)) return
+    setBulkDeleting(true)
+    await fetch('/api/students/bulk', {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: [...selected] }),
+    })
+    setBulkDeleting(false)
+    setSelected(new Set())
+    load()
+  }
+
+  function toggleSelect(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  function toggleSelectAllFiltered() {
+    setSelected((prev) =>
+      prev.size === filtered.length && filtered.length > 0 ? new Set() : new Set(filtered.map((s) => s.id))
+    )
+  }
+
+  function toggleSelectBranch(students: Student[]) {
+    const ids = students.map((s) => s.id)
+    const allSelected = ids.every((id) => selected.has(id))
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (allSelected) ids.forEach((id) => next.delete(id))
+      else ids.forEach((id) => next.add(id))
+      return next
+    })
   }
 
   async function syncToSheet() {
@@ -359,6 +401,26 @@ export default function StudentsPage() {
         </div>
       )}
 
+      {/* Bulk delete action bar */}
+      {selected.size > 0 && (
+        <div className="mb-4 flex items-center justify-between gap-4 bg-red-50 border border-red-200 rounded-2xl px-5 py-3">
+          <div className="flex items-center gap-2">
+            <SquareCheck size={16} className="text-red-500" />
+            <span className="text-sm font-semibold text-red-700">{selected.size} student{selected.size > 1 ? 's' : ''} selected</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setSelected(new Set())}
+              className="text-xs text-charcoal/50 hover:text-midnight px-3 py-1.5 rounded-lg hover:bg-white transition-colors">
+              Clear selection
+            </button>
+            <button onClick={bulkDelete} disabled={bulkDeleting}
+              className="flex items-center gap-1.5 text-xs font-bold bg-red-500 hover:bg-red-600 text-white px-4 py-1.5 rounded-xl transition-colors disabled:opacity-50">
+              <Trash2 size={13} /> {bulkDeleting ? 'Deleting…' : `Delete ${selected.size}`}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3 mb-4">
         <div className="relative flex-1 min-w-48">
@@ -371,6 +433,11 @@ export default function StudentsPage() {
           <option value="">All Classes</option>
           {classes.map((c) => <option key={c} value={c}>Class {c}</option>)}
         </select>
+        <button onClick={toggleSelectAllFiltered}
+          className="flex items-center gap-1.5 text-xs font-semibold text-charcoal/60 hover:text-midnight px-2 py-1.5 rounded-lg hover:bg-gray-100">
+          {selected.size > 0 && selected.size === filtered.length ? <SquareCheck size={14} className="text-midnight" /> : <Square size={14} />}
+          Select all {filtered.length}
+        </button>
         <div className="flex items-center gap-1 ml-auto">
           <button onClick={expandAll} className="text-xs text-charcoal/50 hover:text-midnight px-2 py-1 rounded-lg hover:bg-gray-100">Expand all</button>
           <button onClick={collapseAll} className="text-xs text-charcoal/50 hover:text-midnight px-2 py-1 rounded-lg hover:bg-gray-100">Collapse all</button>
@@ -414,7 +481,15 @@ export default function StudentsPage() {
                       )}
                     </div>
                   </div>
-                  <ChevronDown size={16} className={`text-charcoal/30 transition-transform flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
+                  <div className="flex items-center gap-3">
+                    <span onClick={(e) => { e.stopPropagation(); toggleSelectBranch(g.students) }} title="Select all in this campus"
+                      className="text-charcoal/30 hover:text-midnight transition-colors cursor-pointer">
+                      {g.students.length > 0 && g.students.every((s) => selected.has(s.id))
+                        ? <SquareCheck size={16} className="text-midnight" />
+                        : <Square size={16} />}
+                    </span>
+                    <ChevronDown size={16} className={`text-charcoal/30 transition-transform flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
+                  </div>
                 </button>
 
                 {/* Student rows */}
@@ -423,6 +498,7 @@ export default function StudentsPage() {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="bg-gray-50/70">
+                          <th className="px-5 py-2.5 w-8" />
                           <th className="text-left px-5 py-2.5 text-xs font-bold text-charcoal/40 uppercase tracking-wider">Name</th>
                           <th className="text-left px-5 py-2.5 text-xs font-bold text-charcoal/40 uppercase tracking-wider">Class</th>
                           <th className="text-left px-5 py-2.5 text-xs font-bold text-charcoal/40 uppercase tracking-wider hidden sm:table-cell">Subject</th>
@@ -434,7 +510,12 @@ export default function StudentsPage() {
                       </thead>
                       <tbody>
                         {g.students.map((s) => (
-                          <tr key={s.id} className="border-t border-gray-50 hover:bg-gray-50/50">
+                          <tr key={s.id} className={`border-t border-gray-50 hover:bg-gray-50/50 ${selected.has(s.id) ? 'bg-red-50/40' : ''}`}>
+                            <td className="px-5 py-3">
+                              <button onClick={() => toggleSelect(s.id)} className="text-charcoal/30 hover:text-midnight transition-colors">
+                                {selected.has(s.id) ? <SquareCheck size={16} className="text-midnight" /> : <Square size={16} />}
+                              </button>
+                            </td>
                             <td className="px-5 py-3 font-medium text-midnight">{s.name}</td>
                             <td className="px-5 py-3 text-charcoal/70">{s.class}{s.section ? ` · ${s.section}` : ''}</td>
                             <td className="px-5 py-3 text-charcoal/50 hidden sm:table-cell">{s.subject || '—'}</td>
