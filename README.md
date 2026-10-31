@@ -4,10 +4,12 @@ A multi-tenant, AI-integrated operations platform unifying educator professional
 
 **Core capability pillars**
 - **Programme & Assessment Engine** — configurable multi-stage training programmes with MCQ/text evaluation, pass-threshold logic, attempt tracking, and automated per-programme e-certification
+- **Student Testing** — scheduled test windows, per-student question/option shuffle (anti-cheat), PDF/photo auto question extraction (OCR), educator-built Student Programs grouping tests by class
 - **Task Orchestration** — hierarchical task/subtask assignment with role-scoped visibility, completion audit trails, and full historical timelines
-- **Applied AI Layer** — Groq-hosted Llama 3.3 70B agentic tool-use loop driving autonomous task management, and LLM-generated analytical insight across training and test-performance data
-- **Operational Analytics** — campus-wise pass-rate reporting, subject-level performance heatmaps, stage-dropout funnels, and at-risk cohort detection
-- **Governed Communication** — group-scoped resource distribution, live educator chat, and broadcast messaging (email + WhatsApp) with contextual resource attachment
+- **Applied AI Layer** — Groq-hosted agentic tool-use loop driving autonomous task management + live student-test analytics queries, LLM-generated insight across training/test-performance data, and data-backed AI score suggestions for monthly recognition ratings
+- **Operational Analytics** — campus-wise pass-rate reporting, subject-level performance heatmaps, stage-dropout funnels, at-risk cohort detection, and an automated weekly digest email
+- **Recognition & Rewards** — admin-configurable monthly rating categories with star ratings, top-3 e-certificate unlock, and educator-facing leaderboard
+- **Governed Communication** — group-scoped resource distribution, live educator chat, broadcast messaging (email + WhatsApp), automatic welcome/activate emails on account creation, and OTP-verified first-time account setup with Cloudflare Turnstile captcha on every login
 
 Built with Next.js App Router · Prisma 7.8.0 · PostgreSQL (Neon.tech) · Tailwind CSS v4 · Groq AI · Vercel
 
@@ -37,10 +39,12 @@ Root `/` auto-redirects based on session role.
 | Styling | Tailwind CSS v4 (`@theme inline`, no config file) |
 | ORM | Prisma 7.8.0 with `@prisma/adapter-pg` |
 | Database | PostgreSQL on Neon.tech (free tier — auto-pauses) |
-| AI | Groq cloud — Llama 3.3 70b |
-| Email | Resend (batch API — up to 100/call) |
+| AI | Groq cloud — `openai/gpt-oss-120b` (tool calling) |
+| Email | Brevo (primary) → Resend (fallback) — `lib/email.ts` single entry point |
+| Captcha | Cloudflare Turnstile — every login + first-time setup form |
 | WhatsApp | Twilio API (falls back to `wa.me` links) |
 | File Upload | Vercel Blob |
+| PDF/OCR | `pdfjs-dist` (text extraction) + `tesseract.js` (scanned/photo fallback), client-side |
 | Excel export | `xlsx` v0.18.5 |
 | Deployment | Vercel |
 
@@ -104,11 +108,19 @@ Root `/` auto-redirects based on session role.
 ```env
 # Required
 DATABASE_URL=               # Neon.tech PostgreSQL connection string
-GROQ_API_KEY=               # Groq cloud API key (Llama 3.3 70b)
+GROQ_API_KEY=                # Groq cloud API key (openai/gpt-oss-120b)
+AUTH_TOKEN_SECRET=           # Long random string — signs OTP setup tokens (lib/account-setup-otp.ts)
 
-# Email reminders
-RESEND_API_KEY=             # Resend API key
-RESEND_FROM_EMAIL=          # Verified sender e.g. RYSEN Learning Centre <noreply@aits.group>
+# Email — Brevo tried first, falls back to Resend if BREVO_API_KEY unset (lib/email.ts)
+BREVO_API_KEY=                # Brevo transactional email API key
+BREVO_FROM_EMAIL=             # Sender verified in Brevo (Senders & IP → Senders)
+BREVO_FROM_NAME=              # Optional, defaults to "RYSEN Learning Centre"
+RESEND_API_KEY=                # Resend API key (fallback provider)
+RESEND_FROM_EMAIL=             # Verified sender e.g. RYSEN Learning Centre <noreply@aits.group>
+
+# Captcha (optional — no-op until both are set; see lib/turnstile.ts / TurnstileWidget.tsx)
+NEXT_PUBLIC_TURNSTILE_SITE_KEY=   # Public site key, baked in at build time
+TURNSTILE_SECRET_KEY=              # Server-side verification secret
 
 # WhatsApp (optional — falls back to wa.me links)
 TWILIO_ACCOUNT_SID=
@@ -124,10 +136,10 @@ GOOGLE_CLIENT_SECRET=       # OAuth2 client secret
 GOOGLE_REFRESH_TOKEN=       # One-time OAuth consent → refresh token (see lib/google-sheets.ts)
 GOOGLE_SHEETS_ID=           # Target spreadsheet ID
 
-# Vercel Cron auth (required if cron job enabled in vercel.json)
-CRON_SECRET=                # Bearer token checked on GET /api/admin/cleanup
+# Vercel Cron auth (required — gates both scheduled jobs in vercel.json)
+CRON_SECRET=                # Bearer token checked on GET /api/admin/cleanup and /api/admin/weekly-digest
 
-# App URL for reminder links
+# App URL for reminder/email links
 NEXT_PUBLIC_APP_URL=        # e.g. https://rysen-learning-system.vercel.app
 ```
 
@@ -173,21 +185,35 @@ app/
 │   ├── analytics/          # AI analytics + Excel export
 │   ├── reports/            # Branch-wise pass % report
 │   ├── admins/             # Admin user management + password reset
-│   └── settings/           # Manual cleanup trigger + cron status
+│   ├── rewards/            # Monthly recognition ratings — star-rating entry, AI score
+│   │                       # suggestions for data-backed criteria, finalize/certify
+│   └── settings/           # Manual cleanup/digest/welcome-email triggers + cron status
 │
-├── educator/               # Educator portal
-│   ├── dashboard/
+│   # Sidebar is a grouped left nav (Campuses/Programs/Students/Operations/
+│   # Insights/System), same pattern mirrored on the educator side below.
+│   # app/admin/campuses/[id]/ is a tabbed per-campus hub (Educators/
+│   # Principal/Students) reusing existing CRUD APIs, filtered client-side.
+│
+├── educator/               # Educator portal (left-sidebar nav, grouped: Students/
+│   │                       # Programs/Operations/Achievements, same pattern as admin)
+│   ├── dashboard/           # "Ask Rysen AI" banner + training journey
 │   ├── profile/            # View/edit profile, phone, stats
 │   ├── stage/[id]/         # Take training stage + MCQ
 │   ├── certificate/        # Per-programme e-certificates (auto-unlock on completion)
-│   ├── programs/           # Browse + self-enroll in published programmes
+│   ├── programs/           # Browse + self-enroll in published training programmes
+│   ├── student-programs/   # NEW: educator-built named groupings of their own
+│   │                       # student tests ("Term 2 STEM Track") for their class —
+│   │                       # distinct from training `programs/` above
 │   ├── groups/             # My Groups — 5s-polled chat + group resources
+│   ├── recognition/        # Monthly recognition: star ratings, rank, leaderboard,
+│   │                       # certificate download (top-3 only)
+│   ├── star-students/      # Placeholder — reserved tab, not wired to data yet
 │   ├── analytics/          # Class analytics: subject heatmap, stage dropout, at-risk
 │   ├── tasks/              # Assigned tasks + AI assistant
 │   ├── resources/          # Browse shared resources (pinned, grouped by category)
 │   ├── students/           # Manage own students, bulk select/delete
 │   ├── students/progress/  # Per-student test performance dashboard
-│   └── student-tests/
+│   └── student-tests/      # Create/edit tests — PDF/photo question import, shuffle
 │
 ├── principal/              # Principal portal
 │   ├── dashboard/
@@ -210,7 +236,10 @@ app/
 │   ├── mcq/                # Randomised question fetch, auto-fires certificate notification
 │   ├── progress/           # Stage attempt submit + doc-read
 │   ├── students/           # CRUD + bulk import/delete + export + progress
-│   ├── student-tests/      # CRUD + attempt submit (fire-and-forget Sheets sync)
+│   ├── student-tests/      # CRUD + attempt submit (fire-and-forget Sheets sync),
+│   │                       # scheduled window (startAt/endAt) gates student access,
+│   │                       # per-student question+option shuffle (lib/shuffle.ts)
+│   ├── student-programs/   # CRUD — educator-built named groupings of own tests
 │   ├── tasks/              # CRUD + visibility filter
 │   │   └── [id]/           # remind (Resend batch + Twilio), subtasks, resources, comments
 │   ├── task-groups/        # CRUD
@@ -218,22 +247,42 @@ app/
 │   ├── resources/          # CRUD + upload (Vercel Blob) + group-scoped visibility
 │   ├── broadcasts/         # Email + WhatsApp send, optional resource attachment
 │   ├── certificate/        # Per-programme or legacy certificate data
-│   ├── educator/           # certificates (overview list), analytics (class-level)
-│   ├── ai/                 # task-agent (15 tools), insights, student-insights
+│   ├── educator/           # certificates (overview list), analytics (class-level),
+│   │                       # test-results, recognition (star ratings + leaderboard)
+│   ├── ai/                 # task-agent (16 tools, incl. get_test_completion_stats —
+│   │                       # real campus/test completion data, not guessed),
+│   │                       # insights, student-insights
+│   ├── auth/                # login, admin, principal, student, logout, me, profile,
+│   │                       # request-setup-otp + set-password (2-step OTP claim)
 │   ├── notifications/      # In-app notifications (polled 30s)
-│   └── admin/              # migrate, cleanup (cron), reports, educator-export,
+│   └── admin/              # migrate, cleanup (cron), weekly-digest (cron),
+│                           # send-welcome-emails, educator-ratings (+finalize, +suggest),
+│                           # recognition-categories, reports, educator-export,
 │                           # test-results, task-history, students/sheet,
 │                           # seed-orientation-mcq, setup-stem-task, setup-stem-resources,
 │                           # setup-north-south-resources
 │
 ├── generated/prisma/       # Prisma client output (do not edit)
-└── components/             # RysenLogo, NotificationBell, Toast, ui/Button, ui/Input
+└── components/
+    ├── RysenLogo, NotificationBell, Toast, ui/Button, ui/Input, ui/StarRating
+    ├── auth/SetupPasswordForm.tsx   # Shared 2-step OTP setup form (all 3 login pages)
+    ├── auth/TurnstileWidget.tsx     # Cloudflare Turnstile widget, no-op until configured
+    └── QuestionPdfImport.tsx        # PDF/photo → parsed questions, used on both
+                                      # admin and educator test-question-edit pages
 
 lib/
 ├── db.ts                   # Prisma client singleton (pg pool + adapter-pg)
 ├── auth.ts                 # Session cookie helpers (staff)
 ├── student-auth.ts         # Session cookie helpers (students)
 ├── password.ts             # bcrypt hash/verify + self-healing column migration
+├── account-setup-otp.ts    # Signs/verifies the OTP claim token (jose, HS256)
+├── welcome-email.ts        # "Activate your account" email, sent on every new account
+├── email.ts                # Single sendEmail() — Brevo first, Resend fallback
+├── turnstile.ts            # Server-side Turnstile verification (no-op until configured)
+├── shuffle.ts              # Deterministic per-student seeded shuffle
+├── question-extractor.ts   # Client-side PDF/OCR → structured question parser
+├── weekly-digest.ts        # Computes + renders the weekly admin digest email
+├── educator-ratings.ts     # Recognition category/criteria/rating compute + self-heal
 └── google-sheets.ts        # OAuth2 refresh-token Sheets API client
 ```
 
@@ -253,7 +302,7 @@ lib/
 
 | Model | Key fields |
 |---|---|
-| `Program` | name, isPublished, applicableTo (BOTH/EDUCATOR/PRINCIPAL) |
+| `Program` | name, isPublished, applicableTo (BOTH/EDUCATOR/PRINCIPAL), branches (m2m → Branch, empty = all campuses — cascades to every educator there, the only mechanism that scales to 500+ educators) |
 | `ProgramEnrollment` | userId + programId |
 | `Stage` | programId, number, title, docs (Json), timeLimitMinutes, passScore, maxAttempts |
 | `Question` | stageId, type (MCQ/TEXT), text, options (Json), correctId |
@@ -263,8 +312,10 @@ lib/
 
 | Model | Key fields |
 |---|---|
-| `Student` | name, class, section, branchId |
-| `StudentTest` | title, subject, targetClass, timeLimitMinutes, passScore, isPublished, branchId |
+| `Student` | name, class, section, branchId, createdById (nullable — `lib/student-scope.ts`'s `CREATED_BY_SCOPE_CUTOFF` grandfathers pre-cutoff students as branch-visible to every educator there; post-cutoff strictly scoped to creator) |
+| `StudentTest` | title, subject, targetClass, timeLimitMinutes, passScore, isPublished, branchId, startAt/endAt (nullable schedule window — null = always live), programId (nullable → StudentProgram) |
+| `StudentProgram` | title, description, targetClass, branchId, createdById — educator-built named grouping of their own StudentTests |
+| `StudentQuestion` | testId, type, text, imageUrl, videoUrl, options (Json), correctId, order, marks |
 | `StudentAttempt` | studentId, testId, score, passed, answers (Json) |
 
 ### Task System
@@ -295,6 +346,16 @@ lib/
 |---|---|
 | `Resource` | title, description, url (nullable), type (DRIVE/SHEET/DOC/VIDEO/PDF/LINK), category, isPublished, isPinned, branchId, groupId (nullable — null = visible to all educators, set = restricted to that group) |
 
+### Recognition / Monthly Ratings
+
+| Model | Key fields |
+|---|---|
+| `RecognitionCategory` | name, groupId (1:1 → `EducatorGroup`) |
+| `RatingCriterion` | categoryId, label, order, isAutoTest (true = computed live from that educator's branch `StudentAttempt` data for the period, never admin-entered) |
+| `EducatorRating` | userId, categoryId, period (`"YYYY-MM"`), scores (Json, 0-10 per criterion — rendered as 5-star `StarRating` everywhere), comment, finalized/finalizedAt |
+
+Admin enters/edits scores per educator per month at `/admin/rewards`; **unfinalized ratings never appear to educators** — `finalize` locks the period, notifies the top 3 by rank, and unlocks their certificate download on `/educator/recognition`. A "Suggest Scores" button pre-fills *only* criteria with a real tracked signal behind them (currently: Student Test Conduction, from attempt counts) — deliberately never fabricates a score for untracked criteria like Punctuality.
+
 ### Notifications
 
 | Model | Key fields |
@@ -308,10 +369,15 @@ lib/
 - Staff (admin/educator/principal): HTTP-only cookie `rysen_session`, looked up against the `Session` table (DB-backed, not JWT)
 - Students: HTTP-only cookie `rysen_student_session`, name + class + campus (no password — low-stakes, kiosk-style login)
 - **Admin/educator now require a password** (`POST /api/auth/admin`, `POST /api/auth/login` — bcrypt via `lib/password.ts`)
-  - First login for any admin-created account: `POST /api/auth/set-password` verifies name+email match, then lets that person set their own password and auto-signs them in
+  - First login for any admin-created account is a two-step, email-verified claim (`lib/account-setup-otp.ts`), not a bare name+email check:
+    1. `POST /api/auth/request-setup-otp` — confirms name+email match an unset-password account, emails a 6-digit code, returns a signed JWT (jose, HS256) carrying only the code's **hash**. Response shape is identical whether or not the account exists (decoy token on miss) so account existence can't be inferred.
+    2. `POST /api/auth/set-password` — requires that code back alongside the new password before it's set; only then creates the session.
+  - Shared `components/auth/SetupPasswordForm.tsx` drives this 2-step flow on all three login pages (`/login`, `/admin/login`, `/principal/login`)
   - A `NO_PASSWORD` error code on sign-in tells the frontend to route to the setup flow instead of just failing
+  - Every new account (single-create or bulk import) also gets an automatic "Welcome — Activate Your Account" email (`lib/welcome-email.ts`) linking to the same setup flow (`?setup=1` query param auto-selects the tab); `POST /api/admin/send-welcome-emails` bulk-sends it to any pre-existing unactivated account
   - Admins can force a reset (`resetPassword: true` on `PUT /api/educators/[id]` or `PUT /api/admins/[id]`) — sets `password` back to `null`, forcing that account through setup again on next login
   - Existing sessions are unaffected by a password reset — only future logins are gated
+- **Cloudflare Turnstile captcha** on every sign-in form and the OTP-request step (`components/auth/TurnstileWidget.tsx` + `lib/turnstile.ts`) — no-op until `NEXT_PUBLIC_TURNSTILE_SITE_KEY`/`TURNSTILE_SECRET_KEY` are set, so it ships safely ahead of the keys existing
 - Role-based redirects from root `/`
 
 ---
@@ -331,10 +397,14 @@ lib/
 - **Resource Library** — CRUD for Drive/Sheet/Doc/Video/PDF/Link; pin, hide, campus-scope, group-scope; file upload via Vercel Blob
 - **Broadcasts** — email + WhatsApp announcements with an optional linked resource card, so a "new resource added" broadcast doubles as a notification
 - **Send reminders** — Resend batch email + Twilio WhatsApp + in-app notification
-- **RYSEN AI** — Llama 3.3 70b agentic loop (15 tools): create/update/delete tasks, assign educators, educator groups, subtasks, resources, reminders, branches
+- **RYSEN AI** — Groq agentic loop (16 tools): create/update/delete tasks, assign educators, educator groups, subtasks, resources, reminders, branches, and `get_test_completion_stats` (real per-campus student test completion/pass-rate data, not a guess)
 - **Branch Reports** — pass % per campus (educators + students) with Excel export
 - **AI Analytics** — Groq-powered insights on training + test data
-- **Settings** — manual trigger + status for the daily cleanup cron (old notifications, orphaned blobs)
+- **Rewards & Recognition** — monthly star-rating entry per educator group, AI-suggested scores for data-backed criteria, finalize/lock + notify top 3, Excel/PDF export
+- **Student test scheduling** — optional opens-at/closes-at window per test; outside it the test just doesn't appear for students, admin/educator side always sees it with a Scheduled/Live/Ended badge
+- **Weekly Digest Email** — Vercel Cron, every Sunday, mails every active admin a summary: top 5 educators (by tasks+stages completed), task stats, new resources, student-test activity, new educators onboarded. Manual "Send Now" in Settings for testing.
+- **Welcome / Activate Account emails** — automatic on every new account (single or bulk-imported); "Send to Everyone Unactivated" bulk-sends it to any pre-existing account that never got it
+- **Settings** — manual trigger + status for the daily cleanup cron, the weekly digest, and bulk welcome emails
 - **Admin password reset** — Super Admin can force any admin/educator back to first-time setup
 
 ### Educator
@@ -347,7 +417,10 @@ lib/
 - **Task Dashboard** — assigned tasks only, subtask completion, AI chat, resource links
 - **Resources** — browse shared library (pinned first, grouped by category, type filter, group-restricted items only visible to members)
 - **Student management** — add/manage own students, create tests, bulk select + delete
+- **Student test creation** — question bank with image/video support, scheduled open/close window, per-student question+option shuffle (anti-cheat — no two students sitting together see matching order), PDF/photo auto question extraction (OCR fallback for scanned docs, never guesses an undetected answer)
+- **Student Programs** — group own tests into a named program for a class (e.g. "Term 2 STEM Track"), separate from admin's training `Program`s
 - **Student Progress Dashboard** — per-student score/engagement table with subject breakdown and at-risk flagging
+- **Recognition** — monthly star-rating card, category breakdown, campus leaderboard, certificate download (top 3 only), full-report download for everyone, month picker to review any finalized period
 - **Notifications** — in-app bell polled every 30s
 
 ### Student
@@ -382,13 +455,19 @@ lib/
 
 **Next.js params** — Dynamic route params are Promises in this version. Always `const { id } = await params`.
 
-**Email** — Resend batch API (`resend.batch.send()`): one call for up to 100 recipients. Avoids per-email rate limit. From address: `RYSEN Learning Centre <noreply@aits.group>` (domain verified via Cloudflare DNS).
+**Email** — `lib/email.ts` is the single `sendEmail(to, subject, html)` entry point used everywhere (welcome emails, OTP codes, weekly digest, task reminders, broadcasts, AI agent reminders, test-notification). Tries Brevo first (`BREVO_API_KEY`/`BREVO_FROM_EMAIL`) — chosen over Resend for deliverability to corporate Google Workspace domains, since Brevo only requires single-click sender verification rather than full DNS domain authentication. Falls back to Resend if Brevo isn't configured, so nothing breaks mid-rollout. Resend's batch API (`resend.batch.send()`) was dropped in favor of per-recipient `sendEmail()` calls via `Promise.all` for provider-agnostic consistency.
 
 **WhatsApp** — Twilio if `TWILIO_*` env vars set; falls back to `wa.me/{e164}?text=...` links. E.164 normalisation adds `+91` prefix for Indian numbers.
 
 **File Upload** — Vercel Blob (`@vercel/blob`). Max 50MB. Requires Blob store created in Vercel Dashboard → Storage and linked to project.
 
-**RYSEN AI agent** — Agentic loop (max 5 iterations). 15 Groq function-calling tools. `JSON.parse(args) ?? {}` guards against null args from Groq on no-parameter tools.
+**RYSEN AI agent** — Agentic loop (max 8 iterations), model `openai/gpt-oss-120b` (the prior `llama-3.3-70b-versatile` was decommissioned by Groq). 16 function-calling tools. `JSON.parse(args) ?? {}` guards against null args from Groq on no-parameter tools. On a malformed tool-call (`tool_use_failed`), the retry keeps `tools` attached rather than dropping them — dropping them makes Groq default `tool_choice` to `'none'` and then reject the model's next tool-call attempt, turning one recoverable failure into a hard crash.
+
+**Per-student test shuffle** — `lib/shuffle.ts` seeds a deterministic PRNG from `studentId:testId` (questions) and `studentId:questionId` (options within each question) — same student sees the same order on reload/resume, different students never match. Answers are already keyed by option `id` not position, so option reordering doesn't affect scoring.
+
+**PDF question import** — `lib/question-extractor.ts`, entirely client-side (nothing uploaded to a server). Typed PDFs go through `pdfjs-dist` text extraction first (fast, exact); falls back to `tesseract.js` OCR automatically when a page yields too little text to be typed content, or always for a direct photo upload. Regex-based structural parse (numbered questions, lettered options, inline or trailing-block answer key) never guesses an answer it can't find — unanswered questions are flagged in the import preview and must be set manually before the batch can be imported.
+
+**First-time setup OTP** — `lib/account-setup-otp.ts` signs a JWT (jose, HS256) carrying only the OTP's SHA-256 hash, never the code itself, 10-minute expiry. Replaced an older flow that only checked a typed name+email matched the DB record — anyone who knew those two public-ish facts could have claimed someone else's account.
 
 **Task visibility** — `visibility` column on `Task`. `ALL_ADMINS` (default) visible to all admins; `PRIVATE` visible only to creator. Filter: `OR: [{ createdById: user.id }, { visibility: 'ALL_ADMINS' }]`.
 
@@ -400,7 +479,7 @@ lib/
 
 **Google Sheets sync** — `lib/google-sheets.ts` exchanges `GOOGLE_REFRESH_TOKEN` for a short-lived access token on each call (plain `fetch`, no `googleapis` package) and talks to the Sheets API v4 REST endpoints directly. Chosen over a service-account key because many Google Workspace orgs enforce `iam.disableServiceAccountKeyCreation`. `POST /api/student-tests/[id]/attempt` fires a fire-and-forget `updateStudentRow()` call after grading, so a slow/failed Sheets write never blocks the student's test result.
 
-**Cron cleanup** — `vercel.json` schedules `GET /api/admin/cleanup` daily (`0 2 * * *`), authenticated via `Authorization: Bearer ${CRON_SECRET}`. Deletes read notifications older than 30 days, unread notifications older than 90 days, and orphaned Vercel Blob files under the `resources/` prefix no longer referenced by any `Resource.url`. Same endpoint accepts an admin-session `POST` for a manual "Run Now" from `/admin/settings`.
+**Cron jobs** — `vercel.json` schedules two: `GET /api/admin/cleanup` daily (`0 2 * * *`) and `GET /api/admin/weekly-digest` every Sunday (`30 12 * * 0`), both authenticated via `Authorization: Bearer ${CRON_SECRET}`. Cleanup deletes read notifications older than 30 days, unread notifications older than 90 days, and orphaned Vercel Blob files under the `resources/` prefix no longer referenced by any `Resource.url`. Both endpoints also accept an admin-session `POST` for a manual "Run Now"/"Send Now" from `/admin/settings`.
 
 **One-time setup endpoints** (POST, admin-only):
 - `POST /api/admin/seed-orientation-mcq` — seeds MCQ questions into Orientation Program stages
