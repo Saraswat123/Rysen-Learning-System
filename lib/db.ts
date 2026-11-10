@@ -21,7 +21,7 @@ function createClient() {
     // authenticated staff account that could view those lists. The handful
     // of auth routes that actually need to verify a password override this
     // per-query with `omit: { password: false }`.
-    omit: { user: { password: true, passwordSetAt: true } },
+    omit: { user: { password: true, passwordSetAt: true }, student: { pinHash: true } },
   })
 }
 

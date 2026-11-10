@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/auth'
+import { educatorBranchListWhere } from '@/lib/branch-scope'
 import { getStudentSession } from '@/lib/student-auth'
 import { Role } from '@/app/generated/prisma/client'
 
@@ -17,7 +18,7 @@ export async function GET(req: NextRequest) {
       const programs = await db.studentProgram.findMany({
         where: {
           isPublished: true,
-          OR: [{ branchId: null }, { branchId: student.branchId ?? undefined }],
+          ...educatorBranchListWhere(student.branchId),
         },
         include: { _count: { select: { tests: true } } },
         orderBy: { order: 'asc' },
@@ -30,9 +31,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 
-    const where = user.role === Role.EDUCATOR && user.branchId
-      ? { OR: [{ branchId: null }, { branchId: user.branchId }] }
-      : {}
+    const where = user.role === Role.EDUCATOR ? educatorBranchListWhere(user.branchId) : {}
 
     const programs = await db.studentProgram.findMany({
       where,
@@ -54,6 +53,9 @@ export async function POST(req: NextRequest) {
     const user = await getSession()
     if (!user || (user.role !== Role.SUPER_ADMIN && user.role !== Role.ADMIN && user.role !== Role.EDUCATOR)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+    }
+    if (user.role === Role.EDUCATOR && !user.branchId) {
+      return NextResponse.json({ error: 'Your account has no campus assigned. Ask an admin to set one.' }, { status: 400 })
     }
     const body = await req.json()
 

@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs'
-import { db } from './db'
+import { ensureRuntimeSchema } from './schema-heal'
 
 const SALT_ROUNDS = 10
 export const MIN_PASSWORD_LENGTH = 6
@@ -12,18 +12,8 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
   return bcrypt.compare(password, hash)
 }
 
-// Self-healing: password columns may not exist yet on first deploy since the
-// full migration route requires an already-authenticated session. Auth routes
-// call this before touching User.password so login/setup work with zero manual steps.
-let columnsEnsured = false
-export async function ensurePasswordColumns() {
-  if (columnsEnsured) return
-  try {
-    await db.$executeRawUnsafe(`ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "password" TEXT`)
-    await db.$executeRawUnsafe(`ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "passwordSetAt" TIMESTAMP(3)`)
-    await db.$executeRawUnsafe(`ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "avatarUrl" TEXT`)
-    columnsEnsured = true
-  } catch {
-    // best-effort — if it fails, the query below will surface the real error
-  }
+// Password columns may not exist yet on a fresh database, and the migrate
+// route itself needs a logged-in admin, so auth routes self-heal first.
+export function ensurePasswordColumns() {
+  return ensureRuntimeSchema()
 }

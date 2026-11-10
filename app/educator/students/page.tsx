@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Download, Plus, Search, Trash2, UserCheck, UserX, School, Upload, X, CheckCircle, AlertCircle, FileText, Square, SquareCheck } from 'lucide-react'
+import { Download, Plus, Search, Trash2, UserCheck, UserX, School, Upload, X, CheckCircle, AlertCircle, FileText, Square, SquareCheck, KeyRound } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 
@@ -9,7 +9,7 @@ interface Branch { id: string; name: string }
 interface Student {
   id: string; name: string; class: string; section: string
   subject: string; isActive: boolean; createdAt: string
-  branch: Branch | null; _count: { attempts: number }
+  branch: Branch | null; _count: { attempts: number }; hasPin?: boolean
 }
 
 interface ParsedRow { name: string; class: string; section: string; subject: string; valid: boolean; error?: string }
@@ -85,6 +85,25 @@ export default function EducatorStudentsPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ isActive: !student.isActive }),
     })
+    load()
+  }
+
+  async function setPin(student: Student) {
+    const pin = prompt(
+      student.hasPin
+        ? `Enter a new 4-6 digit PIN for ${student.name}, or leave empty to remove the PIN.`
+        : `Set a 4-6 digit login PIN for ${student.name}. They will need it to log in.`,
+    )
+    if (pin === null) return
+    const value = pin.trim()
+    if (value && !/^\d{4,6}$/.test(value)) { alert('PIN must be 4 to 6 digits.'); return }
+    const res = await fetch(`/api/students/${student.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pin: value || null }),
+    })
+    if (!res.ok) { alert((await res.json().catch(() => null))?.error ?? 'Could not update PIN'); return }
+    if (value) alert(`PIN set. Share it with ${student.name} privately.`)
     load()
   }
 
@@ -401,6 +420,10 @@ export default function EducatorStudentsPage() {
                       <button onClick={() => toggleActive(s)} title={s.isActive ? 'Deactivate' : 'Activate'}
                         className="p-1.5 rounded-lg hover:bg-gray-100 text-charcoal/40 hover:text-charcoal transition-colors">
                         {s.isActive ? <UserX size={15} /> : <UserCheck size={15} />}
+                      </button>
+                      <button onClick={() => setPin(s)} title={s.hasPin ? 'Change or remove PIN' : 'Set login PIN'}
+                        className={`p-1.5 rounded-lg hover:bg-gray-100 transition-colors ${s.hasPin ? 'text-forest' : 'text-charcoal/40 hover:text-charcoal'}`}>
+                        <KeyRound size={15} />
                       </button>
                       <button onClick={() => deleteStudent(s.id)} title="Delete"
                         className="p-1.5 rounded-lg hover:bg-red-50 text-charcoal/40 hover:text-red-600 transition-colors">

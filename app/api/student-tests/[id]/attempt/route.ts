@@ -1,9 +1,12 @@
 export const dynamic = 'force-dynamic'
 
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, after } from 'next/server'
 import { db } from '@/lib/db'
 import { getStudentSession } from '@/lib/student-auth'
-import { sheetsEnabled, updateStudentRow } from '@/lib/google-sheets'
+import { syncStudentSheetRow } from '@/lib/student-sheet-sync'
+import { isAnswerMap, MAX_ATTEMPTS_PER_TEST, studentTestBlock } from '@/lib/student-test-access'
+
+class AlreadyAttempted extends Error {}
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -11,13 +14,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (!student) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const { id: testId } = await params
-    const { answers } = await req.json() as { answers: Record<string, string> }
+    const body = await req.json().catch(() => null)
+    const answers = body?.answers
+    if (!isAnswerMap(answers)) return NextResponse.json({ error: 'Invalid answers' }, { status: 400 })
 
     const test = await db.studentTest.findUnique({
       where: { id: testId },
       include: { questions: true },
     })
     if (!test) return NextResponse.json({ error: 'Test not found' }, { status: 404 })
+    const block = studentTestBlock(test, student)
+    if (block) return NextResponse.json({ error: block.error }, { status: block.status })
 
     let score = 0
     let totalMarks = 0
@@ -27,44 +34,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
     const passed = totalMarks > 0 && (score / totalMarks) * 100 >= test.passScore
 
-    const attempt = await db.studentAttempt.create({
-      data: {
-        studentId: student.id,
-        testId,
-        score,
-        totalMarks,
-        passed,
-        answers: answers as object,
-      },
+    // Per-(student, test) advisory lock so a double-submit can't slip past the cap
+    const attempt = await db.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`${student.id}:${testId}`}))`
+      const prior = await tx.studentAttempt.count({ where: { studentId: student.id, testId } })
+      if (prior >= MAX_ATTEMPTS_PER_TEST) throw new AlreadyAttempted()
+      return tx.studentAttempt.create({
+        data: { studentId: student.id, testId, score, totalMarks, passed, answers },
+      })
     })
 
-    // Fire-and-forget sheet update (non-blocking)
-    if (sheetsEnabled()) {
-      db.student.findUnique({
-        where: { id: student.id },
-        include: {
-          branch: { select: { name: true } },
-          attempts: { orderBy: { completedAt: 'desc' }, include: { test: { select: { title: true } } } },
-        },
-      }).then((s) => {
-        if (!s) return
-        const allAttempts = s.attempts
-        const passedCount = allAttempts.filter((a) => a.passed).length
-        const scores = allAttempts.map((a) => a.totalMarks > 0 ? Math.round((a.score / a.totalMarks) * 100) : 0)
-        const avg = scores.length > 0 ? Math.round(scores.reduce((x, y) => x + y, 0) / scores.length) : 0
-        const last = allAttempts[0]
-        const lastPct = last && last.totalMarks > 0 ? Math.round((last.score / last.totalMarks) * 100) : 0
-        updateStudentRow(s.branch?.name ?? '', s.name, {
-          totalTests: allAttempts.length,
-          testsPassed: passedCount,
-          avgScore: avg,
-          lastTestTitle: last?.test.title ?? '',
-          lastScore: lastPct,
-          lastPassed: last?.passed ?? false,
-          lastDate: new Date(last?.completedAt ?? new Date()).toLocaleDateString('en-IN'),
-        }).catch(() => {})
-      }).catch(() => {})
-    }
+    after(() => syncStudentSheetRow(student.id).catch((err) => console.error('[sheet-sync]', err)))
 
     const questionsWithAnswers = test.questions.map((q) => ({
       id: q.id,
@@ -81,6 +61,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     return NextResponse.json({ attempt, score, totalMarks, passed, questions: questionsWithAnswers })
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 })
+    if (err instanceof AlreadyAttempted) {
+      return NextResponse.json({ error: 'You have already submitted this test.' }, { status: 409 })
+    }
+    console.error('[student-tests/attempt]', err)
+    return NextResponse.json({ error: 'Could not submit the test. Please try again.' }, { status: 500 })
   }
 }

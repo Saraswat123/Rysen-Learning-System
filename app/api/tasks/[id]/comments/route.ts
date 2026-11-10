@@ -2,11 +2,13 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/auth'
+import { canAccessTask } from '@/lib/task-access'
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await getSession()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { id: taskId } = await params
+  if (!(await canAccessTask(user, taskId))) return NextResponse.json({ error: 'Task not found' }, { status: 404 })
   const { text } = await req.json()
   if (!text?.trim()) return NextResponse.json({ error: 'Comment required' }, { status: 400 })
 

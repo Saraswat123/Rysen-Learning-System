@@ -123,11 +123,7 @@ export default function StudentDashboard() {
                             {attempt.passed
                               ? <CheckCircle size={20} className="text-forest" />
                               : <XCircle size={20} className="text-red-400" />}
-                            <Link href={`/student/test/${test.id}`}>
-                              <button className="flex items-center gap-1 px-3 py-2 text-xs font-semibold rounded-xl border border-midnight/20 text-midnight hover:bg-midnight/5 transition-colors">
-                                Retry <ChevronRight size={13} />
-                              </button>
-                            </Link>
+                            <span className="text-xs font-semibold text-charcoal/50">Submitted</span>
                           </div>
                         ) : (
                           <Link href={`/student/test/${test.id}`}>

@@ -12,8 +12,9 @@ interface Branch { id: string; name: string; location: string }
 export default function StudentLoginPage() {
   const router = useRouter()
   const [branches, setBranches] = useState<Branch[]>([])
-  const [form, setForm] = useState({ name: '', class: '', section: '', branchId: '' })
+  const [form, setForm] = useState({ name: '', class: '', section: '', branchId: '', pin: '' })
   const [turnstileToken, setTurnstileToken] = useState('')
+  const [captchaKey, setCaptchaKey] = useState(0)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -31,9 +32,16 @@ export default function StudentLoginPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...form, turnstileToken }),
       })
-      const data = await res.json()
-      if (!res.ok) { setError(data.error); return }
+      const data = await res.json().catch(() => null)
+      if (!res.ok) {
+        setError(data?.error ?? 'Login failed. Please try again.')
+        setTurnstileToken('')
+        setCaptchaKey((k) => k + 1)
+        return
+      }
       router.push('/student/dashboard')
+    } catch {
+      setError('Network error. Check your connection and try again.')
     } finally {
       setLoading(false)
     }
@@ -116,7 +124,17 @@ export default function StudentLoginPage() {
                 </select>
               </div>
 
-              <TurnstileWidget onVerify={setTurnstileToken} />
+              <Input
+                label="PIN (only if your teacher gave you one)"
+                type="password"
+                inputMode="numeric"
+                autoComplete="off"
+                placeholder="••••"
+                value={form.pin}
+                onChange={(e) => setForm((f) => ({ ...f, pin: e.target.value }))}
+              />
+
+              <TurnstileWidget key={captchaKey} onVerify={setTurnstileToken} />
 
               {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
 

@@ -2,7 +2,9 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { MAX_ATTEMPTS_PER_TEST, studentTestBlock } from '@/lib/student-test-access'
 import { getSession } from '@/lib/auth'
+import { studentTestDenied } from '@/lib/branch-scope'
 import { getStudentSession } from '@/lib/student-auth'
 import { Role } from '@/app/generated/prisma/client'
 import { seededShuffle } from '@/lib/shuffle'
@@ -27,13 +29,19 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     })
     if (!test) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
+    if (user) {
+      const denied = await studentTestDenied(user, id, 'read')
+      if (denied) return denied
+    }
+
     if (student) {
-      const now = new Date()
-      if (test.startAt && now < test.startAt) {
-        return NextResponse.json({ error: 'Test has not started yet', startAt: test.startAt, endAt: test.endAt }, { status: 403 })
+      const block = studentTestBlock(test, student)
+      if (block) {
+        return NextResponse.json({ error: block.error, startAt: test.startAt, endAt: test.endAt }, { status: block.status })
       }
-      if (test.endAt && now > test.endAt) {
-        return NextResponse.json({ error: 'Test window has closed', startAt: test.startAt, endAt: test.endAt }, { status: 403 })
+      const prior = await db.studentAttempt.count({ where: { studentId: student.id, testId: id } })
+      if (prior >= MAX_ATTEMPTS_PER_TEST) {
+        return NextResponse.json({ error: 'You have already submitted this test.', startAt: test.startAt, endAt: test.endAt }, { status: 409 })
       }
       // Per-student shuffle — same student sees the same order every time they
       // reload/resume, but no two students in the same room get matching order.
@@ -64,6 +72,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
     const { id } = await params
+    const denied = await studentTestDenied(user, id, 'edit')
+    if (denied) return denied
     const body = await req.json()
     const test = await db.studentTest.update({
       where: { id },
@@ -76,7 +86,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         ...(body.passScore !== undefined && { passScore: body.passScore }),
         ...(body.isPublished !== undefined && { isPublished: body.isPublished }),
         ...(body.order !== undefined && { order: body.order }),
-        ...(body.branchId !== undefined && { branchId: body.branchId || null }),
+        ...(user.role !== Role.EDUCATOR && body.branchId !== undefined && { branchId: body.branchId || null }),
         ...(body.startAt !== undefined && { startAt: body.startAt ? new Date(body.startAt) : null }),
         ...(body.endAt !== undefined && { endAt: body.endAt ? new Date(body.endAt) : null }),
       },
@@ -94,6 +104,8 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
     const { id } = await params
+    const denied = await studentTestDenied(user, id, 'edit')
+    if (denied) return denied
     await db.studentTest.delete({ where: { id } })
     return NextResponse.json({ ok: true })
   } catch (err) {

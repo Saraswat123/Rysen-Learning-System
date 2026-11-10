@@ -3,12 +3,16 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/auth'
+import { studentTestDenied } from '@/lib/branch-scope'
 import { Role } from '@/app/generated/prisma/client'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  if (!(await getSession())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const user = await getSession()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   try {
     const { id } = await params
+    const denied = await studentTestDenied(user, id, 'read')
+    if (denied) return denied
     const blocks = await db.studentTestContent.findMany({
       where: { testId: id },
       orderBy: { order: 'asc' },
@@ -26,6 +30,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
     const { id: testId } = await params
+    const denied = await studentTestDenied(user, testId, 'edit')
+    if (denied) return denied
     const body = await req.json() as Array<{ type: string; title: string; url: string; order?: number }>
 
     await db.studentTestContent.deleteMany({ where: { testId } })

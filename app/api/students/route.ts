@@ -33,9 +33,10 @@ export async function GET(req: NextRequest) {
         ...(cls ? { class: cls } : {}),
       } as Prisma.StudentWhereInput,
       include: { branch: true, _count: { select: { attempts: true } } },
+      omit: { pinHash: false },
       orderBy: [{ class: 'asc' }, { name: 'asc' }],
     })
-    return NextResponse.json(students)
+    return NextResponse.json(students.map(({ pinHash, ...s }) => ({ ...s, hasPin: !!pinHash })))
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 })
   }

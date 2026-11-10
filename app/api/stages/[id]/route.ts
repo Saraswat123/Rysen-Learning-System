@@ -3,7 +3,14 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/auth'
-import { Role } from '@/app/generated/prisma/client'
+import { Prisma, Role } from '@/app/generated/prisma/client'
+
+// Scalar columns the stage editor may change; relations and ids stay server-owned
+const STAGE_EDITABLE_FIELDS = new Set([
+  'programId', 'number', 'title', 'subtitle', 'description', 'week', 'docUrl', 'docs', 'weeks',
+  'applicableTo', 'timeLimitMinutes', 'passScore', 'maxAttempts', 'badgeTitle', 'badgeColor',
+  'badgeIcon', 'isPublished',
+])
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await getSession()
@@ -32,7 +39,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
   try {
     const { id } = await params
-    const data = await req.json()
+    const body = await req.json()
+    const data = Object.fromEntries(
+      Object.entries(body ?? {}).filter(([key]) => STAGE_EDITABLE_FIELDS.has(key)),
+    ) as Prisma.StageUncheckedUpdateInput
     const stage = await db.stage.update({ where: { id }, data })
     return NextResponse.json(stage)
   } catch (err) {

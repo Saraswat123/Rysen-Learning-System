@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/auth'
+import { studentProgramDenied } from '@/lib/branch-scope'
 import { Role } from '@/app/generated/prisma/client'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -12,6 +13,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
     const { id } = await params
+    const denied = await studentProgramDenied(user, id, 'read')
+    if (denied) return denied
     const program = await db.studentProgram.findUnique({
       where: { id },
       include: {
@@ -34,6 +37,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
     const { id } = await params
+    const denied = await studentProgramDenied(user, id, 'edit')
+    if (denied) return denied
     const body = await req.json()
     const { testIds, ...data } = body as { testIds?: string[]; title?: string; description?: string; targetClass?: string; isPublished?: boolean }
 
@@ -69,6 +74,8 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
     const { id } = await params
+    const denied = await studentProgramDenied(user, id, 'edit')
+    if (denied) return denied
     // Tests become unassigned (programId = null) due to ON DELETE SET NULL — not deleted
     await db.studentProgram.delete({ where: { id } })
     return NextResponse.json({ ok: true })

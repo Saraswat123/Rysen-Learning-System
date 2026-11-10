@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/auth'
+import { canAccessTask } from '@/lib/task-access'
 import Groq from 'groq-sdk'
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -9,6 +10,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id } = await params
+  if (!(await canAccessTask(user, id))) return NextResponse.json({ error: 'Task not found' }, { status: 404 })
   const { message } = await req.json()
   if (!message?.trim()) return NextResponse.json({ error: 'Message required' }, { status: 400 })
 

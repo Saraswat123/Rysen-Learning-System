@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { handleUpload, type HandleUploadBody } from '@vercel/blob/client'
 import { getSession } from '@/lib/auth'
+import { studentTestDenied } from '@/lib/branch-scope'
 import { Role } from '@/app/generated/prisma/client'
 
 // Client-side direct-to-Blob upload (video/audio files skip our serverless
@@ -21,6 +22,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         if (!user || (user.role !== Role.SUPER_ADMIN && user.role !== Role.ADMIN && user.role !== Role.EDUCATOR)) {
           throw new Error('Unauthorized')
         }
+        if (await studentTestDenied(user, id, 'edit')) throw new Error('Not found')
         if (!pathname.startsWith(`topic-content/${id}/`)) {
           throw new Error('Invalid upload path')
         }

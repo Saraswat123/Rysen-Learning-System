@@ -215,9 +215,13 @@ export default function StudentTestPage({ params }: { params: Promise<{ id: stri
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ answers: finalAnswers }),
     })
-    const data = await res.json()
-    setResult(data)
+    const data = await res.json().catch(() => null)
     setSubmitting(false)
+    if (!res.ok || !data) {
+      setScheduleError({ error: data?.error ?? 'Could not submit the test. Please try again.', startAt: null, endAt: null })
+      return
+    }
+    setResult(data)
   }, [test, id])
 
   useEffect(() => {

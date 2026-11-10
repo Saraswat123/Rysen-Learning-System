@@ -3,7 +3,8 @@ export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/auth'
-import { Role } from '@/app/generated/prisma/client'
+import { educatorStudentWhere } from '@/lib/student-scope'
+import { Prisma, Role } from '@/app/generated/prisma/client'
 
 const SCORE_BANDS = [
   { label: '0–19', min: 0, max: 19 },
@@ -20,10 +21,18 @@ export async function GET() {
 
     const isAdmin = user.role === Role.ADMIN || user.role === Role.SUPER_ADMIN
     const branchId = isAdmin ? undefined : (user.branchId ?? undefined)
+    // Non-admins without a campus see nothing (an unset branch used to mean "all campuses")
+    const studentScope: Prisma.StudentWhereInput = isAdmin
+      ? {}
+      : !user.branchId
+        ? { id: { in: [] } }
+        : user.role === Role.EDUCATOR
+          ? educatorStudentWhere(user.id, user.branchId)
+          : { branchId: user.branchId }
 
     // All active students + their attempts
     const students = await db.student.findMany({
-      where: { ...(branchId ? { branchId } : {}), isActive: true },
+      where: { ...studentScope, isActive: true },
       select: { id: true, name: true, class: true },
     })
     const studentIds = students.map((s) => s.id)

@@ -426,6 +426,16 @@ const MIGRATIONS = [
       AND NOT EXISTS (SELECT 1 FROM "RatingCriterion" WHERE "categoryId" = rc.id);
     `,
   },
+  {
+    label: 'Student.pinHash column',
+    check: `SELECT 1 FROM information_schema.columns WHERE table_name='Student' AND column_name='pinHash'`,
+    sql: `ALTER TABLE "Student" ADD COLUMN IF NOT EXISTS "pinHash" TEXT`,
+  },
+  {
+    label: 'RateLimit table',
+    check: `SELECT 1 FROM information_schema.tables WHERE table_name='RateLimit'`,
+    sql: `CREATE TABLE IF NOT EXISTS "RateLimit" ("key" TEXT PRIMARY KEY, "count" INTEGER NOT NULL, "resetAt" TIMESTAMP(3) NOT NULL)`,
+  },
 ]
 
 async function checkPending() {
