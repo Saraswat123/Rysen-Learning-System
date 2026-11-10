@@ -2,9 +2,18 @@ export const dynamic = 'force-dynamic'
 
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { getSession } from '@/lib/auth'
+import { getStudentSession } from '@/lib/student-auth'
 import { Role } from '@/app/generated/prisma/client'
 
 export async function GET() {
+  // Staff and students both see the leaderboard; it holds internal names and scores,
+  // so it still needs a login of some kind, just not a specific role.
+  const [staffUser, studentUser] = await Promise.all([getSession(), getStudentSession()])
+  if (!staffUser && !studentUser) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const [branches, stages, users, progress, enrollments] = await Promise.all([
     db.branch.findMany({ orderBy: { name: 'asc' } }),
     db.stage.findMany({

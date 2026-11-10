@@ -3,6 +3,7 @@
 A multi-tenant, AI-integrated operations platform unifying educator professional development, student assessment, task orchestration, and campus-level analytics for RYSEN Group of Schools across 15 campuses and 50+ educators. Engineered as a dynamically extensible system of record — programmes, testing modules, task workflows, resource governance, and communication channels are all modeled as first-class, independently composable entities rather than hardcoded flows, letting the platform absorb new campuses, cohorts, and training tracks without structural rework.
 
 **Core capability pillars**
+
 - **Programme & Assessment Engine** — configurable multi-stage training programmes with MCQ/text evaluation, pass-threshold logic, attempt tracking, and automated per-programme e-certification
 - **Student Testing** — scheduled test windows, per-student question/option shuffle (anti-cheat), PDF/photo auto question extraction (OCR), educator-built Student Programs grouping tests by class
 - **Task Orchestration** — hierarchical task/subtask assignment with role-scoped visibility, completion audit trails, and full historical timelines
@@ -19,12 +20,12 @@ Live: **https://rysen-learning-system.vercel.app**
 
 ## Portals
 
-| Portal | URL | Who |
-|---|---|---|
-| Educator | `/login` | Teachers — training, tasks, resources, students |
-| Principal | `/principal/login` | Campus heads — oversight + own training |
-| Student | `/student/login` | Students — take tests, leaderboard |
-| Admin | `/admin/login` | RYSEN admins — manage everything |
+| Portal    | URL                | Who                                             |
+| --------- | ------------------ | ----------------------------------------------- |
+| Educator  | `/login`           | Teachers — training, tasks, resources, students |
+| Principal | `/principal/login` | Campus heads — oversight + own training         |
+| Student   | `/student/login`   | Students — take tests, leaderboard              |
+| Admin     | `/admin/login`     | RYSEN admins — manage everything                |
 
 Root `/` auto-redirects based on session role.
 
@@ -32,21 +33,21 @@ Root `/` auto-redirects based on session role.
 
 ## Tech Stack
 
-| Layer | Choice |
-|---|---|
-| Framework | Next.js 16 (App Router, Turbopack) |
-| Language | TypeScript |
-| Styling | Tailwind CSS v4 (`@theme inline`, no config file) |
-| ORM | Prisma 7.8.0 with `@prisma/adapter-pg` |
-| Database | PostgreSQL on Neon.tech (free tier — auto-pauses) |
-| AI | Groq cloud — `openai/gpt-oss-120b` (tool calling) |
-| Email | Brevo (primary) → Resend (fallback) — `lib/email.ts` single entry point |
-| Captcha | Cloudflare Turnstile — every login + first-time setup form |
-| WhatsApp | Twilio API (falls back to `wa.me` links) |
-| File Upload | Vercel Blob |
-| PDF/OCR | `pdfjs-dist` (text extraction) + `tesseract.js` (scanned/photo fallback), client-side |
-| Excel export | `xlsx` v0.18.5 |
-| Deployment | Vercel |
+| Layer        | Choice                                                                                |
+| ------------ | ------------------------------------------------------------------------------------- |
+| Framework    | Next.js 16 (App Router, Turbopack)                                                    |
+| Language     | TypeScript                                                                            |
+| Styling      | Tailwind CSS v4 (`@theme inline`, no config file)                                     |
+| ORM          | Prisma 7.8.0 with `@prisma/adapter-pg`                                                |
+| Database     | PostgreSQL on Neon.tech (free tier — auto-pauses)                                     |
+| AI           | Groq cloud — `openai/gpt-oss-120b` (tool calling)                                     |
+| Email        | Brevo (primary) → Resend (fallback) — `lib/email.ts` single entry point               |
+| Captcha      | Cloudflare Turnstile — every login + first-time setup form                            |
+| WhatsApp     | Twilio API (falls back to `wa.me` links)                                              |
+| File Upload  | Vercel Blob                                                                           |
+| PDF/OCR      | `pdfjs-dist` (text extraction) + `tesseract.js` (scanned/photo fallback), client-side |
+| Excel export | `xlsx` v0.18.5                                                                        |
+| Deployment   | Vercel                                                                                |
 
 ---
 
@@ -97,7 +98,7 @@ Root `/` auto-redirects based on session role.
 
 **Auth flow:** password-based since the [password auth migration](#authentication) — bcrypt hash stored on `User.password`, session token in an HTTP-only cookie looked up against the `Session` table (not JWT — every request hits the DB). First login for any admin-created account goes through a one-time "claim your account" step (`POST /api/auth/set-password`) before password-based sign-in works.
 
-**Self-healing schema:** most schema changes ship as idempotent raw SQL in `app/api/admin/migrate/route.ts`'s `MIGRATIONS` array (`ADD COLUMN IF NOT EXISTS`, etc.), triggered once per browser session after admin login. A few auth-critical columns (e.g. `User.password`) also have an inline `ensurePasswordColumns()` self-heal in `lib/password.ts`, since login must work *before* an authenticated session exists to run the full migration route.
+**Self-healing schema:** most schema changes ship as idempotent raw SQL in `app/api/admin/migrate/route.ts`'s `MIGRATIONS` array (`ADD COLUMN IF NOT EXISTS`, etc.), triggered once per browser session after admin login. A few auth-critical columns (e.g. `User.password`) also have an inline `ensurePasswordColumns()` self-heal in `lib/password.ts`, since login must work _before_ an authenticated session exists to run the full migration route.
 
 **No message queue / background workers** — the only scheduled job is the Vercel Cron daily cleanup. Everything else is synchronous request/response, with a few fire-and-forget `.catch(() => {})` calls (e.g. Google Sheets sync on test submission) so a slow external API never blocks the user-facing response.
 
@@ -292,74 +293,74 @@ lib/
 
 ### Core
 
-| Model | Key fields |
-|---|---|
-| `Branch` | id, name, location |
+| Model          | Key fields                                                                    |
+| -------------- | ----------------------------------------------------------------------------- |
+| `Branch`       | id, name, location                                                            |
 | `User` (staff) | id, name, email, phone, password (bcrypt hash), passwordSetAt, role, branchId |
-| `Session` | userId, token, expiresAt |
+| `Session`      | userId, token, expiresAt                                                      |
 
 ### Training
 
-| Model | Key fields |
-|---|---|
-| `Program` | name, isPublished, applicableTo (BOTH/EDUCATOR/PRINCIPAL), branches (m2m → Branch, empty = all campuses — cascades to every educator there, the only mechanism that scales to 500+ educators) |
-| `ProgramEnrollment` | userId + programId |
-| `Stage` | programId, number, title, docs (Json), timeLimitMinutes, passScore, maxAttempts |
-| `Question` | stageId, type (MCQ/TEXT), text, options (Json), correctId |
-| `StageProgress` | userId + stageId (unique), attempts, bestScore, passed, docRead |
+| Model               | Key fields                                                                                                                                                                                    |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Program`           | name, isPublished, applicableTo (BOTH/EDUCATOR/PRINCIPAL), branches (m2m → Branch, empty = all campuses — cascades to every educator there, the only mechanism that scales to 500+ educators) |
+| `ProgramEnrollment` | userId + programId                                                                                                                                                                            |
+| `Stage`             | programId, number, title, docs (Json), timeLimitMinutes, passScore, maxAttempts                                                                                                               |
+| `Question`          | stageId, type (MCQ/TEXT), text, options (Json), correctId                                                                                                                                     |
+| `StageProgress`     | userId + stageId (unique), attempts, bestScore, passed, docRead                                                                                                                               |
 
 ### Students & Tests
 
-| Model | Key fields |
-|---|---|
-| `Student` | name, class, section, branchId, createdById (nullable — `lib/student-scope.ts`'s `CREATED_BY_SCOPE_CUTOFF` grandfathers pre-cutoff students as branch-visible to every educator there; post-cutoff strictly scoped to creator) |
-| `StudentTest` | title, subject, targetClass, timeLimitMinutes, passScore, isPublished, branchId, startAt/endAt (nullable schedule window — null = always live), programId (nullable → StudentProgram) |
-| `StudentProgram` | title, description, targetClass, branchId, createdById — educator-built named grouping of their own StudentTests |
-| `StudentQuestion` | testId, type, text, imageUrl, videoUrl, options (Json), correctId, order, marks |
-| `StudentAttempt` | studentId, testId, score, passed, answers (Json) |
+| Model             | Key fields                                                                                                                                                                                                                     |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `Student`         | name, class, section, branchId, createdById (nullable — `lib/student-scope.ts`'s `CREATED_BY_SCOPE_CUTOFF` grandfathers pre-cutoff students as branch-visible to every educator there; post-cutoff strictly scoped to creator) |
+| `StudentTest`     | title, subject, targetClass, timeLimitMinutes, passScore, isPublished, branchId, startAt/endAt (nullable schedule window — null = always live), programId (nullable → StudentProgram)                                          |
+| `StudentProgram`  | title, description, targetClass, branchId, createdById — educator-built named grouping of their own StudentTests                                                                                                               |
+| `StudentQuestion` | testId, type, text, imageUrl, videoUrl, options (Json), correctId, order, marks                                                                                                                                                |
+| `StudentAttempt`  | studentId, testId, score, passed, answers (Json)                                                                                                                                                                               |
 
 ### Task System
 
-| Model | Key fields |
-|---|---|
-| `Task` | groupId, title, notes, deadline, priority (LOW/NORMAL/HIGH), visibility (ALL_ADMINS/PRIVATE), createdById |
-| `SubTask` | taskId, title, deadline, order |
-| `TaskResource` | taskId, type, title, url, description |
-| `TaskAssignment` | taskId + userId (unique pair), completedAt |
-| `SubTaskProgress` | on TaskAssignment — subtaskId, completed |
-| `TaskComment` | taskId, userId, text |
-| `TaskGroup` | title, description, color, createdById |
+| Model             | Key fields                                                                                                |
+| ----------------- | --------------------------------------------------------------------------------------------------------- |
+| `Task`            | groupId, title, notes, deadline, priority (LOW/NORMAL/HIGH), visibility (ALL_ADMINS/PRIVATE), createdById |
+| `SubTask`         | taskId, title, deadline, order                                                                            |
+| `TaskResource`    | taskId, type, title, url, description                                                                     |
+| `TaskAssignment`  | taskId + userId (unique pair), completedAt                                                                |
+| `SubTaskProgress` | on TaskAssignment — subtaskId, completed                                                                  |
+| `TaskComment`     | taskId, userId, text                                                                                      |
+| `TaskGroup`       | title, description, color, createdById                                                                    |
 
 > **Critical:** `SubTaskProgress` lives on `TaskAssignment`, not `Task`. Each educator tracks progress independently. Querying `progress` on `Task` causes a Prisma type error.
 
 ### Educator Groups
 
-| Model | Key fields |
-|---|---|
-| `EducatorGroup` | name, description, color |
-| `EducatorGroupMember` | groupId + userId (unique pair) |
-| `GroupMessage` | groupId, userId, text, createdAt — 5s-polled group chat |
+| Model                 | Key fields                                              |
+| --------------------- | ------------------------------------------------------- |
+| `EducatorGroup`       | name, description, color                                |
+| `EducatorGroupMember` | groupId + userId (unique pair)                          |
+| `GroupMessage`        | groupId, userId, text, createdAt — 5s-polled group chat |
 
 ### Resources
 
-| Model | Key fields |
-|---|---|
+| Model      | Key fields                                                                                                                                                                                                 |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `Resource` | title, description, url (nullable), type (DRIVE/SHEET/DOC/VIDEO/PDF/LINK), category, isPublished, isPinned, branchId, groupId (nullable — null = visible to all educators, set = restricted to that group) |
 
 ### Recognition / Monthly Ratings
 
-| Model | Key fields |
-|---|---|
-| `RecognitionCategory` | name, groupId (1:1 → `EducatorGroup`) |
-| `RatingCriterion` | categoryId, label, order, isAutoTest (true = computed live from that educator's branch `StudentAttempt` data for the period, never admin-entered) |
-| `EducatorRating` | userId, categoryId, period (`"YYYY-MM"`), scores (Json, 0-10 per criterion — rendered as 5-star `StarRating` everywhere), comment, finalized/finalizedAt |
+| Model                 | Key fields                                                                                                                                               |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `RecognitionCategory` | name, groupId (1:1 → `EducatorGroup`)                                                                                                                    |
+| `RatingCriterion`     | categoryId, label, order, isAutoTest (true = computed live from that educator's branch `StudentAttempt` data for the period, never admin-entered)        |
+| `EducatorRating`      | userId, categoryId, period (`"YYYY-MM"`), scores (Json, 0-10 per criterion — rendered as 5-star `StarRating` everywhere), comment, finalized/finalizedAt |
 
-Admin enters/edits scores per educator per month at `/admin/rewards`; **unfinalized ratings never appear to educators** — `finalize` locks the period, notifies the top 3 by rank, and unlocks their certificate download on `/educator/recognition`. A "Suggest Scores" button pre-fills *only* criteria with a real tracked signal behind them (currently: Student Test Conduction, from attempt counts) — deliberately never fabricates a score for untracked criteria like Punctuality.
+Admin enters/edits scores per educator per month at `/admin/rewards`; **unfinalized ratings never appear to educators** — `finalize` locks the period, notifies the top 3 by rank, and unlocks their certificate download on `/educator/recognition`. A "Suggest Scores" button pre-fills _only_ criteria with a real tracked signal behind them (currently: Student Test Conduction, from attempt counts) — deliberately never fabricates a score for untracked criteria like Punctuality.
 
 ### Notifications
 
-| Model | Key fields |
-|---|---|
+| Model          | Key fields                                    |
+| -------------- | --------------------------------------------- |
 | `Notification` | userId, title, message, type, read, relatedId |
 
 ---
@@ -367,7 +368,7 @@ Admin enters/edits scores per educator per month at `/admin/rewards`; **unfinali
 ## Authentication
 
 - Staff (admin/educator/principal): HTTP-only cookie `rysen_session`, looked up against the `Session` table (DB-backed, not JWT)
-- Students: HTTP-only cookie `rysen_student_session`, name + class + campus (no password — low-stakes, kiosk-style login)
+- Students: HTTP-only cookie `rysen_student_session`, name + class + campus; **opt-in PIN** (`Student.pinHash`, bcrypt) — an educator sets a 4-6 digit PIN per student, after which it's required. Rate-limited per IP and per identity (`lib/rate-limit.ts`), and unknown-student vs wrong-PIN return the identical response so the login can't be used to enumerate students.
 - **Admin/educator now require a password** (`POST /api/auth/admin`, `POST /api/auth/login` — bcrypt via `lib/password.ts`)
   - First login for any admin-created account is a two-step, email-verified claim (`lib/account-setup-otp.ts`), not a bare name+email check:
     1. `POST /api/auth/request-setup-otp` — confirms name+email match an unset-password account, emails a 6-digit code, returns a signed JWT (jose, HS256) carrying only the code's **hash**. Response shape is identical whether or not the account exists (decoy token on miss) so account existence can't be inferred.
@@ -385,6 +386,7 @@ Admin enters/edits scores per educator per month at `/admin/rewards`; **unfinali
 ## Key Features
 
 ### Admin
+
 - **Campus management** — add, edit, delete campuses
 - **Educator management** — add, edit, bulk import via Excel, phone update, branch-accordion grouping, bulk select + delete, force password reset
 - **Program + Stage builder** — MCQ questions, doc upload, pass score config, grouped accordion UI
@@ -408,6 +410,7 @@ Admin enters/edits scores per educator per month at `/admin/rewards`; **unfinali
 - **Admin password reset** — Super Admin can force any admin/educator back to first-time setup
 
 ### Educator
+
 - **Training journey** — stage-by-stage MCQ with badges, progress tracking
 - **Profile** — view stats (stages passed, avg score, tasks), edit phone
 - **Programmes** — browse published programmes and self-enroll
@@ -424,10 +427,12 @@ Admin enters/edits scores per educator per month at `/admin/rewards`; **unfinali
 - **Notifications** — in-app bell polled every 30s
 
 ### Student
+
 - Take timed MCQ tests (branch-filtered)
 - Leaderboard
 
 ### Principal
+
 - Campus overview — educator training pass rates
 - Own training journey (same stage system as educators)
 
@@ -435,13 +440,13 @@ Admin enters/edits scores per educator per month at `/admin/rewards`; **unfinali
 
 ## Brand Colors (Tailwind CSS v4 `@theme inline`)
 
-| Token | Hex | Usage |
-|---|---|---|
+| Token      | Hex       | Usage                            |
+| ---------- | --------- | -------------------------------- |
 | `midnight` | `#033D4C` | Primary — nav, buttons, headings |
-| `forest` | `#225632` | Success, completed states |
-| `gold` | `#FECB08` | Accent, highlights, badges |
-| `olive` | `#7D783E` | Secondary accent |
-| `charcoal` | `#40403E` | Body text |
+| `forest`   | `#225632` | Success, completed states        |
+| `gold`     | `#FECB08` | Accent, highlights, badges       |
+| `olive`    | `#7D783E` | Secondary accent                 |
+| `charcoal` | `#40403E` | Body text                        |
 
 ---
 
@@ -482,6 +487,7 @@ Admin enters/edits scores per educator per month at `/admin/rewards`; **unfinali
 **Cron jobs** — `vercel.json` schedules two: `GET /api/admin/cleanup` daily (`0 2 * * *`) and `GET /api/admin/weekly-digest` every Sunday (`30 12 * * 0`), both authenticated via `Authorization: Bearer ${CRON_SECRET}`. Cleanup deletes read notifications older than 30 days, unread notifications older than 90 days, and orphaned Vercel Blob files under the `resources/` prefix no longer referenced by any `Resource.url`. Both endpoints also accept an admin-session `POST` for a manual "Run Now"/"Send Now" from `/admin/settings`.
 
 **One-time setup endpoints** (POST, admin-only):
+
 - `POST /api/admin/seed-orientation-mcq` — seeds MCQ questions into Orientation Program stages
 - `POST /api/admin/setup-stem-task` — creates STEM Educators group + July data task
 - `POST /api/admin/setup-stem-resources` — seeds STEM Data, STEM Curriculum, STEM Materials, R&D 2026-27 resources
