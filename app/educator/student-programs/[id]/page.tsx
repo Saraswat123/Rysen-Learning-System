@@ -41,6 +41,7 @@ export default function StudentProgramDetailPage({ params }: { params: Promise<{
     setLoading(false)
   }
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- async loader; state is set after await
   useEffect(() => { load() }, [id])
 
   function toggleTest(testId: string) {
@@ -118,7 +119,7 @@ export default function StudentProgramDetailPage({ params }: { params: Promise<{
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md mx-4">
             <h2 className="text-lg font-bold text-midnight mb-1">New Topic</h2>
-            <p className="text-xs text-charcoal/50 mb-4">Creates a new MCQ test inside this program. You'll add questions on the next screen.</p>
+            <p className="text-xs text-charcoal/50 mb-4">Creates a new MCQ test inside this program. You&apos;ll add questions on the next screen.</p>
             <form onSubmit={createTopic} className="flex flex-col gap-3">
               <Input label="Topic Title" placeholder="e.g. Photosynthesis Basics" value={topicTitle} onChange={(e) => setTopicTitle(e.target.value)} required autoFocus />
               <div className="flex gap-3 mt-2">
@@ -138,7 +139,7 @@ export default function StudentProgramDetailPage({ params }: { params: Promise<{
             <Plus size={13} /> New Topic
           </button>
         </div>
-        <p className="text-xs text-charcoal/50 mb-4">Create a new topic above, or attach one of your branch's existing tests below. Students see these grouped under "{form.title || program.title}".</p>
+        <p className="text-xs text-charcoal/50 mb-4">Create a new topic above, or attach one of your branch&apos;s existing tests below. Students see these grouped under &quot;{form.title || program.title}&quot;.</p>
         <div className="flex flex-col gap-2 max-h-96 overflow-y-auto">
           {allTests.map((t) => {
             const locked = otherProgramTestIds.has(t.id)

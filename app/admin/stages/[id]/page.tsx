@@ -177,9 +177,7 @@ export default function StageEditor({ params }: { params: Promise<{ id: string }
       ;[allDocs[i], allDocs[j]] = [allDocs[j], allDocs[i]]
       // Recalculate order within this week
       const weekDocIds = weekDocs.map((d) => d.id)
-      let wOrder = 0
       return { ...s, docs: allDocs.map((d) => weekDocIds.includes(d.id) ? { ...d, order: weekDocIds.indexOf(d.id) } : d) }
-      void wOrder
     })
   }
 
@@ -534,7 +532,7 @@ export default function StageEditor({ params }: { params: Promise<{ id: string }
               <button onClick={() => { setShowImport(false); setImportRows([]) }}><X size={20} className="text-charcoal/60" /></button>
             </div>
             <div className="bg-cream rounded-xl p-4 mb-4 text-sm text-charcoal/70">
-              Upload CSV or Excel: <strong>Question, Option A–D, Correct (A/B/C/D), Explanation</strong>. Imported questions land in "Questions without a Link" — assign them to a link after import.
+              Upload CSV or Excel: <strong>Question, Option A–D, Correct (A/B/C/D), Explanation</strong>. Imported questions land in &quot;Questions without a Link&quot; — assign them to a link after import.
             </div>
             <button onClick={downloadTemplate} className="flex items-center gap-2 text-sm text-forest font-medium hover:underline mb-4">
               <Download size={14} /> Download template

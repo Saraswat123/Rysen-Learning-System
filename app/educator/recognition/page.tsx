@@ -72,12 +72,13 @@ function RankIcon({ rank }: { rank: number }) {
 
 export default function RecognitionPage() {
   const [data, setData] = useState<RecognitionData | null>(null)
-  const [loading, setLoading] = useState(true)
   const [categoryId, setCategoryId] = useState('')
   const [selectedPeriod, setSelectedPeriod] = useState<string>('')
+  const requestKey = `${categoryId}|${selectedPeriod}`
+  const [loadedKey, setLoadedKey] = useState<string | null>(null)
+  const loading = loadedKey !== requestKey
 
   useEffect(() => {
-    setLoading(true)
     const params = new URLSearchParams()
     if (categoryId) params.set('categoryId', categoryId)
     if (selectedPeriod) params.set('period', selectedPeriod)
@@ -88,7 +89,7 @@ export default function RecognitionPage() {
         if (d.selectedCategoryId) setCategoryId(d.selectedCategoryId)
       })
       .catch(() => setData({ isInRecognitionProgram: false }))
-      .finally(() => setLoading(false))
+      .finally(() => setLoadedKey(requestKey))
   }, [categoryId, selectedPeriod]) // eslint-disable-line
 
   function switchCategory(id: string) {
@@ -335,7 +336,7 @@ export default function RecognitionPage() {
       <div className="text-center py-16 text-charcoal/40">
         <Trophy size={48} className="mx-auto mb-4 opacity-20" />
         <p className="text-base font-medium">No finalized results yet</p>
-        <p className="text-sm mt-1">Your admin hasn't finalized a monthly report yet</p>
+        <p className="text-sm mt-1">Your admin hasn&apos;t finalized a monthly report yet</p>
       </div>
     </div>
   )

@@ -45,6 +45,7 @@ export default function CampusDetailPage() {
     setLoading(false)
   }, [id])
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- async loader; state is set after await
   useEffect(() => { load() }, [load])
 
   function openAdd() {

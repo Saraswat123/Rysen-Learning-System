@@ -92,6 +92,7 @@ function EducatorAnalytics() {
     finally { setExporting(false) }
   }
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- async loader; state is set after await
   useEffect(() => { load() }, [])
 
   const passRateData = data?.stageStats.map((s) => ({
@@ -224,6 +225,7 @@ function StudentAnalytics() {
     finally { setLoading(false) }
   }
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- async loader; state is set after await
   useEffect(() => { load() }, [])
 
   const testChartData = data?.testStats.map((t) => ({

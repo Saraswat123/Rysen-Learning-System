@@ -41,6 +41,7 @@ export default function ProgramsPage() {
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- async loader; state is set after await
     load()
     fetch('/api/branches').then((r) => r.json()).then((d) => setCampuses(Array.isArray(d) ? d : []))
   }, [])

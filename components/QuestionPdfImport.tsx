@@ -88,7 +88,7 @@ export default function QuestionPdfImport({ onImport }: { onImport: (questions: 
                 <div className="text-center py-10">
                   <Upload size={36} className="mx-auto mb-3 text-charcoal/20" />
                   <p className="text-sm text-charcoal/60 mb-1">Upload a question paper — typed or scanned PDF, or a photo (JPG/PNG).</p>
-                  <p className="text-xs text-charcoal/40 mb-5">Number questions "1.", "2." and letter options "A.", "B.", "C.", "D." for best results. Put an answer key at the end ("1-B, 2-C…") or write "Answer: B" after each question.</p>
+                  <p className="text-xs text-charcoal/40 mb-5">Number questions &quot;1.&quot;, &quot;2.&quot; and letter options &quot;A.&quot;, &quot;B.&quot;, &quot;C.&quot;, &quot;D.&quot; for best results. Put an answer key at the end (&quot;1-B, 2-C…&quot;) or write &quot;Answer: B&quot; after each question.</p>
                   <input ref={fileRef} type="file" accept="application/pdf,image/jpeg,image/png" onChange={handleFile} className="hidden" id="pdf-import-input" />
                   <label htmlFor="pdf-import-input" className="inline-flex items-center gap-2 px-5 py-2.5 bg-midnight text-white text-sm font-semibold rounded-xl cursor-pointer hover:bg-midnight/80 transition-colors">
                     <Upload size={15} /> Choose File
@@ -115,7 +115,7 @@ export default function QuestionPdfImport({ onImport }: { onImport: (questions: 
                 <div className="flex flex-col gap-4">
                   <div className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium ${unansweredCount > 0 ? 'bg-red-50 text-red-700' : 'bg-forest/10 text-forest'}`}>
                     {unansweredCount > 0
-                      ? <><AlertTriangle size={15} /> {unansweredCount} question{unansweredCount !== 1 ? 's' : ''} have no detected answer — pick one below before importing, or they'll have no correct answer set.</>
+                      ? <><AlertTriangle size={15} /> {unansweredCount} question{unansweredCount !== 1 ? 's' : ''} have no detected answer — pick one below before importing, or they&apos;ll have no correct answer set.</>
                       : <><CheckCircle2 size={15} /> Found {parsed.length} questions, all with a detected answer.</>}
                   </div>
 

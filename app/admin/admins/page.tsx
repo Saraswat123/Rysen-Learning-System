@@ -25,6 +25,7 @@ export default function AdminsPage() {
     setMe(m.user)
   }
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- async loader; state is set after await
   useEffect(() => { load() }, [])
 
   async function addAdmin(e: React.FormEvent) {

@@ -45,6 +45,7 @@ function StagesInner() {
     } catch {}
   }
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- async loader; state is set after await
   useEffect(() => { load() }, [])
 
   async function bulkAssign() {
@@ -325,7 +326,7 @@ function StagesInner() {
                 </div>
                 <div>
                   <h2 className="font-bold text-sm text-amber-700">Unassigned Stages ({unassigned.length})</h2>
-                  <p className="text-xs text-amber-500">These stages won't appear in any program until assigned</p>
+                  <p className="text-xs text-amber-500">These stages won&apos;t appear in any program until assigned</p>
                 </div>
               </div>
               <ChevronDown size={16} className={`text-amber-400 transition-transform ${collapsed.has('__unassigned__') ? '' : 'rotate-180'}`} />
@@ -358,7 +359,7 @@ function StagesInner() {
 
       {stages.length === 0 && programs.length > 0 && (
         <div className="text-center py-12 text-charcoal/40">
-          <p className="text-sm">No stages yet. Click "Add Stage" inside a program to get started.</p>
+          <p className="text-sm">No stages yet. Click &quot;Add Stage&quot; inside a program to get started.</p>
         </div>
       )}
 

@@ -31,6 +31,7 @@ export default function NotificationBell({ taskPath = '/admin/tasks' }: { taskPa
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- async loader; state is set after await
     load()
     const t = setInterval(load, 30000) // poll every 30s
     return () => clearInterval(t)

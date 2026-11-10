@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useSyncExternalStore } from 'react'
 import { useRouter } from 'next/navigation'
 import RysenLogo from '@/components/RysenLogo'
 import Button from '@/components/ui/Button'
@@ -15,14 +15,16 @@ interface Program { id: string; name: string; description: string | null; applic
 
 const PROG_COLORS = ['#033D4C', '#225632', '#7D783E', '#40403E', '#5B4D8A']
 
+const noopSubscribe = () => () => {}
+const readSetupParam = () => new URLSearchParams(window.location.search).get('setup') === '1'
+
 export default function EducatorLogin() {
   const router = useRouter()
   const [branches, setBranches] = useState<Branch[]>([])
   const [programs, setPrograms] = useState<Program[]>([])
-  const [mode, setMode] = useState<'signin' | 'setup'>('signin')
-  useEffect(() => {
-    if (new URLSearchParams(window.location.search).get('setup') === '1') setMode('setup')
-  }, [])
+  const setupRequested = useSyncExternalStore(noopSubscribe, readSetupParam, () => false)
+  const [modeChoice, setMode] = useState<'signin' | 'setup' | null>(null)
+  const mode = modeChoice ?? (setupRequested ? 'setup' : 'signin')
   const [signinForm, setSigninForm] = useState({ email: '', password: '', branchId: '' })
   const [turnstileToken, setTurnstileToken] = useState('')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())

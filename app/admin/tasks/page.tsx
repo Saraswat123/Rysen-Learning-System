@@ -62,6 +62,7 @@ export default function AdminTasksPage() {
     setLoading(false)
   }
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- async loader; state is set after await
   useEffect(() => { load() }, [])
 
   async function saveGroup(e: React.FormEvent) {
@@ -356,7 +357,7 @@ export default function AdminTasksPage() {
                   </label>
                   <select value={taskEduGroupId} onChange={(e) => setTaskEduGroupId(e.target.value)}
                     className="px-3 py-2.5 border border-gray-300 rounded-lg text-sm text-charcoal focus:outline-none focus:ring-2 focus:ring-midnight">
-                    <option value="">— Don't assign yet —</option>
+                    <option value="">— Don&apos;t assign yet —</option>
                     {eduGroups.map((g) => (
                       <option key={g.id} value={g.id}>{g.name} ({g.members.length} educators)</option>
                     ))}

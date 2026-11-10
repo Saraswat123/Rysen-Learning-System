@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useSyncExternalStore } from 'react'
 import { useRouter } from 'next/navigation'
 import RysenLogo from '@/components/RysenLogo'
 import Button from '@/components/ui/Button'
@@ -10,12 +10,14 @@ import { ShieldCheck, KeyRound, UserPlus } from 'lucide-react'
 import SetupPasswordForm from '@/components/auth/SetupPasswordForm'
 import TurnstileWidget from '@/components/auth/TurnstileWidget'
 
+const noopSubscribe = () => () => {}
+const readSetupParam = () => new URLSearchParams(window.location.search).get('setup') === '1'
+
 export default function AdminLogin() {
   const router = useRouter()
-  const [mode, setMode] = useState<'signin' | 'setup'>('signin')
-  useEffect(() => {
-    if (new URLSearchParams(window.location.search).get('setup') === '1') setMode('setup')
-  }, [])
+  const setupRequested = useSyncExternalStore(noopSubscribe, readSetupParam, () => false)
+  const [modeChoice, setMode] = useState<'signin' | 'setup' | null>(null)
+  const mode = modeChoice ?? (setupRequested ? 'setup' : 'signin')
   const [signinForm, setSigninForm] = useState({ email: '', password: '' })
   const [turnstileToken, setTurnstileToken] = useState('')
   const [error, setError] = useState('')

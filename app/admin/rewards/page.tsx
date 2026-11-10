@@ -475,7 +475,7 @@ export default function AdminRewardsPage() {
         </div>
       ) : rows.length === 0 ? (
         <div className="bg-white rounded-2xl border border-gray-100 py-16 text-center text-charcoal/40 text-sm">
-          No members in this category yet — click "Members" to add educators
+          No members in this category yet — click &quot;Members&quot; to add educators
         </div>
       ) : (
         <div className="space-y-3">
@@ -561,7 +561,7 @@ export default function AdminRewardsPage() {
           <p className="text-sm font-semibold text-midnight">How this works</p>
           <p className="text-xs text-charcoal/50 mt-0.5">
             Each recognition category has its own educator group and its own editable list of rating criteria.
-            "Student Test Understanding" auto-computes from that educator's branch's test scores this month.
+            &quot;Student Test Understanding&quot; auto-computes from that educator&apos;s branch&apos;s test scores this month.
             Finalizing locks the month, notifies every educator with their rank, and unlocks e-certificate downloads
             for the top 3 in their Recognition page.
           </p>

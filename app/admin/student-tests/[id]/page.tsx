@@ -277,7 +277,7 @@ export default function StudentTestEditorPage({ params }: { params: Promise<{ id
                 </optgroup>
               ))}
             </select>
-            <p className="text-xs text-charcoal/40">Leave as "All Branches" to show to all students, or pick a branch to restrict visibility. Click Save to apply.</p>
+            <p className="text-xs text-charcoal/40">Leave as &quot;All Branches&quot; to show to all students, or pick a branch to restrict visibility. Click Save to apply.</p>
           </div>
         </div>
       </div>

@@ -78,7 +78,11 @@ export default function EducatorLayout({ children }: { children: React.ReactNode
     }).then((d) => d && setUser(d.user))
   }, [router])
 
-  useEffect(() => { setOpen(false) }, [pathname])
+  const [lastPathname, setLastPathname] = useState(pathname)
+  if (lastPathname !== pathname) {
+    setLastPathname(pathname)
+    setOpen(false)
+  }
 
   async function logout() {
     await fetch('/api/auth/logout', { method: 'POST' })

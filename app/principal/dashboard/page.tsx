@@ -58,7 +58,7 @@ export default function PrincipalDashboardPage() {
         <div className="flex items-center justify-between">
           <div>
             <p className="font-semibold text-midnight">Campus Educators Progress</p>
-            <p className="text-sm text-charcoal/50">View all your educators' training status</p>
+            <p className="text-sm text-charcoal/50">View all your educators&apos; training status</p>
           </div>
           <span className="text-olive font-bold">→</span>
         </div>

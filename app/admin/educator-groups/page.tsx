@@ -31,6 +31,7 @@ export default function EducatorGroupsPage() {
       setEducators(Array.isArray(data) ? data : data.educators ?? [])
     }
   }
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- async loader; state is set after await
   useEffect(() => { load() }, [])
 
   function openCreate() {
@@ -95,7 +96,7 @@ export default function EducatorGroupsPage() {
         <div className="text-center py-16 border-2 border-dashed border-gray-200 rounded-2xl text-charcoal/30">
           <Users size={40} className="mx-auto mb-3 opacity-20" />
           <p className="text-sm font-medium">No groups yet</p>
-          <p className="text-xs mt-1">Create groups like "STEM Educators", "Ganganagar Team", "All Principals"</p>
+          <p className="text-xs mt-1">Create groups like &quot;STEM Educators&quot;, &quot;Ganganagar Team&quot;, &quot;All Principals&quot;</p>
           <button onClick={openCreate} className="mt-4 text-xs font-bold text-midnight underline">Create first group</button>
         </div>
       ) : (
@@ -237,7 +238,7 @@ export default function EducatorGroupsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
             <h3 className="text-lg font-bold text-midnight mb-2">Delete Group?</h3>
-            <p className="text-sm text-charcoal/60 mb-1"><strong>"{confirmDelete.name}"</strong> with {confirmDelete.members.length} member{confirmDelete.members.length !== 1 ? 's' : ''}</p>
+            <p className="text-sm text-charcoal/60 mb-1"><strong>&quot;{confirmDelete.name}&quot;</strong> with {confirmDelete.members.length} member{confirmDelete.members.length !== 1 ? 's' : ''}</p>
             <p className="text-xs text-charcoal/40 mb-6">Only the group is deleted. Educators and their tasks are not affected.</p>
             <div className="flex gap-3">
               <Button variant="ghost" className="flex-1" onClick={() => setConfirmDelete(null)}>Cancel</Button>

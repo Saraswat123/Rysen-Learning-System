@@ -69,6 +69,7 @@ export default function AdminResourcesPage() {
     if (br.ok) setBranches(await br.json())
     if (gr.ok) setGroups(await gr.json())
   }
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- async loader; state is set after await
   useEffect(() => { load() }, [])
 
   function openCreate() { setForm({ ...EMPTY_FORM }); setEditId(null); setUploadFile(null); setInputMode('link'); setShowCreate(true) }
@@ -381,7 +382,7 @@ export default function AdminResourcesPage() {
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
             <h3 className="text-lg font-bold text-midnight mb-2">Delete Resource?</h3>
             <p className="text-sm text-charcoal/60 mb-6">
-              <strong className="text-midnight">"{confirmDelete.title}"</strong> will be permanently removed.
+              <strong className="text-midnight">&quot;{confirmDelete.title}&quot;</strong> will be permanently removed.
             </p>
             <div className="flex gap-3">
               <Button variant="ghost" className="flex-1" onClick={() => setConfirmDelete(null)}>Cancel</Button>

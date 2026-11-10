@@ -104,7 +104,7 @@ export default function CertificatePage() {
       <div className="max-w-xl mx-auto text-center py-16">
         <Lock size={48} className="text-charcoal/30 mx-auto mb-4" />
         <h1 className="text-xl font-bold text-midnight mb-2">Certificate Not Available</h1>
-        <p className="text-charcoal/60 text-sm">Complete all stages of "{selected.programName}" to unlock this certificate.</p>
+        <p className="text-charcoal/60 text-sm">Complete all stages of &quot;{selected.programName}&quot; to unlock this certificate.</p>
         <Button onClick={() => setSelected(null)} variant="ghost" className="mt-6"><ChevronLeft size={15} /> Back to Certificates</Button>
       </div>
     )

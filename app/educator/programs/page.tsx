@@ -40,6 +40,7 @@ export default function EducatorProgramsPage() {
     setLoading(false)
   }
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- async loader; state is set after await
   useEffect(() => { load() }, [])
 
   async function enroll(programId: string) {

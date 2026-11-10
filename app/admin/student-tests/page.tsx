@@ -53,6 +53,7 @@ export default function StudentTestsPage() {
     setLoading(false)
   }
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- async loader; state is set after await
   useEffect(() => { load() }, [])
 
   async function createTest(e: React.FormEvent) {
@@ -146,7 +147,7 @@ export default function StudentTestsPage() {
                     </optgroup>
                   ))}
                 </select>
-                <p className="text-xs text-charcoal/40">Leave as "All Branches" to show to all students, or pick a branch to restrict visibility.</p>
+                <p className="text-xs text-charcoal/40">Leave as &quot;All Branches&quot; to show to all students, or pick a branch to restrict visibility.</p>
               </div>
 
               {/* Schedule window */}

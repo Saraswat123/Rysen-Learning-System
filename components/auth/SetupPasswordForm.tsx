@@ -84,7 +84,7 @@ export default function SetupPasswordForm({ onSuccess, extra }: { onSuccess: () 
       <Button type="submit" loading={loading} size="lg" className="mt-2">Set Password & Sign In</Button>
       <button type="button" onClick={() => { setStep('request'); setError(''); setOtp('') }}
         className="text-xs text-charcoal/50 hover:text-midnight text-center">
-        Didn't get a code? Go back
+        Didn&apos;t get a code? Go back
       </button>
     </form>
   )

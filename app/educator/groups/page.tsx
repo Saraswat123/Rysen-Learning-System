@@ -104,6 +104,7 @@ export default function EducatorGroupsPage() {
 
   useEffect(() => {
     if (!activeGroup) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- async loader; state is set after await
     loadMessages(activeGroup.id)
     if (pollRef.current) clearInterval(pollRef.current)
     pollRef.current = setInterval(() => loadMessages(activeGroup.id), 5000)

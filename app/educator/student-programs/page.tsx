@@ -27,6 +27,7 @@ export default function StudentProgramsPage() {
     setLoading(false)
   }
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- async loader; state is set after await
   useEffect(() => { load() }, [])
 
   async function createProgram(e: React.FormEvent) {
@@ -82,7 +83,7 @@ export default function StudentProgramsPage() {
               <Input label="Program Title" placeholder="e.g. Term 2 STEM Track" value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} required />
               <Input label="Description" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
               <Input label="Target Class" placeholder="e.g. 6" value={form.targetClass} onChange={(e) => setForm((f) => ({ ...f, targetClass: e.target.value }))} />
-              <p className="text-xs text-charcoal/40">You'll attach existing tests to it on the next screen.</p>
+              <p className="text-xs text-charcoal/40">You&apos;ll attach existing tests to it on the next screen.</p>
               {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
               <div className="flex gap-3 mt-2">
                 <Button type="button" onClick={() => setShowAdd(false)} className="flex-1 bg-gray-100 text-charcoal hover:bg-gray-200">Cancel</Button>

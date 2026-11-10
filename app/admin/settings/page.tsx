@@ -178,7 +178,7 @@ export default function SettingsPage() {
           <div>
             <p className="text-sm font-semibold text-midnight">Runs automatically every night at 2:00 AM</p>
             <p className="text-xs text-charcoal/50 mt-0.5">
-              Powered by Vercel Cron — no manual action needed. Use "Run Now" above to trigger immediately.
+              Powered by Vercel Cron — no manual action needed. Use &quot;Run Now&quot; above to trigger immediately.
             </p>
           </div>
         </div>
@@ -209,7 +209,7 @@ export default function SettingsPage() {
             <div>
               <p className="text-sm font-semibold text-midnight">Sends automatically every Sunday</p>
               <p className="text-xs text-charcoal/50 mt-0.5">
-                Powered by Vercel Cron, mailed to every active Admin via Resend — nothing to configure. "Send Now" below sends it immediately for testing.
+                Powered by Vercel Cron, mailed to every active Admin via Resend — nothing to configure. &quot;Send Now&quot; below sends it immediately for testing.
               </p>
             </div>
           </div>
@@ -249,7 +249,7 @@ export default function SettingsPage() {
                 <UserPlus size={16} className="text-forest" /> Welcome / Activate Account Email
               </h2>
               <p className="text-sm text-charcoal/50 mt-1">
-                Every new educator, principal, or admin now gets this automatically when created. Use the button below to send it to everyone who was added before this existed and hasn't activated yet.
+                Every new educator, principal, or admin now gets this automatically when created. Use the button below to send it to everyone who was added before this existed and hasn&apos;t activated yet.
               </p>
             </div>
             <Button onClick={runWelcomeEmails} loading={welcomeRunning} size="sm" className="flex-shrink-0 flex items-center gap-1.5">
@@ -264,7 +264,7 @@ export default function SettingsPage() {
             <div>
               <p className="text-sm font-semibold text-midnight">Automatic on every new account — zero setup going forward</p>
               <p className="text-xs text-charcoal/50 mt-0.5">
-                Skips anyone who already set a password, so people already using the system won't get a confusing "welcome" email.
+                Skips anyone who already set a password, so people already using the system won&apos;t get a confusing &quot;welcome&quot; email.
               </p>
             </div>
           </div>

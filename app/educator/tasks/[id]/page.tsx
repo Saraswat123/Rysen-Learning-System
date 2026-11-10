@@ -38,6 +38,7 @@ export default function EducatorTaskPage({ params }: { params: Promise<{ id: str
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   const [chatInput, setChatInput] = useState('')
   const [chatLoading, setChatLoading] = useState(false)
+  const [now] = useState(() => Date.now())
   const chatEndRef = useRef<HTMLDivElement>(null)
 
   async function load() {
@@ -97,7 +98,7 @@ export default function EducatorTaskPage({ params }: { params: Promise<{ id: str
   const subtaskDone = myProgress.filter((p) => p.completed).length
   const subtaskTotal = task.subtasks.length
   const isCompleted = !!myAssignment?.completedAt
-  const diff = task.deadline ? (new Date(task.deadline).getTime() - Date.now()) / 86400000 : null
+  const diff = task.deadline ? (new Date(task.deadline).getTime() - now) / 86400000 : null
 
   return (
     <div className="max-w-3xl mx-auto">

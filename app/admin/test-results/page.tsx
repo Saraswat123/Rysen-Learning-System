@@ -51,6 +51,7 @@ export default function TestResultsPage() {
     setLoading(false)
   }, [filters])
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- async loader; state is set after await
   useEffect(() => { load() }, [load])
 
   function exportCSV(subset?: Row[]) {

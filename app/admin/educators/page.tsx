@@ -77,6 +77,7 @@ export default function EducatorsPage() {
     setBranches(b)
   }
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- async loader; state is set after await
   useEffect(() => { load() }, [])
 
   async function addEducator(e: React.FormEvent) {

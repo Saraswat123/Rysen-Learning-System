@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 
 declare global {
   interface Window {
@@ -17,34 +17,39 @@ export default function TurnstileWidget({ onVerify }: { onVerify: (token: string
   const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY
   const containerRef = useRef<HTMLDivElement>(null)
   const widgetId = useRef<string | null>(null)
-  const [scriptLoaded, setScriptLoaded] = useState(false)
-
   useEffect(() => {
     if (!siteKey) return
-    if (window.turnstile) { setScriptLoaded(true); return }
-    const existing = document.querySelector('script[src*="turnstile"]')
-    if (existing) {
-      existing.addEventListener('load', () => setScriptLoaded(true))
-      return
+    let cancelled = false
+    const render = () => {
+      if (cancelled || widgetId.current || !containerRef.current || !window.turnstile) return
+      widgetId.current = window.turnstile.render(containerRef.current, {
+        sitekey: siteKey,
+        callback: onVerify,
+        'expired-callback': () => onVerify(''),
+      })
     }
-    const script = document.createElement('script')
-    script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js'
-    script.async = true
-    script.onload = () => setScriptLoaded(true)
-    document.head.appendChild(script)
-  }, [siteKey])
 
-  useEffect(() => {
-    if (!siteKey || !scriptLoaded || !containerRef.current || !window.turnstile) return
-    widgetId.current = window.turnstile.render(containerRef.current, {
-      sitekey: siteKey,
-      callback: onVerify,
-      'expired-callback': () => onVerify(''),
-    })
-    return () => {
-      if (widgetId.current && window.turnstile) window.turnstile.remove(widgetId.current)
+    let script: HTMLScriptElement | null = null
+    if (window.turnstile) {
+      render()
+    } else {
+      script = document.querySelector<HTMLScriptElement>('script[src*="turnstile"]')
+      if (!script) {
+        script = document.createElement('script')
+        script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js'
+        script.async = true
+        document.head.appendChild(script)
+      }
+      script.addEventListener('load', render)
     }
-  }, [scriptLoaded, siteKey, onVerify])
+
+    return () => {
+      cancelled = true
+      script?.removeEventListener('load', render)
+      if (widgetId.current && window.turnstile) window.turnstile.remove(widgetId.current)
+      widgetId.current = null
+    }
+  }, [siteKey, onVerify])
 
   if (!siteKey) return null
   return <div ref={containerRef} className="flex justify-center my-1" />
