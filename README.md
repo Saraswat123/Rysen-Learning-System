@@ -16,6 +16,8 @@ Built with Next.js App Router · Prisma 7.8.0 · PostgreSQL (Neon.tech) · Tailw
 
 Live: **https://rysen-learning-system.vercel.app**
 
+**Full documentation:** [`docs/PRODUCT_OVERVIEW.md`](docs/PRODUCT_OVERVIEW.md) (plain-language intro) · [`docs/TECH_STACK.md`](docs/TECH_STACK.md) · [`docs/HLD.md`](docs/HLD.md) (architecture) · [`docs/LLD.md`](docs/LLD.md) (how specific features work) · [`docs/USER_FLOWS.md`](docs/USER_FLOWS.md) (click-through per role) · [`TESTING.md`](TESTING.md) · [`HANDOVER.md`](HANDOVER.md)
+
 ---
 
 ## Portals
@@ -489,6 +491,5 @@ Admin enters/edits scores per educator per month at `/admin/rewards`; **unfinali
 **One-time setup endpoints** (POST, admin-only):
 
 - `POST /api/admin/seed-orientation-mcq` — seeds MCQ questions into Orientation Program stages
-- `POST /api/admin/setup-stem-task` — creates STEM Educators group + July data task
 - `POST /api/admin/setup-stem-resources` — seeds STEM Data, STEM Curriculum, STEM Materials, R&D 2026-27 resources
 - `POST /api/admin/setup-north-south-resources` — seeds the North/South Campus weekly-meeting + SOP resources into the matching `EducatorGroup`
