@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/auth'
 import { Role } from '@/app/generated/prisma/client'
-import { sheetsEnabled, readSheet, syncAllStudents, ensureHeaders, HEADERS } from '@/lib/google-sheets'
+import { sheetsEnabled, readSheet, syncAllStudents, HEADERS } from '@/lib/google-sheets'
 
 function isAdmin(role: Role) {
   return role === Role.ADMIN || role === Role.SUPER_ADMIN
@@ -21,10 +21,10 @@ export async function GET() {
     }
 
     const rows = await readSheet()
-    const dataRows = rows.slice(1) // skip header
-    return NextResponse.json({ enabled: true, headers: HEADERS, rows: dataRows })
+    return NextResponse.json({ enabled: true, headers: HEADERS, rows })
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 })
+    console.error('[admin/students/sheet]', err)
+    return NextResponse.json({ error: 'Google Sheets request failed. Check the Sheets credentials and try again.' }, { status: 502 })
   }
 }
 
@@ -64,7 +64,7 @@ export async function POST() {
         s.class,
         s.section ?? '',
         s.subject ?? '',
-        '',
+        s.id,
         s.isActive ? 'Active' : 'Inactive',
         String(attempts.length),
         String(passed),
@@ -72,7 +72,7 @@ export async function POST() {
         last?.test.title ?? '',
         last ? String(lastScore) : '',
         last ? (last.passed ? 'Passed' : 'Failed') : '',
-        last ? new Date(last.completedAt).toLocaleDateString('en-IN') : '',
+        last ? new Date(last.completedAt).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' }) : '',
       ]
     })
 
@@ -80,6 +80,7 @@ export async function POST() {
 
     return NextResponse.json({ ok: true, synced: rows.length })
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 })
+    console.error('[admin/students/sheet]', err)
+    return NextResponse.json({ error: 'Google Sheets request failed. Check the Sheets credentials and try again.' }, { status: 502 })
   }
 }

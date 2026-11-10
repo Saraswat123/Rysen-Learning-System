@@ -15,7 +15,7 @@ export async function syncStudentSheetRow(studentId: string) {
   const pct = (a: { score: number; totalMarks: number }) => (a.totalMarks > 0 ? Math.round((a.score / a.totalMarks) * 100) : 0)
   const scores = s.attempts.map(pct)
   const last = s.attempts[0]
-  await updateStudentRow(s.branch?.name ?? '', s.name, {
+  await updateStudentRow(s.id, {
     totalTests: s.attempts.length,
     testsPassed: s.attempts.filter((a) => a.passed).length,
     avgScore: scores.length > 0 ? Math.round(scores.reduce((x, y) => x + y, 0) / scores.length) : 0,
