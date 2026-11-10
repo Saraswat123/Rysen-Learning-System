@@ -716,24 +716,26 @@ export default function EducatorsPage() {
                     className="text-xs text-red-500 hover:underline">Clear</button>
                 </div>
                 <div className="max-h-40 overflow-y-auto border border-gray-100 rounded-xl">
-                  <table className="w-full text-xs">
-                    <thead className="bg-cream sticky top-0">
-                      <tr>
-                        <th className="text-left px-3 py-2 font-semibold text-charcoal">#</th>
-                        <th className="text-left px-3 py-2 font-semibold text-charcoal">Name</th>
-                        <th className="text-left px-3 py-2 font-semibold text-charcoal">Email</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {bulkRows.map((r, i) => (
-                        <tr key={i} className="border-t border-gray-50">
-                          <td className="px-3 py-1.5 text-charcoal/40">{i + 1}</td>
-                          <td className="px-3 py-1.5 text-charcoal">{r.name}</td>
-                          <td className="px-3 py-1.5 text-charcoal/70">{r.email}</td>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs min-w-[640px]">
+                      <thead className="bg-cream sticky top-0">
+                        <tr>
+                          <th className="text-left px-3 py-2 font-semibold text-charcoal">#</th>
+                          <th className="text-left px-3 py-2 font-semibold text-charcoal">Name</th>
+                          <th className="text-left px-3 py-2 font-semibold text-charcoal">Email</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {bulkRows.map((r, i) => (
+                          <tr key={i} className="border-t border-gray-50">
+                            <td className="px-3 py-1.5 text-charcoal/40">{i + 1}</td>
+                            <td className="px-3 py-1.5 text-charcoal">{r.name}</td>
+                            <td className="px-3 py-1.5 text-charcoal/70">{r.email}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
             )}

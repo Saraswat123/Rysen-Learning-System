@@ -148,19 +148,21 @@ function downloadResponseSheet(
     <span><strong>Wrong:</strong> ${result.questions.filter(q => !q.correct).length}</span>
     <span><strong>Pass Score:</strong> ${passScore}%</span>
   </div>
-  <table>
-    <thead>
-      <tr>
-        <th style="width:40px">#</th>
-        <th>Question</th>
-        <th style="width:160px">Your Answer</th>
-        <th style="width:160px">Correct Answer</th>
-        <th style="width:50px;text-align:center">Result</th>
-        <th style="width:70px;text-align:center">Marks</th>
-      </tr>
-    </thead>
-    <tbody>${rows}</tbody>
-  </table>
+  <div className="overflow-x-auto">
+    <table className="min-w-[640px]">
+      <thead>
+        <tr>
+          <th style="width:40px">#</th>
+          <th>Question</th>
+          <th style="width:160px">Your Answer</th>
+          <th style="width:160px">Correct Answer</th>
+          <th style="width:50px;text-align:center">Result</th>
+          <th style="width:70px;text-align:center">Marks</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>
   <div class="footer">
     <span>Generated on ${date} · RYSEN Learning Centre</span>
     <span>Rise To Success</span>

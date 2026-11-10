@@ -75,7 +75,7 @@ export default function EducatorLayout({ children }: { children: React.ReactNode
     fetch('/api/auth/me').then((r) => {
       if (!r.ok) { router.push('/login'); return }
       return r.json()
-    }).then((d) => d && setUser(d.user))
+    }).then((d) => d && setUser(d.user)).catch(() => {})
   }, [router])
 
   const [lastPathname, setLastPathname] = useState(pathname)
@@ -168,7 +168,7 @@ export default function EducatorLayout({ children }: { children: React.ReactNode
           <div className="flex-1" />
           <NotificationBell taskPath="/educator/tasks" />
         </header>
-        <main className="flex-1 p-6 lg:p-8 max-w-6xl w-full mx-auto">{children}</main>
+        <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 max-w-6xl w-full mx-auto">{children}</main>
       </div>
     </div>
   )

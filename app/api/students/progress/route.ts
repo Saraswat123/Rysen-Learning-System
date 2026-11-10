@@ -102,6 +102,7 @@ export async function GET() {
 
     return NextResponse.json({ students: data, summary })
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 })
+    console.error('[students/progress]', err)
+    return NextResponse.json({ error: 'Something went wrong. Please try again.' }, { status: 500 })
   }
 }

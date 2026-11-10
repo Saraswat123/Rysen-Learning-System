@@ -65,6 +65,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(leaderboard)
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 })
+    console.error('[student-leaderboard]', err)
+    return NextResponse.json({ error: 'Something went wrong. Please try again.' }, { status: 500 })
   }
 }

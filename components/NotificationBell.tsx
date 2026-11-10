@@ -33,7 +33,7 @@ export default function NotificationBell({ taskPath = '/admin/tasks' }: { taskPa
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- async loader; state is set after await
     load()
-    const t = setInterval(load, 30000) // poll every 30s
+    const t = setInterval(() => { if (!document.hidden) load() }, 30000) // poll every 30s while visible
     return () => clearInterval(t)
   }, [])
 
@@ -48,13 +48,13 @@ export default function NotificationBell({ taskPath = '/admin/tasks' }: { taskPa
   const unread = notifs.filter((n) => !n.read).length
 
   async function markAll() {
-    await fetch('/api/notifications', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ all: true }) })
-    setNotifs((prev) => prev.map((n) => ({ ...n, read: true })))
+    const res = await fetch('/api/notifications', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ all: true }) }).catch(() => null)
+    if (res?.ok) setNotifs((prev) => prev.map((n) => ({ ...n, read: true })))
   }
 
   async function markOne(id: string) {
-    await fetch('/api/notifications', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
-    setNotifs((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n))
+    const res = await fetch('/api/notifications', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) }).catch(() => null)
+    if (res?.ok) setNotifs((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n))
   }
 
   return (

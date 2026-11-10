@@ -116,7 +116,7 @@ function EducatorAnalytics() {
       {error && <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-600 mb-6">{error}</div>}
       {data && !loading && (
         <div className="flex flex-col gap-6">
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
             {[
               { icon: Users, color: 'bg-midnight text-white', val: data.totalEducators, label: 'Active Educators', iconCol: 'text-gold' },
               { icon: Award, color: 'bg-white border', val: data.stageStats.find((s) => s.number === 5)?.passed ?? 0, label: 'Fully Certified', iconCol: 'text-gold' },
@@ -347,34 +347,36 @@ function StudentAnalytics() {
               <div className="px-6 py-4 border-b border-gray-100">
                 <h2 className="font-bold text-midnight">Test-wise Breakdown</h2>
               </div>
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-gray-50 border-b border-gray-100">
-                    <th className="text-left px-5 py-3 text-charcoal/60 font-semibold">Test</th>
-                    <th className="text-left px-5 py-3 text-charcoal/60 font-semibold hidden sm:table-cell">Subject</th>
-                    <th className="text-left px-5 py-3 text-charcoal/60 font-semibold hidden md:table-cell">Class</th>
-                    <th className="text-center px-5 py-3 text-charcoal/60 font-semibold">Attempts</th>
-                    <th className="text-center px-5 py-3 text-charcoal/60 font-semibold">Pass Rate</th>
-                    <th className="text-center px-5 py-3 text-charcoal/60 font-semibold">Avg Score</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.testStats.map((t) => (
-                    <tr key={t.id} className="border-b border-gray-50 hover:bg-gray-50/50">
-                      <td className="px-5 py-3 font-medium text-midnight">{t.title}</td>
-                      <td className="px-5 py-3 text-charcoal/60 hidden sm:table-cell">{t.subject || '—'}</td>
-                      <td className="px-5 py-3 text-charcoal/60 hidden md:table-cell">{t.targetClass ? `Class ${t.targetClass}` : 'All'}</td>
-                      <td className="px-5 py-3 text-center text-charcoal/70">{t.totalAttempts}</td>
-                      <td className="px-5 py-3 text-center">
-                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${t.passRate >= 70 ? 'bg-forest/10 text-forest' : t.passRate >= 40 ? 'bg-amber-100 text-amber-700' : 'bg-red-50 text-red-600'}`}>
-                          {t.passRate}%
-                        </span>
-                      </td>
-                      <td className="px-5 py-3 text-center font-semibold text-midnight">{t.avgScore}%</td>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm min-w-[640px]">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-100">
+                      <th className="text-left px-5 py-3 text-charcoal/60 font-semibold">Test</th>
+                      <th className="text-left px-5 py-3 text-charcoal/60 font-semibold hidden sm:table-cell">Subject</th>
+                      <th className="text-left px-5 py-3 text-charcoal/60 font-semibold hidden md:table-cell">Class</th>
+                      <th className="text-center px-5 py-3 text-charcoal/60 font-semibold">Attempts</th>
+                      <th className="text-center px-5 py-3 text-charcoal/60 font-semibold">Pass Rate</th>
+                      <th className="text-center px-5 py-3 text-charcoal/60 font-semibold">Avg Score</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {data.testStats.map((t) => (
+                      <tr key={t.id} className="border-b border-gray-50 hover:bg-gray-50/50">
+                        <td className="px-5 py-3 font-medium text-midnight">{t.title}</td>
+                        <td className="px-5 py-3 text-charcoal/60 hidden sm:table-cell">{t.subject || '—'}</td>
+                        <td className="px-5 py-3 text-charcoal/60 hidden md:table-cell">{t.targetClass ? `Class ${t.targetClass}` : 'All'}</td>
+                        <td className="px-5 py-3 text-center text-charcoal/70">{t.totalAttempts}</td>
+                        <td className="px-5 py-3 text-center">
+                          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${t.passRate >= 70 ? 'bg-forest/10 text-forest' : t.passRate >= 40 ? 'bg-amber-100 text-amber-700' : 'bg-red-50 text-red-600'}`}>
+                            {t.passRate}%
+                          </span>
+                        </td>
+                        <td className="px-5 py-3 text-center font-semibold text-midnight">{t.avgScore}%</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
 

@@ -292,32 +292,34 @@ export default function EducatorStudentsPage() {
                     Preview — {validCount} valid · {parsedRows.length - validCount} invalid
                   </p>
                   <div className="border border-gray-100 rounded-xl overflow-hidden max-h-64 overflow-y-auto">
-                    <table className="w-full text-xs">
-                      <thead className="bg-gray-50 sticky top-0">
-                        <tr>
-                          <th className="text-left px-3 py-2 text-charcoal/50 font-semibold">Name</th>
-                          <th className="text-left px-3 py-2 text-charcoal/50 font-semibold">Class</th>
-                          <th className="text-left px-3 py-2 text-charcoal/50 font-semibold">Section</th>
-                          <th className="text-left px-3 py-2 text-charcoal/50 font-semibold">Subject</th>
-                          <th className="px-3 py-2" />
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {parsedRows.map((r, i) => (
-                          <tr key={i} className={`border-t border-gray-50 ${r.valid ? '' : 'bg-red-50'}`}>
-                            <td className="px-3 py-2 font-medium text-midnight">{r.name || <span className="text-red-500 italic">missing</span>}</td>
-                            <td className="px-3 py-2 text-charcoal/70">{r.class || <span className="text-red-500 italic">missing</span>}</td>
-                            <td className="px-3 py-2 text-charcoal/50">{r.section || '—'}</td>
-                            <td className="px-3 py-2 text-charcoal/50">{r.subject || '—'}</td>
-                            <td className="px-3 py-2 text-center">
-                              {r.valid
-                                ? <CheckCircle size={13} className="text-forest mx-auto" />
-                                : <X size={13} className="text-red-500 mx-auto" />}
-                            </td>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs min-w-[640px]">
+                        <thead className="bg-gray-50 sticky top-0">
+                          <tr>
+                            <th className="text-left px-3 py-2 text-charcoal/50 font-semibold">Name</th>
+                            <th className="text-left px-3 py-2 text-charcoal/50 font-semibold">Class</th>
+                            <th className="text-left px-3 py-2 text-charcoal/50 font-semibold">Section</th>
+                            <th className="text-left px-3 py-2 text-charcoal/50 font-semibold">Subject</th>
+                            <th className="px-3 py-2" />
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {parsedRows.map((r, i) => (
+                            <tr key={i} className={`border-t border-gray-50 ${r.valid ? '' : 'bg-red-50'}`}>
+                              <td className="px-3 py-2 font-medium text-midnight">{r.name || <span className="text-red-500 italic">missing</span>}</td>
+                              <td className="px-3 py-2 text-charcoal/70">{r.class || <span className="text-red-500 italic">missing</span>}</td>
+                              <td className="px-3 py-2 text-charcoal/50">{r.section || '—'}</td>
+                              <td className="px-3 py-2 text-charcoal/50">{r.subject || '—'}</td>
+                              <td className="px-3 py-2 text-center">
+                                {r.valid
+                                  ? <CheckCircle size={13} className="text-forest mx-auto" />
+                                  : <X size={13} className="text-red-500 mx-auto" />}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 </div>
               )}
@@ -378,68 +380,70 @@ export default function EducatorStudentsPage() {
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-100 bg-gray-50">
-                <th className="px-5 py-3 w-10">
-                  <button onClick={toggleSelectAll} className="text-charcoal/30 hover:text-midnight transition-colors">
-                    {selected.size > 0 && selected.size === filtered.length
-                      ? <SquareCheck size={16} className="text-midnight" />
-                      : <Square size={16} />}
-                  </button>
-                </th>
-                <th className="text-left px-5 py-3 text-charcoal/60 font-semibold">Name</th>
-                <th className="text-left px-5 py-3 text-charcoal/60 font-semibold">Class</th>
-                <th className="text-left px-5 py-3 text-charcoal/60 font-semibold hidden sm:table-cell">Subject</th>
-                <th className="text-left px-5 py-3 text-charcoal/60 font-semibold hidden md:table-cell">Tests Taken</th>
-                <th className="text-left px-5 py-3 text-charcoal/60 font-semibold">Status</th>
-                <th className="text-right px-5 py-3 text-charcoal/60 font-semibold">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((s) => (
-                <tr key={s.id} className={`border-b border-gray-50 hover:bg-gray-50/50 ${selected.has(s.id) ? 'bg-red-50/40' : ''}`}>
-                  <td className="px-5 py-3">
-                    <button onClick={() => toggleSelect(s.id)} className="text-charcoal/30 hover:text-midnight transition-colors">
-                      {selected.has(s.id)
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[640px]">
+              <thead>
+                <tr className="border-b border-gray-100 bg-gray-50">
+                  <th className="px-5 py-3 w-10">
+                    <button onClick={toggleSelectAll} className="text-charcoal/30 hover:text-midnight transition-colors">
+                      {selected.size > 0 && selected.size === filtered.length
                         ? <SquareCheck size={16} className="text-midnight" />
                         : <Square size={16} />}
                     </button>
-                  </td>
-                  <td className="px-5 py-3 font-medium text-midnight">{s.name}</td>
-                  <td className="px-5 py-3 text-charcoal/70">{s.class}{s.section ? ` - ${s.section}` : ''}</td>
-                  <td className="px-5 py-3 text-charcoal/60 hidden sm:table-cell">{s.subject || '—'}</td>
-                  <td className="px-5 py-3 text-charcoal/60 hidden md:table-cell">{s._count.attempts}</td>
-                  <td className="px-5 py-3">
-                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${s.isActive ? 'bg-forest/10 text-forest' : 'bg-red-50 text-red-600'}`}>
-                      {s.isActive ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3">
-                    <div className="flex items-center justify-end gap-2">
-                      <button onClick={() => toggleActive(s)} title={s.isActive ? 'Deactivate' : 'Activate'}
-                        className="p-1.5 rounded-lg hover:bg-gray-100 text-charcoal/40 hover:text-charcoal transition-colors">
-                        {s.isActive ? <UserX size={15} /> : <UserCheck size={15} />}
-                      </button>
-                      <button onClick={() => setPin(s)} title={s.hasPin ? 'Change or remove PIN' : 'Set login PIN'}
-                        className={`p-1.5 rounded-lg hover:bg-gray-100 transition-colors ${s.hasPin ? 'text-forest' : 'text-charcoal/40 hover:text-charcoal'}`}>
-                        <KeyRound size={15} />
-                      </button>
-                      <button onClick={() => deleteStudent(s.id)} title="Delete"
-                        className="p-1.5 rounded-lg hover:bg-red-50 text-charcoal/40 hover:text-red-600 transition-colors">
-                        <Trash2 size={15} />
-                      </button>
-                    </div>
-                  </td>
+                  </th>
+                  <th className="text-left px-5 py-3 text-charcoal/60 font-semibold">Name</th>
+                  <th className="text-left px-5 py-3 text-charcoal/60 font-semibold">Class</th>
+                  <th className="text-left px-5 py-3 text-charcoal/60 font-semibold hidden sm:table-cell">Subject</th>
+                  <th className="text-left px-5 py-3 text-charcoal/60 font-semibold hidden md:table-cell">Tests Taken</th>
+                  <th className="text-left px-5 py-3 text-charcoal/60 font-semibold">Status</th>
+                  <th className="text-right px-5 py-3 text-charcoal/60 font-semibold">Actions</th>
                 </tr>
-              ))}
-              {filtered.length === 0 && (
-                <tr><td colSpan={7} className="text-center py-12 text-charcoal/40 text-sm">
-                  {students.length === 0 ? 'No students added yet. Click "Add Student" or "Bulk Import" to start.' : 'No students match your search.'}
-                </td></tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {filtered.map((s) => (
+                  <tr key={s.id} className={`border-b border-gray-50 hover:bg-gray-50/50 ${selected.has(s.id) ? 'bg-red-50/40' : ''}`}>
+                    <td className="px-5 py-3">
+                      <button onClick={() => toggleSelect(s.id)} className="text-charcoal/30 hover:text-midnight transition-colors">
+                        {selected.has(s.id)
+                          ? <SquareCheck size={16} className="text-midnight" />
+                          : <Square size={16} />}
+                      </button>
+                    </td>
+                    <td className="px-5 py-3 font-medium text-midnight">{s.name}</td>
+                    <td className="px-5 py-3 text-charcoal/70">{s.class}{s.section ? ` - ${s.section}` : ''}</td>
+                    <td className="px-5 py-3 text-charcoal/60 hidden sm:table-cell">{s.subject || '—'}</td>
+                    <td className="px-5 py-3 text-charcoal/60 hidden md:table-cell">{s._count.attempts}</td>
+                    <td className="px-5 py-3">
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${s.isActive ? 'bg-forest/10 text-forest' : 'bg-red-50 text-red-600'}`}>
+                        {s.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3">
+                      <div className="flex items-center justify-end gap-2">
+                        <button onClick={() => toggleActive(s)} title={s.isActive ? 'Deactivate' : 'Activate'}
+                          className="p-1.5 rounded-lg hover:bg-gray-100 text-charcoal/40 hover:text-charcoal transition-colors">
+                          {s.isActive ? <UserX size={15} /> : <UserCheck size={15} />}
+                        </button>
+                        <button onClick={() => setPin(s)} title={s.hasPin ? 'Change or remove PIN' : 'Set login PIN'}
+                          className={`p-1.5 rounded-lg hover:bg-gray-100 transition-colors ${s.hasPin ? 'text-forest' : 'text-charcoal/40 hover:text-charcoal'}`}>
+                          <KeyRound size={15} />
+                        </button>
+                        <button onClick={() => deleteStudent(s.id)} title="Delete"
+                          className="p-1.5 rounded-lg hover:bg-red-50 text-charcoal/40 hover:text-red-600 transition-colors">
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {filtered.length === 0 && (
+                  <tr><td colSpan={7} className="text-center py-12 text-charcoal/40 text-sm">
+                    {students.length === 0 ? 'No students added yet. Click "Add Student" or "Bulk Import" to start.' : 'No students match your search.'}
+                  </td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

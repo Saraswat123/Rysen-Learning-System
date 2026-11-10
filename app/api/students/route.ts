@@ -38,7 +38,8 @@ export async function GET(req: NextRequest) {
     })
     return NextResponse.json(students.map(({ pinHash, ...s }) => ({ ...s, hasPin: !!pinHash })))
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 })
+    console.error('[students]', err)
+    return NextResponse.json({ error: 'Something went wrong. Please try again.' }, { status: 500 })
   }
 }
 
@@ -67,6 +68,7 @@ export async function POST(req: NextRequest) {
     })
     return NextResponse.json(student, { status: 201 })
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 })
+    console.error('[students]', err)
+    return NextResponse.json({ error: 'Something went wrong. Please try again.' }, { status: 500 })
   }
 }

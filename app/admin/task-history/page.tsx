@@ -244,59 +244,61 @@ export default function TaskHistoryPage() {
                         <p className="text-xs text-charcoal/30">No educators assigned</p>
                       ) : (
                         <div className="border border-gray-100 rounded-xl overflow-hidden">
-                          <table className="w-full text-xs">
-                            <thead>
-                              <tr className="bg-gray-50 border-b border-gray-100">
-                                <th className="text-left px-4 py-2.5 font-bold text-charcoal/40">Educator</th>
-                                <th className="text-left px-4 py-2.5 font-bold text-charcoal/40 hidden sm:table-cell">Campus</th>
-                                <th className="text-left px-4 py-2.5 font-bold text-charcoal/40">Assigned</th>
-                                <th className="text-left px-4 py-2.5 font-bold text-charcoal/40">Completed</th>
-                                <th className="text-left px-4 py-2.5 font-bold text-charcoal/40 hidden md:table-cell">Subtasks</th>
-                                <th className="text-left px-4 py-2.5 font-bold text-charcoal/40">Status</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {t.assignees.map((a) => {
-                                const asc = STATUS_CONFIG[a.status]
-                                return (
-                                  <tr key={a.userId} className="border-t border-gray-50 hover:bg-gray-50/50">
-                                    <td className="px-4 py-3">
-                                      <p className="font-semibold text-midnight">{a.name}</p>
-                                      <p className="text-charcoal/40">{a.email}</p>
-                                    </td>
-                                    <td className="px-4 py-3 text-charcoal/60 hidden sm:table-cell">{a.branch ?? '—'}</td>
-                                    <td className="px-4 py-3 text-charcoal/60">{fmt(a.assignedAt)}</td>
-                                    <td className="px-4 py-3">
-                                      {a.completedAt ? (
-                                        <div>
-                                          <p className="text-forest font-semibold">{fmt(a.completedAt)}</p>
-                                          <p className="text-charcoal/30">{fmtTime(a.completedAt)}</p>
-                                        </div>
-                                      ) : (
-                                        <span className="text-charcoal/30">—</span>
-                                      )}
-                                    </td>
-                                    <td className="px-4 py-3 hidden md:table-cell">
-                                      {t.subtasks.length > 0 ? (
-                                        <div className="flex items-center gap-1.5">
-                                          <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                                            <div className="h-full rounded-full bg-forest"
-                                              style={{ width: `${t.subtasks.length > 0 ? (a.subtasksCompleted / t.subtasks.length) * 100 : 0}%` }} />
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-xs min-w-[640px]">
+                              <thead>
+                                <tr className="bg-gray-50 border-b border-gray-100">
+                                  <th className="text-left px-4 py-2.5 font-bold text-charcoal/40">Educator</th>
+                                  <th className="text-left px-4 py-2.5 font-bold text-charcoal/40 hidden sm:table-cell">Campus</th>
+                                  <th className="text-left px-4 py-2.5 font-bold text-charcoal/40">Assigned</th>
+                                  <th className="text-left px-4 py-2.5 font-bold text-charcoal/40">Completed</th>
+                                  <th className="text-left px-4 py-2.5 font-bold text-charcoal/40 hidden md:table-cell">Subtasks</th>
+                                  <th className="text-left px-4 py-2.5 font-bold text-charcoal/40">Status</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {t.assignees.map((a) => {
+                                  const asc = STATUS_CONFIG[a.status]
+                                  return (
+                                    <tr key={a.userId} className="border-t border-gray-50 hover:bg-gray-50/50">
+                                      <td className="px-4 py-3">
+                                        <p className="font-semibold text-midnight">{a.name}</p>
+                                        <p className="text-charcoal/40">{a.email}</p>
+                                      </td>
+                                      <td className="px-4 py-3 text-charcoal/60 hidden sm:table-cell">{a.branch ?? '—'}</td>
+                                      <td className="px-4 py-3 text-charcoal/60">{fmt(a.assignedAt)}</td>
+                                      <td className="px-4 py-3">
+                                        {a.completedAt ? (
+                                          <div>
+                                            <p className="text-forest font-semibold">{fmt(a.completedAt)}</p>
+                                            <p className="text-charcoal/30">{fmtTime(a.completedAt)}</p>
                                           </div>
-                                          <span className="text-charcoal/50">{a.subtasksCompleted}/{t.subtasks.length}</span>
-                                        </div>
-                                      ) : <span className="text-charcoal/30">—</span>}
-                                    </td>
-                                    <td className="px-4 py-3">
-                                      <span className={`px-2 py-0.5 rounded-full font-semibold text-xs ${asc.color}`}>
-                                        {asc.label}
-                                      </span>
-                                    </td>
-                                  </tr>
-                                )
-                              })}
-                            </tbody>
-                          </table>
+                                        ) : (
+                                          <span className="text-charcoal/30">—</span>
+                                        )}
+                                      </td>
+                                      <td className="px-4 py-3 hidden md:table-cell">
+                                        {t.subtasks.length > 0 ? (
+                                          <div className="flex items-center gap-1.5">
+                                            <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                              <div className="h-full rounded-full bg-forest"
+                                                style={{ width: `${t.subtasks.length > 0 ? (a.subtasksCompleted / t.subtasks.length) * 100 : 0}%` }} />
+                                            </div>
+                                            <span className="text-charcoal/50">{a.subtasksCompleted}/{t.subtasks.length}</span>
+                                          </div>
+                                        ) : <span className="text-charcoal/30">—</span>}
+                                      </td>
+                                      <td className="px-4 py-3">
+                                        <span className={`px-2 py-0.5 rounded-full font-semibold text-xs ${asc.color}`}>
+                                          {asc.label}
+                                        </span>
+                                      </td>
+                                    </tr>
+                                  )
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
                         </div>
                       )}
                     </div>

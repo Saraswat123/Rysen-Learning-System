@@ -82,14 +82,17 @@ export default function RecognitionPage() {
     const params = new URLSearchParams()
     if (categoryId) params.set('categoryId', categoryId)
     if (selectedPeriod) params.set('period', selectedPeriod)
+    // A slower response for an earlier filter must not overwrite the current one
+    let ignore = false
     fetch(`/api/educator/recognition?${params}`)
-      .then((r) => r.json())
-      .then((d) => {
-        setData(d)
-        if (d.selectedCategoryId) setCategoryId(d.selectedCategoryId)
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`)
+        return r.json()
       })
-      .catch(() => setData({ isInRecognitionProgram: false }))
-      .finally(() => setLoadedKey(requestKey))
+      .then((d) => { if (!ignore) setData(d) })
+      .catch(() => { if (!ignore) setData({ isInRecognitionProgram: false }) })
+      .finally(() => { if (!ignore) setLoadedKey(requestKey) })
+    return () => { ignore = true }
   }, [categoryId, selectedPeriod]) // eslint-disable-line
 
   function switchCategory(id: string) {
@@ -355,7 +358,7 @@ export default function RecognitionPage() {
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {categories && categories.length > 1 && (
-            <select value={categoryId} onChange={(e) => switchCategory(e.target.value)}
+            <select value={categoryId || data.selectedCategoryId || ''} onChange={(e) => switchCategory(e.target.value)}
               className="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-midnight/20">
               {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>

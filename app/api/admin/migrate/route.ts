@@ -562,7 +562,8 @@ export async function POST() {
     }
     return NextResponse.json({ ok: true, results })
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 })
+    console.error('[admin/migrate]', err)
+    return NextResponse.json({ error: 'Something went wrong. Please try again.' }, { status: 500 })
   } finally {
     await pool.end()
   }

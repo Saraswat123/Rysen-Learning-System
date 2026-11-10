@@ -90,50 +90,52 @@ export default function PrincipalsPage() {
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-cream border-b border-gray-100">
-            <tr>
-              <th className="text-left px-5 py-3 font-semibold text-charcoal">Name</th>
-              <th className="text-left px-5 py-3 font-semibold text-charcoal">Email</th>
-              <th className="text-left px-5 py-3 font-semibold text-charcoal">Campus</th>
-              <th className="text-left px-5 py-3 font-semibold text-charcoal">Status</th>
-              <th className="px-5 py-3" />
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((p) => (
-              <tr key={p.id} className="border-b border-gray-50 hover:bg-cream/50">
-                <td className="px-5 py-3 font-medium text-charcoal">{p.name}</td>
-                <td className="px-5 py-3 text-charcoal/70">{p.email}</td>
-                <td className="px-5 py-3">
-                  {p.branch ? (
-                    <span className="text-charcoal/70">{p.branch.name}</span>
-                  ) : (
-                    <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Unassigned</span>
-                  )}
-                </td>
-                <td className="px-5 py-3">
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${p.isActive ? 'bg-forest/10 text-forest' : 'bg-red-100 text-red-600'}`}>
-                    {p.isActive ? 'Active' : 'Inactive'}
-                  </span>
-                </td>
-                <td className="px-5 py-3">
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => toggleActive(p.id, p.isActive)} className="text-charcoal/40 hover:text-midnight">
-                      {p.isActive ? <ToggleRight size={20} className="text-forest" /> : <ToggleLeft size={20} />}
-                    </button>
-                    <button onClick={() => setConfirmDelete(p)} className="text-charcoal/30 hover:text-red-500">
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                </td>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-[640px]">
+            <thead className="bg-cream border-b border-gray-100">
+              <tr>
+                <th className="text-left px-5 py-3 font-semibold text-charcoal">Name</th>
+                <th className="text-left px-5 py-3 font-semibold text-charcoal">Email</th>
+                <th className="text-left px-5 py-3 font-semibold text-charcoal">Campus</th>
+                <th className="text-left px-5 py-3 font-semibold text-charcoal">Status</th>
+                <th className="px-5 py-3" />
               </tr>
-            ))}
-            {filtered.length === 0 && (
-              <tr><td colSpan={5} className="text-center py-12 text-charcoal/40">No principals found</td></tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {filtered.map((p) => (
+                <tr key={p.id} className="border-b border-gray-50 hover:bg-cream/50">
+                  <td className="px-5 py-3 font-medium text-charcoal">{p.name}</td>
+                  <td className="px-5 py-3 text-charcoal/70">{p.email}</td>
+                  <td className="px-5 py-3">
+                    {p.branch ? (
+                      <span className="text-charcoal/70">{p.branch.name}</span>
+                    ) : (
+                      <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Unassigned</span>
+                    )}
+                  </td>
+                  <td className="px-5 py-3">
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${p.isActive ? 'bg-forest/10 text-forest' : 'bg-red-100 text-red-600'}`}>
+                      {p.isActive ? 'Active' : 'Inactive'}
+                    </span>
+                  </td>
+                  <td className="px-5 py-3">
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => toggleActive(p.id, p.isActive)} className="text-charcoal/40 hover:text-midnight">
+                        {p.isActive ? <ToggleRight size={20} className="text-forest" /> : <ToggleLeft size={20} />}
+                      </button>
+                      <button onClick={() => setConfirmDelete(p)} className="text-charcoal/30 hover:text-red-500">
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {filtered.length === 0 && (
+                <tr><td colSpan={5} className="text-center py-12 text-charcoal/40">No principals found</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Add Modal */}

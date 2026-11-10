@@ -230,6 +230,6 @@ export async function POST() {
     return NextResponse.json({ program: program.name, results })
   } catch (err) {
     console.error('[seed-orientation-mcq]', err)
-    return NextResponse.json({ error: String(err) }, { status: 500 })
+    return NextResponse.json({ error: 'Something went wrong. Please try again.' }, { status: 500 })
   }
 }

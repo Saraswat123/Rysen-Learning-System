@@ -85,25 +85,30 @@ export default function EducatorGroupsPage() {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
-    fetch('/api/auth/me').then(r => r.json()).then(d => setMyId(d.user?.id ?? ''))
-    fetch('/api/educator-groups').then(r => r.json()).then(data => {
+    fetch('/api/auth/me').then(r => r.ok ? r.json() : null).then(d => setMyId(d?.user?.id ?? '')).catch(() => {})
+    fetch('/api/educator-groups').then(r => r.ok ? r.json() : []).then(data => {
       if (Array.isArray(data)) {
         setGroups(data)
         if (data.length > 0) setActiveGroup(data[0])
       }
-    })
+    }).catch(() => {})
   }, [])
 
+  // A poll for the previous group can resolve after the user switches; drop it
+  const activeGroupIdRef = useRef<string | null>(null)
+
   const loadMessages = useCallback(async (groupId: string) => {
-    const res = await fetch(`/api/educator-groups/${groupId}/messages`)
-    if (res.ok) {
+    try {
+      const res = await fetch(`/api/educator-groups/${groupId}/messages`)
+      if (!res.ok) return
       const data = await res.json()
-      setMessages(data)
-    }
+      if (activeGroupIdRef.current === groupId) setMessages(data)
+    } catch {}
   }, [])
 
   useEffect(() => {
     if (!activeGroup) return
+    activeGroupIdRef.current = activeGroup.id
     // eslint-disable-next-line react-hooks/set-state-in-effect -- async loader; state is set after await
     loadMessages(activeGroup.id)
     if (pollRef.current) clearInterval(pollRef.current)
@@ -119,17 +124,24 @@ export default function EducatorGroupsPage() {
     e.preventDefault()
     if (!text.trim() || !activeGroup || sending) return
     setSending(true)
-    const res = await fetch(`/api/educator-groups/${activeGroup.id}/messages`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text }),
-    })
-    if (res.ok) {
-      setText('')
-      setMentionQuery(null)
-      await loadMessages(activeGroup.id)
+    try {
+      const res = await fetch(`/api/educator-groups/${activeGroup.id}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      })
+      if (res.ok) {
+        setText('')
+        setMentionQuery(null)
+        await loadMessages(activeGroup.id)
+      } else {
+        alert((await res.json().catch(() => null))?.error ?? 'Message not sent. Please try again.')
+      }
+    } catch {
+      alert('Message not sent. Check your connection.')
+    } finally {
+      setSending(false)
     }
-    setSending(false)
   }
 
   // Detect an active "@partial" being typed — the @ must be at the start of the

@@ -17,7 +17,8 @@ export async function GET(req: NextRequest) {
     })
     return NextResponse.json(stages)
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 })
+    console.error('[stages]', err)
+    return NextResponse.json({ error: 'Something went wrong. Please try again.' }, { status: 500 })
   }
 }
 
@@ -35,6 +36,7 @@ export async function POST(req: NextRequest) {
     const stage = await db.stage.create({ data: { ...data, number } })
     return NextResponse.json(stage, { status: 201 })
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 })
+    console.error('[stages]', err)
+    return NextResponse.json({ error: 'Something went wrong. Please try again.' }, { status: 500 })
   }
 }

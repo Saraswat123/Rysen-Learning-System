@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { LayoutDashboard, BookOpen, Users, Trophy, LogOut } from 'lucide-react'
+import { LayoutDashboard, BookOpen, Users, Trophy, LogOut, Menu, X } from 'lucide-react'
 import RysenLogo from '@/components/RysenLogo'
 
 interface User { id: string; name: string; role: string; branch?: { name: string } | null }
@@ -12,12 +12,18 @@ export default function PrincipalLayout({ children }: { children: React.ReactNod
   const router = useRouter()
   const pathname = usePathname()
   const [user, setUser] = useState<User | null>(null)
+  const [open, setOpen] = useState(false)
+  const [lastPathname, setLastPathname] = useState(pathname)
+  if (lastPathname !== pathname) {
+    setLastPathname(pathname)
+    setOpen(false)
+  }
 
   useEffect(() => {
-    fetch('/api/auth/me').then((r) => r.json()).then((d) => {
-      if (!d.user || d.user.role !== 'PRINCIPAL') { router.push('/principal/login'); return }
+    fetch('/api/auth/me').then((r) => (r.ok ? r.json() : null)).then((d) => {
+      if (!d?.user || d.user.role !== 'PRINCIPAL') { router.push('/principal/login'); return }
       setUser(d.user)
-    })
+    }).catch(() => router.push('/principal/login'))
   }, [router])
 
   async function logout() {
@@ -37,7 +43,15 @@ export default function PrincipalLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="min-h-screen bg-cream flex">
-      <aside className="w-60 bg-white border-r border-gray-100 flex flex-col fixed h-full z-10">
+      <div className="lg:hidden fixed top-0 inset-x-0 h-14 bg-white border-b border-gray-100 flex items-center justify-between px-4 z-30">
+        <RysenLogo size="sm" />
+        <button onClick={() => setOpen((v) => !v)} aria-label={open ? 'Close menu' : 'Open menu'}
+          className="p-2 rounded-lg hover:bg-cream text-midnight">
+          {open ? <X size={20} /> : <Menu size={20} />}
+        </button>
+      </div>
+      {open && <div className="lg:hidden fixed inset-0 bg-black/30 z-30" onClick={() => setOpen(false)} />}
+      <aside className={`w-60 bg-white border-r border-gray-100 flex flex-col fixed h-full z-40 transition-transform lg:translate-x-0 ${open ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="p-5 border-b border-gray-100">
           <RysenLogo />
           <div className="mt-3">
@@ -64,7 +78,7 @@ export default function PrincipalLayout({ children }: { children: React.ReactNod
           </button>
         </div>
       </aside>
-      <main className="flex-1 ml-60 p-8">{children}</main>
+      <main className="flex-1 min-w-0 lg:ml-60 p-4 pt-20 sm:p-6 sm:pt-20 lg:p-8">{children}</main>
     </div>
   )
 }

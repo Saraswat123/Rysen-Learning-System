@@ -40,7 +40,7 @@ export default function CampusProgressPage() {
       </div>
 
       {/* Stage header stats */}
-      <div className="grid grid-cols-5 gap-3 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
         {stages.map((s) => {
           const count = educators.filter((e) => e.progress.some((p) => p.stage.number === s.number && p.passed)).length
           const pct = educators.length > 0 ? Math.round((count / educators.length) * 100) : 0
@@ -62,52 +62,54 @@ export default function CampusProgressPage() {
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-cream border-b border-gray-100">
-            <tr>
-              <th className="text-left px-5 py-3 font-semibold text-charcoal">Educator</th>
-              {stages.map((s) => (
-                <th key={s.id} className="text-center px-3 py-3 font-semibold text-charcoal text-xs">S{s.number}</th>
-              ))}
-              <th className="text-center px-5 py-3 font-semibold text-charcoal">Progress</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((edu) => {
-              const passedCount = edu.progress.filter((p) => p.passed).length
-              const pct = stages.length > 0 ? Math.round((passedCount / stages.length) * 100) : 0
-              return (
-                <tr key={edu.id} className="border-b border-gray-50 hover:bg-cream/50">
-                  <td className="px-5 py-3">
-                    <p className="font-medium text-charcoal">{edu.name}</p>
-                    <p className="text-xs text-charcoal/40">{edu.email}</p>
-                  </td>
-                  {stages.map((s) => {
-                    const done = edu.progress.some((p) => p.stage.number === s.number && p.passed)
-                    return (
-                      <td key={s.id} className="text-center px-3 py-3">
-                        <div className={`w-6 h-6 rounded-full mx-auto flex items-center justify-center text-xs font-bold ${done ? 'bg-forest text-white' : 'bg-gray-100 text-gray-400'}`}>
-                          {done ? '✓' : s.number}
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-[640px]">
+            <thead className="bg-cream border-b border-gray-100">
+              <tr>
+                <th className="text-left px-5 py-3 font-semibold text-charcoal">Educator</th>
+                {stages.map((s) => (
+                  <th key={s.id} className="text-center px-3 py-3 font-semibold text-charcoal text-xs">S{s.number}</th>
+                ))}
+                <th className="text-center px-5 py-3 font-semibold text-charcoal">Progress</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((edu) => {
+                const passedCount = edu.progress.filter((p) => p.passed).length
+                const pct = stages.length > 0 ? Math.round((passedCount / stages.length) * 100) : 0
+                return (
+                  <tr key={edu.id} className="border-b border-gray-50 hover:bg-cream/50">
+                    <td className="px-5 py-3">
+                      <p className="font-medium text-charcoal">{edu.name}</p>
+                      <p className="text-xs text-charcoal/40">{edu.email}</p>
+                    </td>
+                    {stages.map((s) => {
+                      const done = edu.progress.some((p) => p.stage.number === s.number && p.passed)
+                      return (
+                        <td key={s.id} className="text-center px-3 py-3">
+                          <div className={`w-6 h-6 rounded-full mx-auto flex items-center justify-center text-xs font-bold ${done ? 'bg-forest text-white' : 'bg-gray-100 text-gray-400'}`}>
+                            {done ? '✓' : s.number}
+                          </div>
+                        </td>
+                      )
+                    })}
+                    <td className="px-5 py-3 text-center">
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                          <div className="h-full bg-forest rounded-full" style={{ width: `${pct}%` }} />
                         </div>
-                      </td>
-                    )
-                  })}
-                  <td className="px-5 py-3 text-center">
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                        <div className="h-full bg-forest rounded-full" style={{ width: `${pct}%` }} />
+                        <span className="text-xs font-semibold text-midnight w-8">{pct}%</span>
                       </div>
-                      <span className="text-xs font-semibold text-midnight w-8">{pct}%</span>
-                    </div>
-                  </td>
-                </tr>
-              )
-            })}
-            {filtered.length === 0 && (
-              <tr><td colSpan={stages.length + 2} className="text-center py-10 text-charcoal/40">No educators found</td></tr>
-            )}
-          </tbody>
-        </table>
+                    </td>
+                  </tr>
+                )
+              })}
+              {filtered.length === 0 && (
+                <tr><td colSpan={stages.length + 2} className="text-center py-10 text-charcoal/40">No educators found</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   )

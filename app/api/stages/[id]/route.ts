@@ -27,7 +27,8 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
     // Grading is server-side; never ship the answer key to the people taking the stage
     return NextResponse.json({ ...stage, questions: stage.questions.map(({ correctId: _correctId, ...q }) => q) })
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 })
+    console.error('[stages/[id]]', err)
+    return NextResponse.json({ error: 'Something went wrong. Please try again.' }, { status: 500 })
   }
 }
 
@@ -46,7 +47,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const stage = await db.stage.update({ where: { id }, data })
     return NextResponse.json(stage)
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 })
+    console.error('[stages/[id]]', err)
+    return NextResponse.json({ error: 'Something went wrong. Please try again.' }, { status: 500 })
   }
 }
 

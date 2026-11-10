@@ -45,7 +45,8 @@ export async function POST(req: NextRequest) {
     const { count } = await db.student.createMany({ data: valid })
     return NextResponse.json({ added: count, skipped: students.length - valid.length, errors: [] }, { status: 201 })
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 })
+    console.error('[students/bulk]', err)
+    return NextResponse.json({ error: 'Something went wrong. Please try again.' }, { status: 500 })
   }
 }
 
@@ -71,6 +72,7 @@ export async function DELETE(req: NextRequest) {
     const { count } = await db.student.deleteMany({ where: whereClause })
     return NextResponse.json({ deleted: count })
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 })
+    console.error('[students/bulk]', err)
+    return NextResponse.json({ error: 'Something went wrong. Please try again.' }, { status: 500 })
   }
 }

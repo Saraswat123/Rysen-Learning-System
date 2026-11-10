@@ -550,22 +550,24 @@ export default function StageEditor({ params }: { params: Promise<{ id: string }
                   <button onClick={() => { setImportRows([]); if (importFileRef.current) importFileRef.current.value = '' }} className="text-xs text-red-500 hover:underline">Clear</button>
                 </div>
                 <div className="max-h-36 overflow-y-auto border border-gray-100 rounded-xl mb-3">
-                  <table className="w-full text-xs">
-                    <thead className="bg-cream sticky top-0"><tr>
-                      <th className="text-left px-3 py-2">#</th>
-                      <th className="text-left px-3 py-2">Question</th>
-                      <th className="text-left px-3 py-2">Correct</th>
-                    </tr></thead>
-                    <tbody>
-                      {importRows.map((q, i) => (
-                        <tr key={i} className="border-t border-gray-50">
-                          <td className="px-3 py-1.5 text-charcoal/40">{i + 1}</td>
-                          <td className="px-3 py-1.5 truncate max-w-xs">{q.text}</td>
-                          <td className="px-3 py-1.5 text-forest font-medium">{['A', 'B', 'C', 'D'][q.options.findIndex((o) => o.id === q.correctId)]}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs min-w-[640px]">
+                      <thead className="bg-cream sticky top-0"><tr>
+                        <th className="text-left px-3 py-2">#</th>
+                        <th className="text-left px-3 py-2">Question</th>
+                        <th className="text-left px-3 py-2">Correct</th>
+                      </tr></thead>
+                      <tbody>
+                        {importRows.map((q, i) => (
+                          <tr key={i} className="border-t border-gray-50">
+                            <td className="px-3 py-1.5 text-charcoal/40">{i + 1}</td>
+                            <td className="px-3 py-1.5 truncate max-w-xs">{q.text}</td>
+                            <td className="px-3 py-1.5 text-forest font-medium">{['A', 'B', 'C', 'D'][q.options.findIndex((o) => o.id === q.correctId)]}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
                 <div className="flex gap-4 text-sm">
                   <label className="flex items-center gap-2 cursor-pointer">
