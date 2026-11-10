@@ -20,6 +20,7 @@ export default function AdminLogin() {
   const mode = modeChoice ?? (setupRequested ? 'setup' : 'signin')
   const [signinForm, setSigninForm] = useState({ email: '', password: '' })
   const [turnstileToken, setTurnstileToken] = useState('')
+  const [captchaKey, setCaptchaKey] = useState(0)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -33,17 +34,21 @@ export default function AdminLogin() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...signinForm, turnstileToken }),
       })
-      const data = await res.json()
+      const data = await res.json().catch(() => null)
       if (!res.ok) {
-        if (data.code === 'NO_PASSWORD') {
+        setTurnstileToken('')
+        setCaptchaKey((k) => k + 1)
+        if (data?.code === 'NO_PASSWORD') {
           setMode('setup')
           setError('No password set up yet — create one below.')
         } else {
-          setError(data.error)
+          setError(data?.error ?? 'Sign-in failed. Please try again.')
         }
         return
       }
       router.push('/admin/dashboard')
+    } catch {
+      setError('Network error. Check your connection and try again.')
     } finally {
       setLoading(false)
     }
@@ -116,7 +121,7 @@ export default function AdminLogin() {
                   <PasswordInput label="Password" placeholder="••••••••"
                     value={signinForm.password} onChange={(e) => setSigninForm((f) => ({ ...f, password: e.target.value }))} required />
 
-                  <TurnstileWidget onVerify={setTurnstileToken} />
+                  <TurnstileWidget key={captchaKey} onVerify={setTurnstileToken} />
 
                   {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
 

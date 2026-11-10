@@ -5,7 +5,9 @@ import { db } from '@/lib/db'
 import { ensurePasswordColumns } from '@/lib/password'
 import { generateOtp, signSetupToken } from '@/lib/account-setup-otp'
 import { verifyTurnstile } from '@/lib/turnstile'
-import { sendEmail } from '@/lib/email'
+import { clientIp, rateLimit, TOO_MANY } from '@/lib/rate-limit'
+import crypto from 'crypto'
+import { sendEmail, escapeHtml } from '@/lib/email'
 import { Role } from '@/app/generated/prisma/client'
 
 // Step 1 of first-time setup — proves the requester actually owns the email on
@@ -20,7 +22,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Name and email are required' }, { status: 400 })
     }
 
-    const human = await verifyTurnstile(turnstileToken, req.headers.get('x-forwarded-for'))
+    const ip = clientIp(req)
+    const normalizedEmail = String(email).toLowerCase().trim()
+    const allowed = (await rateLimit(`setup-otp:ip:${ip}`, 15, 15 * 60)) && (await rateLimit(`setup-otp:email:${normalizedEmail}`, 5, 60 * 60))
+    if (!allowed) return NextResponse.json(TOO_MANY, { status: 429 })
+
+    const human = await verifyTurnstile(turnstileToken, ip)
     if (!human) {
       return NextResponse.json({ error: 'Captcha verification failed. Please try again.' }, { status: 403 })
     }
@@ -36,7 +43,7 @@ export async function POST(req: NextRequest) {
       && user.name.toLowerCase().trim() === name.toLowerCase().trim()
 
     if (!qualifies) {
-      const decoyToken = await signSetupToken('decoy', email.toLowerCase().trim(), generateOtp())
+      const decoyToken = await signSetupToken(`c${crypto.randomBytes(12).toString('hex')}`, email.toLowerCase().trim(), generateOtp())
       return NextResponse.json({ ok: true, token: decoyToken, message: okMsg })
     }
 
@@ -46,13 +53,13 @@ export async function POST(req: NextRequest) {
     const sent = await sendEmail(
       user!.email,
       'Your RYSEN account verification code',
-      `<div style="font-family:sans-serif;padding:20px"><h2 style="color:#033D4C">RYSEN Account Setup</h2><p>Hi <b>${user!.name}</b>, use this code to finish setting up your account:</p><p style="font-size:28px;font-weight:bold;letter-spacing:4px;color:#033D4C">${otp}</p><p style="color:#666;font-size:13px">Expires in 10 minutes. If you didn't request this, ignore this email.</p></div>`,
+      `<div style="font-family:sans-serif;padding:20px"><h2 style="color:#033D4C">RYSEN Account Setup</h2><p>Hi <b>${escapeHtml(user!.name)}</b>, use this code to finish setting up your account:</p><p style="font-size:28px;font-weight:bold;letter-spacing:4px;color:#033D4C">${otp}</p><p style="color:#666;font-size:13px">Expires in 10 minutes. If you didn't request this, ignore this email.</p></div>`,
     )
     if (!sent) console.error('[request-setup-otp] email send failed — no provider configured or send rejected')
 
     return NextResponse.json({ ok: true, token, message: 'If that account exists, a verification code was sent to its email.' })
   } catch (err) {
     console.error('[request-setup-otp]', err)
-    return NextResponse.json({ error: String(err) }, { status: 500 })
+    return NextResponse.json({ error: 'Something went wrong. Please try again.' }, { status: 500 })
   }
 }

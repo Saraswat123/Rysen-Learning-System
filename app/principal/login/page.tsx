@@ -27,6 +27,7 @@ export default function PrincipalLoginPage() {
   const mode = modeChoice ?? (setupRequested ? 'setup' : 'signin')
   const [signinForm, setSigninForm] = useState({ email: '', password: '', branchId: '' })
   const [turnstileToken, setTurnstileToken] = useState('')
+  const [captchaKey, setCaptchaKey] = useState(0)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -86,17 +87,21 @@ export default function PrincipalLoginPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...signinForm, turnstileToken }),
       })
-      const data = await res.json()
+      const data = await res.json().catch(() => null)
       if (!res.ok) {
-        if (data.code === 'NO_PASSWORD') {
+        setTurnstileToken('')
+        setCaptchaKey((k) => k + 1)
+        if (data?.code === 'NO_PASSWORD') {
           setMode('setup')
           setError('No password set up yet — create one below.')
         } else {
-          setError(data.error)
+          setError(data?.error ?? 'Sign-in failed. Please try again.')
         }
         return
       }
       await afterAuthSuccess()
+    } catch {
+      setError('Network error. Check your connection and try again.')
     } finally {
       setLoading(false)
     }
@@ -249,7 +254,7 @@ export default function PrincipalLoginPage() {
 
                   {programPicker}
 
-                  <TurnstileWidget onVerify={setTurnstileToken} />
+                  <TurnstileWidget key={captchaKey} onVerify={setTurnstileToken} />
 
                   {error && <p className={`text-sm px-3 py-2 rounded-lg ${error.includes('below') ? 'text-amber-700 bg-amber-50' : 'text-red-600 bg-red-50'}`}>{error}</p>}
 

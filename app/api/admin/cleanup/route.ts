@@ -49,6 +49,12 @@ async function runCleanup() {
   }
   results.orphanedBlobsDeleted = orphanedBlobs
 
+  const expiredLimits = await db.rateLimit.deleteMany({ where: { resetAt: { lt: new Date() } } }).catch(() => ({ count: 0 }))
+  results.rateLimitRowsDeleted = expiredLimits.count
+
+  const expiredSessions = await db.session.deleteMany({ where: { expiresAt: { lt: new Date() } } })
+  results.expiredSessionsDeleted = expiredSessions.count
+
   results.ranAt = new Date().toISOString()
   return results
 }

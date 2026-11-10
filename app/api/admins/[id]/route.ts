@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { getSession } from '@/lib/auth'
+import { getSession, revokeUserSessions } from '@/lib/auth'
 import { Role } from '@/app/generated/prisma/client'
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -19,6 +19,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       where: { id },
       data: { password: null, passwordSetAt: null },
     })
+    await revokeUserSessions(id)
     return NextResponse.json(updated)
   }
 
@@ -27,6 +28,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 
   const updated = await db.user.update({ where: { id }, data: { role: body.role as Role } })
+  await revokeUserSessions(id)
   return NextResponse.json(updated)
 }
 
@@ -40,5 +42,6 @@ export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id:
   if (id === user.id) return NextResponse.json({ error: 'Cannot delete yourself' }, { status: 400 })
 
   await db.user.update({ where: { id }, data: { isActive: false } })
+  await revokeUserSessions(id)
   return NextResponse.json({ ok: true })
 }

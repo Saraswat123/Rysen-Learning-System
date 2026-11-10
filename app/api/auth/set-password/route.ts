@@ -6,6 +6,8 @@ import { createSession, SESSION_COOKIE, SESSION_DURATION_MS } from '@/lib/auth'
 import { hashPassword, ensurePasswordColumns, MIN_PASSWORD_LENGTH } from '@/lib/password'
 import { verifySetupToken } from '@/lib/account-setup-otp'
 import { Role } from '@/app/generated/prisma/client'
+import { clientIp, rateLimit, TOO_MANY } from '@/lib/rate-limit'
+import crypto from 'crypto'
 
 // Step 2 of first-time account claim — requires the emailed OTP code to have
 // been verified (via /api/auth/request-setup-otp's token), proving the
@@ -26,7 +28,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters` }, { status: 400 })
     }
 
-    const claim = await verifySetupToken(setupToken, otp)
+    // Caps guesses per emailed code, so the 6-digit OTP can't be brute-forced online
+    const tokenKey = crypto.createHash('sha256').update(String(setupToken)).digest('hex')
+    const allowed = (await rateLimit(`set-password:ip:${clientIp(req)}`, 20, 15 * 60)) && (await rateLimit(`set-password:token:${tokenKey}`, 5, 15 * 60))
+    if (!allowed) return NextResponse.json(TOO_MANY, { status: 429 })
+
+    const claim = await verifySetupToken(setupToken, String(otp))
     if (!claim) {
       return NextResponse.json({ error: 'Invalid or expired verification code. Request a new one.' }, { status: 401 })
     }
@@ -59,6 +66,6 @@ export async function POST(req: NextRequest) {
     return res
   } catch (err) {
     console.error('[set-password]', err)
-    return NextResponse.json({ error: String(err) }, { status: 500 })
+    return NextResponse.json({ error: 'Something went wrong. Please try again.' }, { status: 500 })
   }
 }

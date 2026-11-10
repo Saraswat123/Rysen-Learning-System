@@ -43,3 +43,10 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
     return false
   }
 }
+
+const HTML_ESCAPES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }
+
+/** Escape user-entered text before interpolating it into an email's HTML body. */
+export function escapeHtml(value: unknown): string {
+  return String(value ?? '').replace(/[&<>"']/g, (c) => HTML_ESCAPES[c])
+}

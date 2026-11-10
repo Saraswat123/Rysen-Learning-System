@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { getSession } from '@/lib/auth'
+import { getSession, revokeUserSessions } from '@/lib/auth'
 import { Role } from '@/app/generated/prisma/client'
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -25,6 +25,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (body.branchId === null || typeof body.branchId === 'string') data.branchId = body.branchId || null
   if (typeof body.isActive === 'boolean') data.isActive = body.isActive
   const updated = await db.user.update({ where: { id }, data, include: { branch: true } })
+  if (data.isActive === false) await revokeUserSessions(id)
   return NextResponse.json(updated)
 }
 

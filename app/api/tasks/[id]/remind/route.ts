@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/auth'
-import { sendEmail } from '@/lib/email'
+import { sendEmail, escapeHtml } from '@/lib/email'
 import { Role } from '@/app/generated/prisma/client'
 
 interface RemindTarget { userId: string; channels: ('email' | 'whatsapp')[] }
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     <p style="color:rgba(255,255,255,0.6);margin:4px 0 0;font-size:13px">Task Reminder</p>
   </div>
   <div style="padding:32px">
-    <p style="color:#40403E;font-size:15px;margin:0 0 8px">Hi <strong>${name}</strong>,</p>
+    <p style="color:#40403E;font-size:15px;margin:0 0 8px">Hi <strong>${escapeHtml(name)}</strong>,</p>
     <p style="color:#40403E;font-size:14px;margin:0 0 24px">You have a pending task${customMessage ? ':' : '. Please complete it before the deadline.'}</p>
     ${customMessage ? `<p style="color:#40403E;font-size:14px;background:#f5f5f5;padding:12px 16px;border-radius:8px;border-left:3px solid #033D4C">${customMessage}</p>` : ''}
     <div style="background:#f5f9fc;border:1px solid #e0ecf0;border-radius:12px;padding:20px;margin:20px 0">

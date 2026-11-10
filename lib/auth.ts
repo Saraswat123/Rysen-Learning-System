@@ -45,3 +45,8 @@ export async function requireAuth(allowedRoles?: Role[]) {
 export async function deleteSession(token: string) {
   await db.session.deleteMany({ where: { token } })
 }
+
+/** Sign a user out everywhere: after a password reset, deactivation or role change. */
+export async function revokeUserSessions(userId: string) {
+  await db.session.deleteMany({ where: { userId } })
+}

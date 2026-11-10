@@ -1,4 +1,5 @@
 import { db } from './db'
+import { escapeHtml } from './email'
 import { Role } from '@/app/generated/prisma/client'
 
 export interface DigestData {
@@ -64,7 +65,7 @@ export function renderDigestEmailHtml(data: DigestData, reportUrl: string): stri
   const educatorRows = data.topEducators.length
     ? data.topEducators.map((e, i) => `
         <tr>
-          <td style="padding:10px 0;font-size:14px;color:#033D4C;font-weight:600">${medal[i]} ${e.name}</td>
+          <td style="padding:10px 0;font-size:14px;color:#033D4C;font-weight:600">${medal[i]} ${escapeHtml(e.name)}</td>
           <td style="padding:10px 0;font-size:13px;color:#666">${e.branch ?? ''}</td>
           <td style="padding:10px 0;font-size:13px;color:#225632;font-weight:600;text-align:right">${e.total} activities</td>
         </tr>`).join('')

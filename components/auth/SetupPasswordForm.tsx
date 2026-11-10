@@ -15,6 +15,7 @@ export default function SetupPasswordForm({ onSuccess, extra }: { onSuccess: () 
   const [token, setToken] = useState('')
   const [otp, setOtp] = useState('')
   const [turnstileToken, setTurnstileToken] = useState('')
+  const [captchaKey, setCaptchaKey] = useState(0)
   const [passwords, setPasswords] = useState({ password: '', confirmPassword: '' })
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
@@ -29,11 +30,18 @@ export default function SetupPasswordForm({ onSuccess, extra }: { onSuccess: () 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...nameEmail, turnstileToken }),
       })
-      const data = await res.json()
-      if (!res.ok) { setError(data.error ?? 'Something went wrong.'); return }
+      const data = await res.json().catch(() => null)
+      if (!res.ok || !data) {
+        setError(data?.error ?? 'Something went wrong.')
+        setTurnstileToken('')
+        setCaptchaKey((k) => k + 1)
+        return
+      }
       setToken(data.token)
       setInfo(data.message)
       setStep('verify')
+    } catch {
+      setError('Network error. Check your connection and try again.')
     } finally {
       setLoading(false)
     }
@@ -48,9 +56,11 @@ export default function SetupPasswordForm({ onSuccess, extra }: { onSuccess: () 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, otp, ...passwords }),
       })
-      const data = await res.json()
-      if (!res.ok) { setError(data.error ?? 'Something went wrong.'); return }
+      const data = await res.json().catch(() => null)
+      if (!res.ok) { setError(data?.error ?? 'Something went wrong.'); return }
       await onSuccess()
+    } catch {
+      setError('Network error. Check your connection and try again.')
     } finally {
       setLoading(false)
     }
@@ -63,7 +73,7 @@ export default function SetupPasswordForm({ onSuccess, extra }: { onSuccess: () 
           value={nameEmail.name} onChange={(e) => setNameEmail((f) => ({ ...f, name: e.target.value }))} required />
         <Input label="Email Address" type="email" placeholder="your@email.com"
           value={nameEmail.email} onChange={(e) => setNameEmail((f) => ({ ...f, email: e.target.value }))} required />
-        <TurnstileWidget onVerify={setTurnstileToken} />
+        <TurnstileWidget key={captchaKey} onVerify={setTurnstileToken} />
         {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
         <Button type="submit" loading={loading} size="lg" className="mt-2">Send Verification Code</Button>
       </form>

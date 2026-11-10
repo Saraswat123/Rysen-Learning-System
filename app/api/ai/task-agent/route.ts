@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/auth'
 import { Role } from '@/app/generated/prisma/client'
-import { sendEmail } from '@/lib/email'
+import { sendEmail, escapeHtml } from '@/lib/email'
 import Groq from 'groq-sdk'
 
 // ── Tool definitions ──────────────────────────────────────────────────────────
@@ -488,7 +488,7 @@ async function executeTool(name: string, args: Record<string, unknown>, userId: 
           const sent = await sendEmail(
             edu.email,
             `Reminder: ${task.title}`,
-            `<div style="font-family:sans-serif;padding:20px"><h2 style="color:#033D4C">RYSEN Task Reminder</h2><p>Hi <b>${edu.name}</b>,</p><p>${message ?? `Please complete your task before ${deadlineStr}.`}</p><h3>${task.title}</h3><a href="${taskUrl}" style="background:#033D4C;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;display:inline-block;margin-top:12px">View Task →</a></div>`,
+            `<div style="font-family:sans-serif;padding:20px"><h2 style="color:#033D4C">RYSEN Task Reminder</h2><p>Hi <b>${escapeHtml(edu.name)}</b>,</p><p>${message ?? `Please complete your task before ${deadlineStr}.`}</p><h3>${escapeHtml(task.title)}</h3><a href="${taskUrl}" style="background:#033D4C;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;display:inline-block;margin-top:12px">View Task →</a></div>`,
           )
           results.push(sent ? `✓ Email → ${edu.name}` : `✗ Email failed → ${edu.name}`)
         }

@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/auth'
-import { sendEmail } from '@/lib/email'
+import { sendEmail, escapeHtml } from '@/lib/email'
 import { Role } from '@/app/generated/prisma/client'
 
 export async function POST(req: NextRequest) {
@@ -68,10 +68,10 @@ export async function POST(req: NextRequest) {
 <div style="max-width:560px;margin:0 auto;background:white;border-radius:16px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08)">
   <div style="background:#033D4C;padding:28px 32px">
     <h1 style="color:#FECB08;margin:0;font-size:22px;font-weight:700">RYSEN Learning Centre</h1>
-    <p style="color:rgba(255,255,255,0.6);margin:4px 0 0;font-size:13px">${group.name}</p>
+    <p style="color:rgba(255,255,255,0.6);margin:4px 0 0;font-size:13px">${escapeHtml(group.name)}</p>
   </div>
   <div style="padding:32px">
-    <p style="color:#40403E;font-size:15px;margin:0 0 8px">Hi <strong>${m.name}</strong>,</p>
+    <p style="color:#40403E;font-size:15px;margin:0 0 8px">Hi <strong>${escapeHtml(m.name)}</strong>,</p>
     <div style="background:#f5f9fc;border-left:4px solid #033D4C;padding:16px 20px;border-radius:0 12px 12px 0;margin:16px 0;white-space:pre-wrap;color:#40403E;font-size:14px;line-height:1.6">${message.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
     ${taskInfo ? `<div style="margin-top:24px;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden">
       <div style="background:#f8fafc;padding:12px 16px;border-bottom:1px solid #e2e8f0">

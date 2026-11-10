@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
-import { sendEmail } from '@/lib/email'
+import { sendEmail, escapeHtml } from '@/lib/email'
 import { Role } from '@/app/generated/prisma/client'
 
 export async function POST(req: NextRequest) {
@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
   <div style="padding:32px">
     <p style="color:#40403E;font-size:16px;margin:0 0 12px">✅ Email is working!</p>
     <p style="color:#40403E;font-size:14px">This is a test email from RYSEN Learning Centre admin panel, sent via ${provider}.</p>
-    <p style="color:#888;font-size:12px;margin-top:24px">Sent by: ${user.name}</p>
+    <p style="color:#888;font-size:12px;margin-top:24px">Sent by: ${escapeHtml(user.name)}</p>
   </div>
 </div></body></html>`,
       )
