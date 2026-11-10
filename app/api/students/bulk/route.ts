@@ -6,6 +6,8 @@ import { getSession } from '@/lib/auth'
 import { Role } from '@/app/generated/prisma/client'
 import { educatorStudentWhere } from '@/lib/student-scope'
 
+const MAX_ROWS = 500
+
 export async function POST(req: NextRequest) {
   try {
     const user = await getSession()
@@ -22,34 +24,26 @@ export async function POST(req: NextRequest) {
     if (!Array.isArray(students) || students.length === 0) {
       return NextResponse.json({ error: 'No students provided' }, { status: 400 })
     }
+    if (students.length > MAX_ROWS) {
+      return NextResponse.json({ error: `Import at most ${MAX_ROWS} students at a time` }, { status: 400 })
+    }
 
     const effectiveBranchId = user.role === Role.EDUCATOR ? (user.branchId ?? null) : (branchId ?? null)
 
-    const results = { added: 0, skipped: 0, errors: [] as string[] }
+    const str = (v: unknown) => (typeof v === 'string' ? v.trim() : '')
+    const valid = students
+      .filter((s) => s && str(s.name) && str(s.class))
+      .map((s) => ({
+        name: str(s.name).replace(/\s+/g, ' '),
+        class: str(s.class),
+        section: str(s.section),
+        subject: str(s.subject),
+        branchId: effectiveBranchId,
+        createdById: user.id,
+      }))
 
-    for (const s of students) {
-      if (!s.name?.trim() || !s.class?.trim()) {
-        results.skipped++
-        continue
-      }
-      try {
-        await db.student.create({
-          data: {
-            name: s.name.trim().replace(/\s+/g, ' '),
-            class: s.class.trim(),
-            section: s.section?.trim() ?? '',
-            subject: s.subject?.trim() ?? '',
-            branchId: effectiveBranchId,
-            createdById: user.id,
-          },
-        })
-        results.added++
-      } catch {
-        results.errors.push(s.name)
-      }
-    }
-
-    return NextResponse.json(results, { status: 201 })
+    const { count } = await db.student.createMany({ data: valid })
+    return NextResponse.json({ added: count, skipped: students.length - valid.length, errors: [] }, { status: 201 })
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 })
   }
@@ -63,7 +57,7 @@ export async function DELETE(req: NextRequest) {
     }
 
     const { ids } = await req.json() as { ids: string[] }
-    if (!Array.isArray(ids) || ids.length === 0) {
+    if (!Array.isArray(ids) || ids.length === 0 || ids.length > MAX_ROWS) {
       return NextResponse.json({ error: 'No IDs provided' }, { status: 400 })
     }
 

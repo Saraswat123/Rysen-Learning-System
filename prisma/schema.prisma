@@ -69,6 +69,7 @@ model GroupMessage {
   user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   text      String
   createdAt DateTime      @default(now())
+  @@index([groupId, createdAt])
 }
 
 model EducatorGroupMember {
@@ -80,6 +81,7 @@ model EducatorGroupMember {
   createdAt DateTime      @default(now())
 
   @@unique([groupId, userId])
+  @@index([userId])
 }
 
 model User {
@@ -113,6 +115,7 @@ model User {
   groupMessages     GroupMessage[]
   ratings           EducatorRating[] @relation("RatedEducator")
   ratingsGiven      EducatorRating[] @relation("RatingCreator")
+  @@index([branchId, role])
 }
 
 // A named recognition programme (e.g. "STEM Educators") scoped to one EducatorGroup's
@@ -153,8 +156,8 @@ model EducatorRating {
   period      String              // "YYYY-MM"
   scores      Json                @default("{}")
   comment     String?
-  ratedById   String
-  ratedBy     User                @relation("RatingCreator", fields: [ratedById], references: [id])
+  ratedById   String?
+  ratedBy     User?               @relation("RatingCreator", fields: [ratedById], references: [id], onDelete: SetNull)
   finalized   Boolean             @default(false)
   finalizedAt DateTime?
   createdAt   DateTime            @default(now())
@@ -170,6 +173,7 @@ model Session {
   token     String   @unique
   expiresAt DateTime
   createdAt DateTime @default(now())
+  @@index([userId])
 }
 
 model Program {
@@ -256,6 +260,7 @@ model TextResponse {
   updatedAt  DateTime @updatedAt
 
   @@unique([userId, questionId])
+  @@index([questionId])
 }
 
 model Student {
@@ -274,6 +279,7 @@ model Student {
 
   sessions StudentSession[]
   attempts StudentAttempt[]
+  @@index([branchId, isActive])
 }
 
 model StudentSession {
@@ -283,6 +289,7 @@ model StudentSession {
   token     String   @unique
   expiresAt DateTime
   createdAt DateTime @default(now())
+  @@index([studentId])
 }
 
 model StudentTest {
@@ -310,6 +317,7 @@ model StudentTest {
   questions     StudentQuestion[]
   attempts      StudentAttempt[]
   contentBlocks StudentTestContent[]
+  @@index([branchId])
 }
 
 // Study material shown to the student before the quiz questions — PDF/doc,
@@ -372,6 +380,8 @@ model StudentAttempt {
   passed      Boolean     @default(false)
   answers     Json        @default("{}")
   completedAt DateTime    @default(now())
+  @@index([studentId, completedAt])
+  @@index([testId])
 }
 
 model TaskGroup {
@@ -404,6 +414,7 @@ model Task {
   resources   TaskResource[]
   assignments TaskAssignment[]
   comments    TaskComment[]
+  @@index([createdAt])
 }
 
 model SubTask {
@@ -439,6 +450,7 @@ model TaskAssignment {
   progress    SubTaskProgress[]
 
   @@unique([taskId, userId])
+  @@index([userId])
 }
 
 model SubTaskProgress {
@@ -473,6 +485,7 @@ model Notification {
   read      Boolean  @default(false)
   relatedId String?
   createdAt DateTime @default(now())
+  @@index([userId, createdAt])
 }
 
 model StageProgress {
@@ -490,6 +503,7 @@ model StageProgress {
   updatedAt   DateTime  @updatedAt
 
   @@unique([userId, stageId])
+  @@index([stageId])
 }
 
 model RateLimit {

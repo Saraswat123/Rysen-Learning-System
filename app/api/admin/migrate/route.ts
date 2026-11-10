@@ -436,6 +436,87 @@ const MIGRATIONS = [
     check: `SELECT 1 FROM information_schema.tables WHERE table_name='RateLimit'`,
     sql: `CREATE TABLE IF NOT EXISTS "RateLimit" ("key" TEXT PRIMARY KEY, "count" INTEGER NOT NULL, "resetAt" TIMESTAMP(3) NOT NULL)`,
   },
+  {
+    label: 'EducatorRating.ratedById nullable, ON DELETE SET NULL',
+    check: `SELECT 1 FROM information_schema.columns WHERE table_name='EducatorRating' AND column_name='ratedById' AND is_nullable='NO'`,
+    invert: true,
+    sql: `DO $$ BEGIN
+      ALTER TABLE "EducatorRating" ALTER COLUMN "ratedById" DROP NOT NULL;
+      ALTER TABLE "EducatorRating" DROP CONSTRAINT IF EXISTS "EducatorRating_ratedById_fkey";
+      ALTER TABLE "EducatorRating" ADD CONSTRAINT "EducatorRating_ratedById_fkey"
+        FOREIGN KEY ("ratedById") REFERENCES "User"("id") ON DELETE SET NULL;
+    END $$`,
+  },
+  {
+    label: 'Index StudentAttempt_studentId_completedAt_idx',
+    check: `SELECT 1 FROM pg_indexes WHERE indexname='StudentAttempt_studentId_completedAt_idx'`,
+    sql: `CREATE INDEX CONCURRENTLY IF NOT EXISTS "StudentAttempt_studentId_completedAt_idx" ON "StudentAttempt" ("studentId", "completedAt")`,
+  },
+  {
+    label: 'Index StudentAttempt_testId_idx',
+    check: `SELECT 1 FROM pg_indexes WHERE indexname='StudentAttempt_testId_idx'`,
+    sql: `CREATE INDEX CONCURRENTLY IF NOT EXISTS "StudentAttempt_testId_idx" ON "StudentAttempt" ("testId")`,
+  },
+  {
+    label: 'Index Student_branchId_isActive_idx',
+    check: `SELECT 1 FROM pg_indexes WHERE indexname='Student_branchId_isActive_idx'`,
+    sql: `CREATE INDEX CONCURRENTLY IF NOT EXISTS "Student_branchId_isActive_idx" ON "Student" ("branchId", "isActive")`,
+  },
+  {
+    label: 'Index User_branchId_role_idx',
+    check: `SELECT 1 FROM pg_indexes WHERE indexname='User_branchId_role_idx'`,
+    sql: `CREATE INDEX CONCURRENTLY IF NOT EXISTS "User_branchId_role_idx" ON "User" ("branchId", "role")`,
+  },
+  {
+    label: 'Index Notification_userId_createdAt_idx',
+    check: `SELECT 1 FROM pg_indexes WHERE indexname='Notification_userId_createdAt_idx'`,
+    sql: `CREATE INDEX CONCURRENTLY IF NOT EXISTS "Notification_userId_createdAt_idx" ON "Notification" ("userId", "createdAt")`,
+  },
+  {
+    label: 'Index GroupMessage_groupId_createdAt_idx',
+    check: `SELECT 1 FROM pg_indexes WHERE indexname='GroupMessage_groupId_createdAt_idx'`,
+    sql: `CREATE INDEX CONCURRENTLY IF NOT EXISTS "GroupMessage_groupId_createdAt_idx" ON "GroupMessage" ("groupId", "createdAt")`,
+  },
+  {
+    label: 'Index StageProgress_stageId_idx',
+    check: `SELECT 1 FROM pg_indexes WHERE indexname='StageProgress_stageId_idx'`,
+    sql: `CREATE INDEX CONCURRENTLY IF NOT EXISTS "StageProgress_stageId_idx" ON "StageProgress" ("stageId")`,
+  },
+  {
+    label: 'Index TaskAssignment_userId_idx',
+    check: `SELECT 1 FROM pg_indexes WHERE indexname='TaskAssignment_userId_idx'`,
+    sql: `CREATE INDEX CONCURRENTLY IF NOT EXISTS "TaskAssignment_userId_idx" ON "TaskAssignment" ("userId")`,
+  },
+  {
+    label: 'Index Task_createdAt_idx',
+    check: `SELECT 1 FROM pg_indexes WHERE indexname='Task_createdAt_idx'`,
+    sql: `CREATE INDEX CONCURRENTLY IF NOT EXISTS "Task_createdAt_idx" ON "Task" ("createdAt")`,
+  },
+  {
+    label: 'Index Session_userId_idx',
+    check: `SELECT 1 FROM pg_indexes WHERE indexname='Session_userId_idx'`,
+    sql: `CREATE INDEX CONCURRENTLY IF NOT EXISTS "Session_userId_idx" ON "Session" ("userId")`,
+  },
+  {
+    label: 'Index StudentSession_studentId_idx',
+    check: `SELECT 1 FROM pg_indexes WHERE indexname='StudentSession_studentId_idx'`,
+    sql: `CREATE INDEX CONCURRENTLY IF NOT EXISTS "StudentSession_studentId_idx" ON "StudentSession" ("studentId")`,
+  },
+  {
+    label: 'Index EducatorGroupMember_userId_idx',
+    check: `SELECT 1 FROM pg_indexes WHERE indexname='EducatorGroupMember_userId_idx'`,
+    sql: `CREATE INDEX CONCURRENTLY IF NOT EXISTS "EducatorGroupMember_userId_idx" ON "EducatorGroupMember" ("userId")`,
+  },
+  {
+    label: 'Index TextResponse_questionId_idx',
+    check: `SELECT 1 FROM pg_indexes WHERE indexname='TextResponse_questionId_idx'`,
+    sql: `CREATE INDEX CONCURRENTLY IF NOT EXISTS "TextResponse_questionId_idx" ON "TextResponse" ("questionId")`,
+  },
+  {
+    label: 'Index StudentTest_branchId_idx',
+    check: `SELECT 1 FROM pg_indexes WHERE indexname='StudentTest_branchId_idx'`,
+    sql: `CREATE INDEX CONCURRENTLY IF NOT EXISTS "StudentTest_branchId_idx" ON "StudentTest" ("branchId")`,
+  },
 ]
 
 async function checkPending() {

@@ -9,7 +9,8 @@ function createClient() {
     connectionString: process.env.DATABASE_URL,
     connectionTimeoutMillis: 10000,  // 10s — Neon free tier resumes from sleep
     idleTimeoutMillis: 30000,
-    max: 5,
+    // Per serverless instance. Keep low unless DATABASE_URL is Neon's -pooler host.
+    max: Number(process.env.DB_POOL_MAX ?? 5),
   })
   const adapter = new PrismaPg(pool)
   return new PrismaClient({
