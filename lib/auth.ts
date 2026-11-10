@@ -27,7 +27,7 @@ export async function getSession() {
     include: { user: { include: { branch: true } } },
   })
 
-  if (!session || session.expiresAt < new Date()) {
+  if (!session || session.expiresAt < new Date() || !session.user.isActive) {
     if (session) await db.session.delete({ where: { token } })
     return null
   }

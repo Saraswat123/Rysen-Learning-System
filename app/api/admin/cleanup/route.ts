@@ -56,7 +56,8 @@ async function runCleanup() {
 // Called by Vercel Cron (no auth header needed — protected by CRON_SECRET)
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get('authorization')
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  const cronSecret = process.env.CRON_SECRET
+  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
   const results = await runCleanup()

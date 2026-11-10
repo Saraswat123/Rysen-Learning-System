@@ -2,8 +2,9 @@ import { SignJWT, jwtVerify } from 'jose'
 import crypto from 'crypto'
 
 // Stateless email-verification OTP for first-time account setup — no DB table
-// needed. The signed JWT carries a hash of the OTP (never the OTP itself), so
-// a leaked token alone can't be replayed without the code that was emailed.
+// needed. The JWT payload is readable by the client, so the OTP digest must be
+// keyed with the server secret: a plain hash of a 6-digit code is brute-forced
+// offline in under a second.
 const OTP_TTL_SECONDS = 10 * 60 // 10 minutes
 
 function secretKey() {
@@ -12,8 +13,8 @@ function secretKey() {
   return new TextEncoder().encode(secret)
 }
 
-function hashOtp(otp: string): string {
-  return crypto.createHash('sha256').update(otp).digest('hex')
+function hashOtp(userId: string, otp: string): string {
+  return crypto.createHmac('sha256', secretKey()).update(`${userId}:${otp}`).digest('hex')
 }
 
 export function generateOtp(): string {
@@ -21,7 +22,7 @@ export function generateOtp(): string {
 }
 
 export async function signSetupToken(userId: string, email: string, otp: string): Promise<string> {
-  return new SignJWT({ uid: userId, email: email.toLowerCase().trim(), otpHash: hashOtp(otp) })
+  return new SignJWT({ uid: userId, email: email.toLowerCase().trim(), otpHash: hashOtp(userId, otp) })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime(`${OTP_TTL_SECONDS}s`)
@@ -31,7 +32,9 @@ export async function signSetupToken(userId: string, email: string, otp: string)
 export async function verifySetupToken(token: string, otp: string): Promise<{ uid: string; email: string } | null> {
   try {
     const { payload } = await jwtVerify(token, secretKey())
-    if (payload.otpHash !== hashOtp(otp)) return null
+    const expected = Buffer.from(hashOtp(payload.uid as string, otp))
+    const actual = Buffer.from(String(payload.otpHash ?? ''))
+    if (expected.length !== actual.length || !crypto.timingSafeEqual(expected, actual)) return null
     return { uid: payload.uid as string, email: payload.email as string }
   } catch {
     return null

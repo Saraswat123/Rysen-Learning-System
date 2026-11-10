@@ -6,6 +6,8 @@ import { getSession } from '@/lib/auth'
 import { Role } from '@/app/generated/prisma/client'
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const user = await getSession()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   try {
     const { id } = await params
     const stage = await db.stage.findUnique({
@@ -13,7 +15,10 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
       include: { questions: { orderBy: { order: 'asc' } } },
     })
     if (!stage) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-    return NextResponse.json(stage)
+    const isAdmin = user.role === Role.ADMIN || user.role === Role.SUPER_ADMIN
+    if (isAdmin) return NextResponse.json(stage)
+    // Grading is server-side; never ship the answer key to the people taking the stage
+    return NextResponse.json({ ...stage, questions: stage.questions.map(({ correctId: _correctId, ...q }) => q) })
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 })
   }

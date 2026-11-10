@@ -6,6 +6,7 @@ import { getSession } from '@/lib/auth'
 import { Role } from '@/app/generated/prisma/client'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  if (!(await getSession())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   try {
     const { id } = await params
     const blocks = await db.studentTestContent.findMany({
