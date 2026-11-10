@@ -3,7 +3,8 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/auth'
-import { QuestionType } from '@/app/generated/prisma/client'
+import { countedStageWhere, isStageForRole } from '@/lib/stage-audience'
+import { QuestionType, Role } from '@/app/generated/prisma/client'
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ stageId: string }> }) {
   const user = await getSession()
@@ -17,15 +18,30 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ sta
     where: { id: stageId },
     include: { questions: { orderBy: { order: 'asc' } } },
   })
-  if (!stage) return NextResponse.json({ error: 'Stage not found' }, { status: 404 })
+  if (!stage || !isStageForRole(stage, user.role)) return NextResponse.json({ error: 'Stage not found' }, { status: 404 })
 
-  const progress = await db.stageProgress.findUnique({
-    where: { userId_stageId: { userId: user.id, stageId } },
-  })
-
-  if (progress && progress.attempts >= stage.maxAttempts && !progress.passed) {
-    return NextResponse.json({ error: 'Max attempts reached' }, { status: 403 })
+  const isAdmin = user.role === Role.ADMIN || user.role === Role.SUPER_ADMIN
+  if (stage.programId && !isAdmin) {
+    const enrolled = await db.programEnrollment.findUnique({
+      where: { userId_programId: { userId: user.id, programId: stage.programId } },
+    })
+    if (!enrolled) return NextResponse.json({ error: 'Not enrolled in this program' }, { status: 403 })
   }
+
+  // Reserve the attempt under a per-(user, stage) lock so parallel submits can't exceed maxAttempts
+  const progress = await db.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`mcq:${user.id}:${stageId}`}))`
+    const current = await tx.stageProgress.findUnique({ where: { userId_stageId: { userId: user.id, stageId } } })
+    if (current && current.attempts >= stage.maxAttempts && !current.passed) return { blocked: true as const }
+    await tx.stageProgress.upsert({
+      where: { userId_stageId: { userId: user.id, stageId } },
+      update: { attempts: { increment: 1 } },
+      create: { userId: user.id, stageId, attempts: 1, bestScore: 0, passed: false, docRead: true },
+    })
+    return { blocked: false as const, current }
+  })
+  if (progress.blocked) return NextResponse.json({ error: 'Max attempts reached' }, { status: 403 })
+  const previous = progress.current
 
   const mcqQuestions = stage.questions.filter((q) => q.type === QuestionType.MCQ)
   const textQuestions = stage.questions.filter((q) => q.type === QuestionType.TEXT)
@@ -63,16 +79,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ sta
   const score = total > 0 ? Math.round((correct / total) * 100) : 100
   const passed = score >= stage.passScore
 
-  const newAttempts = (progress?.attempts ?? 0) + 1
-  const bestScore = Math.max(progress?.bestScore ?? 0, score)
+  const bestScore = Math.max(previous?.bestScore ?? 0, score)
 
   const updated = await db.stageProgress.upsert({
     where: { userId_stageId: { userId: user.id, stageId } },
     update: {
-      attempts: newAttempts,
       bestScore,
-      passed: passed || (progress?.passed ?? false),
-      completedAt: passed && !progress?.passed ? new Date() : progress?.completedAt,
+      passed: passed || (previous?.passed ?? false),
+      completedAt: passed && !previous?.passed ? new Date() : previous?.completedAt,
     },
     create: {
       userId: user.id,
@@ -86,10 +100,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ sta
   })
 
   // Newly passed this attempt — check if this completes the whole programme, fire certificate notification
-  const justPassed = passed && !progress?.passed
+  const justPassed = passed && !previous?.passed
   if (justPassed) {
     const siblingStages = await db.stage.findMany({
-      where: { programId: stage.programId },
+      where: { programId: stage.programId, ...countedStageWhere(user.role) },
       include: { progress: { where: { userId: user.id } } },
     })
     const allPassed = siblingStages.every((s) =>

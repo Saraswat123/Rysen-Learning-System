@@ -38,13 +38,15 @@ export async function GET() {
     // Total published tests for this branch
     const tests = await db.studentTest.findMany({
       where: { isPublished: true, ...(branchId ? { OR: [{ branchId }, { branchId: null }] } : {}) },
-      select: { id: true, title: true, subject: true },
+      select: { id: true, title: true, subject: true, branchId: true },
     })
     const totalTests = tests.length
 
     const data = students.map((s) => {
       const attempts = s.attempts
-      const uniqueTestsTried = new Set(attempts.map((a) => a.testId)).size
+      // Engagement is measured against the tests this student could actually take
+      const availableIds = new Set(tests.filter((t) => t.branchId === null || t.branchId === s.branch?.id).map((t) => t.id))
+      const uniqueTestsTried = new Set(attempts.map((a) => a.testId).filter((id) => availableIds.has(id))).size
       const passed = attempts.filter((a) => a.passed).length
       const scores = attempts.map((a) => a.totalMarks > 0 ? Math.round((a.score / a.totalMarks) * 100) : 0)
       const avgScore = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null
@@ -64,7 +66,7 @@ export async function GET() {
       }
 
       // Engagement: % of available tests attempted at least once
-      const engagement = totalTests > 0 ? Math.round((uniqueTestsTried / totalTests) * 100) : 0
+      const engagement = availableIds.size > 0 ? Math.round((uniqueTestsTried / availableIds.size) * 100) : 0
 
       return {
         id: s.id,
@@ -75,7 +77,7 @@ export async function GET() {
         branch: s.branch,
         totalAttempts: attempts.length,
         uniqueTestsTried,
-        totalTests,
+        totalTests: availableIds.size,
         passed,
         avgScore,
         bestScore,
@@ -83,7 +85,7 @@ export async function GET() {
         engagement,
         bySubject,
         // Risk flag: low engagement or failing most tests
-        atRisk: engagement < 30 || (attempts.length > 0 && passed / attempts.length < 0.4),
+        atRisk: (availableIds.size > 0 && engagement < 30) || (attempts.length > 0 && passed / attempts.length < 0.4),
       }
     })
 

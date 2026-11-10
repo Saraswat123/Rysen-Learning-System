@@ -20,7 +20,6 @@ export async function GET() {
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const isAdmin = user.role === Role.ADMIN || user.role === Role.SUPER_ADMIN
-    const branchId = isAdmin ? undefined : (user.branchId ?? undefined)
     // Non-admins without a campus see nothing (an unset branch used to mean "all campuses")
     const studentScope: Prisma.StudentWhereInput = isAdmin
       ? {}
@@ -33,7 +32,7 @@ export async function GET() {
     // All active students + their attempts
     const students = await db.student.findMany({
       where: { ...studentScope, isActive: true },
-      select: { id: true, name: true, class: true },
+      select: { id: true, name: true, class: true, createdAt: true },
     })
     const studentIds = students.map((s) => s.id)
 
@@ -80,15 +79,17 @@ export async function GET() {
     const programs = await db.program.findMany({
       where: { isPublished: true },
       include: {
-        stages: { orderBy: { number: 'asc' }, select: { id: true, number: true, title: true } },
+        stages: { where: { isPublished: true }, orderBy: { number: 'asc' }, select: { id: true, number: true, title: true } },
         enrollments: { select: { userId: true } },
       },
     })
 
     // Filter enrollments to educators in this branch
-    const branchUserIds: string[] | null = branchId
-      ? await db.user.findMany({ where: { branchId }, select: { id: true } }).then((u) => u.map((x) => x.id))
-      : null
+    const branchUserIds: string[] | null = isAdmin
+      ? null
+      : user.branchId
+        ? await db.user.findMany({ where: { branchId: user.branchId }, select: { id: true } }).then((u) => u.map((x) => x.id))
+        : []
 
     const stageProgressAll = await db.stageProgress.findMany({
       where: branchUserIds ? { userId: { in: branchUserIds } } : {},
@@ -96,12 +97,14 @@ export async function GET() {
     })
 
     const stageFunnel = programs.map((prog) => {
-      const enrolled = branchUserIds
-        ? prog.enrollments.filter((e) => branchUserIds.includes(e.userId)).length
-        : prog.enrollments.length
+      // Only people enrolled in this programme (and in scope) count, so attempted <= enrolled
+      const enrolledIds = new Set(
+        prog.enrollments.map((e) => e.userId).filter((id) => !branchUserIds || branchUserIds.includes(id)),
+      )
+      const enrolled = enrolledIds.size
 
       const stages = prog.stages.map((stage) => {
-        const stageAttempts = stageProgressAll.filter((sp) => sp.stageId === stage.id)
+        const stageAttempts = stageProgressAll.filter((sp) => sp.stageId === stage.id && enrolledIds.has(sp.userId))
         const attempted = stageAttempts.length
         const passed = stageAttempts.filter((sp) => sp.passed).length
         return {
@@ -110,14 +113,14 @@ export async function GET() {
           title: stage.title,
           attempted,
           passed,
-          dropRate: enrolled > 0 ? Math.round(((enrolled - attempted) / enrolled) * 100) : 0,
+          dropRate: enrolled > 0 ? Math.max(0, Math.round(((enrolled - attempted) / enrolled) * 100)) : 0,
         }
       })
 
       return { programId: prog.id, programName: prog.name, enrolled, stages }
     }).filter((p) => p.enrolled > 0)
 
-    // Engagement over time — last 30 days bucketed by week
+    // Engagement over time: last 5 weeks, one bucket per week
     const now = new Date()
     const weeks = [28, 21, 14, 7, 0].map((daysAgo) => {
       const start = new Date(now.getTime() - (daysAgo + 7) * 86400000)
@@ -144,7 +147,9 @@ export async function GET() {
         const lastAttempt = sAttempts[0]?.completedAt ?? null
         const passed = sAttempts.filter((a) => a.passed).length
         const passRate = sAttempts.length > 0 ? passed / sAttempts.length : 0
-        const inactive = !lastAttempt || new Date(lastAttempt) < fourteenDaysAgo
+        // Students added in the last 14 days haven't had time to be inactive
+        const isNew = new Date(s.createdAt) >= fourteenDaysAgo
+        const inactive = !isNew && (!lastAttempt || new Date(lastAttempt) < fourteenDaysAgo)
         const failing = sAttempts.length > 0 && passRate < 0.4
         if (!inactive && !failing) return null
         return {

@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/auth'
+import { countedStageWhere } from '@/lib/stage-audience'
 
 export async function GET(req: NextRequest) {
   const user = await getSession()
@@ -13,7 +14,7 @@ export async function GET(req: NextRequest) {
   // Legacy path: original 5-stage onboarding track (stages with no programId)
   if (!programId) {
     const stages = await db.stage.findMany({
-      where: { programId: null },
+      where: { programId: null, ...countedStageWhere(user.role) },
       orderBy: { number: 'asc' },
       include: { progress: { where: { userId: user.id } } },
     })
@@ -52,7 +53,7 @@ export async function GET(req: NextRequest) {
   if (!enrolled) return NextResponse.json({ error: 'Not enrolled in this program' }, { status: 403 })
 
   const stages = await db.stage.findMany({
-    where: { programId },
+    where: { programId, ...countedStageWhere(user.role) },
     orderBy: { number: 'asc' },
     include: { progress: { where: { userId: user.id } } },
   })

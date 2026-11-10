@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/auth'
+import { countedStageWhere } from '@/lib/stage-audience'
 
 export async function GET() {
   const user = await getSession()
@@ -10,7 +11,7 @@ export async function GET() {
 
   // Legacy track (stages with no programId) — original onboarding flow
   const legacyStages = await db.stage.findMany({
-    where: { programId: null },
+    where: { programId: null, ...countedStageWhere(user.role) },
     include: { progress: { where: { userId: user.id } } },
   })
   const legacy = legacyStages.length > 0 ? {
@@ -27,7 +28,7 @@ export async function GET() {
     include: {
       program: {
         include: {
-          stages: { include: { progress: { where: { userId: user.id } } } },
+          stages: { where: countedStageWhere(user.role), include: { progress: { where: { userId: user.id } } } },
         },
       },
     },

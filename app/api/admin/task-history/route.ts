@@ -14,9 +14,18 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url)
     const status = searchParams.get('status') // 'all' | 'completed' | 'pending'
-    const limit = parseInt(searchParams.get('limit') ?? '100')
+    const parsed = Number.parseInt(searchParams.get('limit') ?? '100', 10)
+    const limit = Number.isFinite(parsed) ? Math.min(Math.max(parsed, 1), 500) : 100
+
+    // Filter in the query, not after `take`, so older matching tasks aren't cut off
+    const where = status === 'completed'
+      ? { assignments: { some: {}, none: { completedAt: null } } }
+      : status === 'pending'
+        ? { assignments: { some: { completedAt: null } } }
+        : {}
 
     const tasks = await db.task.findMany({
+      where,
       orderBy: { createdAt: 'desc' },
       take: limit,
       include: {
@@ -93,6 +102,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ tasks: history })
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 })
+    console.error('[admin/task-history]', err)
+    return NextResponse.json({ error: 'Could not load task history' }, { status: 500 })
   }
 }
