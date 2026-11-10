@@ -15,9 +15,8 @@
     "db:studio": "prisma studio"
   },
   "dependencies": {
-    "@auth/core": "^0.34.3",
-    "@prisma/adapter-pg": "^7.8.0",
-    "@prisma/client": "^7.8.0",
+    "@prisma/adapter-pg": "^7.10.1",
+    "@prisma/client": "^7.10.1",
     "@types/pg": "^8.20.0",
     "@vercel/blob": "^2.6.1",
     "bcryptjs": "^3.0.3",
@@ -29,10 +28,10 @@
     "jsonwebtoken": "^9.0.3",
     "jspdf": "^4.2.1",
     "lucide-react": "^1.17.0",
-    "next": "16.2.7",
+    "next": "16.4.6",
     "pdfjs-dist": "^6.4.299",
     "pg": "^8.21.0",
-    "prisma": "^7.8.0",
+    "prisma": "^7.10.1",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "recharts": "^3.8.1",
@@ -40,7 +39,7 @@
     "tailwind-merge": "^3.6.0",
     "tesseract.js": "^7.0.0",
     "twilio": "^6.0.2",
-    "xlsx": "^0.18.5"
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -50,12 +49,17 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.2.7",
+    "eslint-config-next": "16.4.6",
     "tailwindcss": "^4",
     "tsx": "^4.22.4",
     "typescript": "^5"
   },
   "allowScripts": {
     "googleapis@173.0.0": true
+  },
+  "overrides": {
+    "@vercel/cli-config": {
+      "zod": "^4.6.6"
+    }
   }
 }
