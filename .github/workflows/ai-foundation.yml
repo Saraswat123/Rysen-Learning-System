@@ -1,0 +1,27 @@
+name: Rysen AI foundation
+
+on:
+  push:
+    paths:
+      - "ml/**"
+      - "docs/AI_*.md"
+      - "docker-compose.ai.yml"
+      - ".github/workflows/ai-foundation.yml"
+  pull_request:
+    paths:
+      - "ml/**"
+      - "docs/AI_*.md"
+      - "docker-compose.ai.yml"
+      - ".github/workflows/ai-foundation.yml"
+
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate AI contracts without secrets or network calls
+        run: python ml/evaluation/validate_contract.py
+      - name: Build local Docker validation image
+        run: docker compose -f docker-compose.ai.yml build
+      - name: Run local Docker validation
+        run: docker compose -f docker-compose.ai.yml run --rm ai-contract-check
