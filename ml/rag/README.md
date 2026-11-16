@@ -17,3 +17,5 @@ The included SQL is a schema contract, not a migration to production Neon. Produ
 Measure p50 and p95 independently for extraction, embedding, vector search, model completion and total request, with the same dataset, concurrency and environment. At least 100 measured requests after warmup are recommended before interpreting p95. Record sample count and errors alongside percentiles.
 
 Local unit test: `python -m unittest discover -s ml/rag -p 'test_*.py'`.
+
+Opt-in live model smoke test: `GROQ_API_KEY=... python ml/evaluation/groq_smoke.py`. It sends only synthetic context, asserts the grounded answer, and prints token usage and p50/p95. With the default three requests, p95 is only a smoke indicator, not a production latency estimate. Never place the key in a committed file or shell history; use an existing secure environment injection method.
