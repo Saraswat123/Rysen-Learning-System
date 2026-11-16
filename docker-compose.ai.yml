@@ -6,4 +6,4 @@ services:
     image: rysen-ai-contract-check:local
     environment:
       RYSEN_AI_ENVIRONMENT: development
-    command: ["python", "ml/evaluation/validate_contract.py"]
+    command: ["sh", "-c", "python ml/evaluation/validate_contract.py && python -m unittest discover -s ml/rag -p 'test_*.py'"]
