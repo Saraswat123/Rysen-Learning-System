@@ -5,6 +5,7 @@ import { getSession } from '@/lib/auth'
 import { Role } from '@/app/generated/prisma/client'
 import Groq from 'groq-sdk'
 import { selectedGroqModel } from '@/lib/ai-model'
+import { AiChatInputError, parseAiChatHistory } from '@/lib/ai-chat-input'
 
 // Educator-facing assistant — deliberately narrower than the admin RYSEN AI agent.
 // Every tool is read-only (except mark_subtask_complete) and every query is scoped
@@ -149,8 +150,9 @@ async function executeTool(name: string, args: Record<string, unknown>, userId: 
       return resources
     }
     case 'get_my_student_tests': {
+      if (!branchId) return { error: 'No campus assigned to your account' }
       const tests = await db.studentTest.findMany({
-        where: { OR: branchId ? [{ branchId }, { branchId: null }] : [{ branchId: null }] },
+        where: { isPublished: true, OR: [{ branchId }, { branchId: null }] },
         include: { _count: { select: { attempts: true } } },
         orderBy: { createdAt: 'desc' },
         take: 20,
@@ -161,8 +163,9 @@ async function executeTool(name: string, args: Record<string, unknown>, userId: 
       }))
     }
     case 'get_my_student_progress_summary': {
+      if (!branchId) return { error: 'No campus assigned to your account' }
       const students = await db.student.findMany({
-        where: { ...(branchId ? { branchId } : {}), isActive: true },
+        where: { branchId, isActive: true },
         include: { attempts: { select: { score: true, totalMarks: true, passed: true } } },
       })
       const allAttempts = students.flatMap((s) => s.attempts)
@@ -212,7 +215,13 @@ export async function POST(req: NextRequest) {
   const apiKey = process.env.GROQ_API_KEY
   if (!apiKey) return NextResponse.json({ reply: 'AI not configured. Contact your admin.', actions: [] })
 
-  const { messages } = await req.json() as { messages: Groq.Chat.Completions.ChatCompletionMessageParam[] }
+  let messages: ReturnType<typeof parseAiChatHistory>
+  try {
+    messages = parseAiChatHistory(await req.json())
+  } catch (err) {
+    const reply = err instanceof AiChatInputError ? err.message : 'Invalid JSON'
+    return NextResponse.json({ error: reply, reply, actions: [] }, { status: 400 })
+  }
 
   const groq = new Groq({ apiKey })
   const systemPrompt = `You are RYSEN AI — the assistant for RYSEN Learning Centre educators.
