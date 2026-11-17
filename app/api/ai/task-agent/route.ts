@@ -5,6 +5,7 @@ import { getSession } from '@/lib/auth'
 import { Role } from '@/app/generated/prisma/client'
 import { sendEmail, escapeHtml } from '@/lib/email'
 import Groq from 'groq-sdk'
+import { selectedGroqModel } from '@/lib/ai-model'
 
 // ── Tool definitions ──────────────────────────────────────────────────────────
 const TOOLS: Groq.Chat.Completions.ChatCompletionTool[] = [
@@ -578,7 +579,7 @@ EXAMPLE FLOWS the user might say:
       let response: Awaited<ReturnType<typeof groq.chat.completions.create>>
       try {
         response = await groq.chat.completions.create({
-          model: 'openai/gpt-oss-120b',
+          model: selectedGroqModel(),
           messages: msgHistory,
           tools: TOOLS,
           tool_choice: 'auto',
@@ -593,7 +594,7 @@ EXAMPLE FLOWS the user might say:
         if (errMsg.includes('tool_use_failed') || errMsg.includes('tool call validation')) {
           try {
             response = await groq.chat.completions.create({
-              model: 'openai/gpt-oss-120b',
+              model: selectedGroqModel(),
               messages: msgHistory,
               tools: TOOLS,
               tool_choice: 'auto',

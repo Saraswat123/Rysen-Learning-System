@@ -1,4 +1,5 @@
 import Groq from 'groq-sdk'
+import { selectedGroqModel } from '@/lib/ai-model'
 
 export async function getAIInsights(prompt: string): Promise<string> {
   const apiKey = process.env.GROQ_API_KEY
@@ -6,7 +7,7 @@ export async function getAIInsights(prompt: string): Promise<string> {
 
   const groq = new Groq({ apiKey })
   const completion = await groq.chat.completions.create({
-    model: 'openai/gpt-oss-120b',
+    model: selectedGroqModel(),
     messages: [
       {
         role: 'system',

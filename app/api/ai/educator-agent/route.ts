@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { getSession } from '@/lib/auth'
 import { Role } from '@/app/generated/prisma/client'
 import Groq from 'groq-sdk'
+import { selectedGroqModel } from '@/lib/ai-model'
 
 // Educator-facing assistant — deliberately narrower than the admin RYSEN AI agent.
 // Every tool is read-only (except mark_subtask_complete) and every query is scoped
@@ -253,7 +254,7 @@ RULES:
       let response: Awaited<ReturnType<typeof groq.chat.completions.create>>
       try {
         response = await groq.chat.completions.create({
-          model: 'openai/gpt-oss-120b',
+          model: selectedGroqModel(),
           messages: msgHistory,
           tools: TOOLS,
           tool_choice: 'auto',
@@ -267,7 +268,7 @@ RULES:
         if (errMsg.includes('tool_use_failed') || errMsg.includes('tool call validation')) {
           try {
             response = await groq.chat.completions.create({
-              model: 'openai/gpt-oss-120b',
+              model: selectedGroqModel(),
               messages: msgHistory,
               tools: TOOLS,
               tool_choice: 'auto',
