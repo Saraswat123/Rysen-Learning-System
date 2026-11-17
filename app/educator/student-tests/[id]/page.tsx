@@ -7,6 +7,7 @@ import Input from '@/components/ui/Input'
 import Link from 'next/link'
 import QuestionPdfImport from '@/components/QuestionPdfImport'
 import TopicContentEditor, { type ContentBlock } from '@/components/TopicContentEditor'
+import { testScheduleError, toLocalDateTimeInput, toUtcDateTime } from '@/lib/student-test-schedule'
 
 interface Option { id: string; text: string }
 interface Question {
@@ -19,6 +20,7 @@ interface TestMeta {
   id: string; title: string; description: string | null
   subject: string; targetClass: string; timeLimitMinutes: number
   passScore: number; isPublished: boolean
+  startAt: string | null; endAt: string | null
 }
 
 const Q_TYPES = ['MCQ', 'TEXT', 'IMAGE', 'VIDEO']
@@ -121,6 +123,7 @@ export default function StudentTestEditorPage({ params }: { params: Promise<{ id
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [error, setError] = useState('')
   const [meta, setMeta] = useState<Partial<TestMeta>>({})
 
   useEffect(() => {
@@ -131,7 +134,7 @@ export default function StudentTestEditorPage({ params }: { params: Promise<{ id
         fetch(`/api/student-tests/${id}/content`).then((r) => r.json()),
       ])
       setTest(t)
-      setMeta({ title: t.title, description: t.description, subject: t.subject, targetClass: t.targetClass, timeLimitMinutes: t.timeLimitMinutes, passScore: t.passScore, isPublished: t.isPublished })
+      setMeta({ title: t.title, description: t.description, subject: t.subject, targetClass: t.targetClass, timeLimitMinutes: t.timeLimitMinutes, passScore: t.passScore, isPublished: t.isPublished, startAt: toLocalDateTimeInput(t.startAt), endAt: toLocalDateTimeInput(t.endAt) })
       setQuestions(Array.isArray(q) ? q : [])
       setContentBlocks(Array.isArray(c) ? c : [])
       setLoading(false)
@@ -172,27 +175,45 @@ export default function StudentTestEditorPage({ params }: { params: Promise<{ id
   }
 
   async function save() {
+    const timingError = testScheduleError(meta.startAt ?? '', meta.endAt ?? '')
+    if (timingError) { setError(timingError); return }
+    const limit = meta.timeLimitMinutes
+    if (typeof limit !== 'number' || !Number.isInteger(limit) || limit < 5 || limit > 180) {
+      setError('Time limit must be between 5 and 180 minutes.')
+      return
+    }
+    setError('')
     setSaving(true)
-    await Promise.all([
-      fetch(`/api/student-tests/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(meta),
-      }),
-      fetch(`/api/student-tests/${id}/questions`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(questions.map((q, i) => ({ ...q, order: i }))),
-      }),
-      fetch(`/api/student-tests/${id}/content`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(contentBlocks.map((b, i) => ({ ...b, order: i }))),
-      }),
-    ])
-    setSaving(false)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+    try {
+      const responses = await Promise.all([
+        fetch(`/api/student-tests/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...meta, startAt: toUtcDateTime(meta.startAt ?? ''), endAt: toUtcDateTime(meta.endAt ?? '') }),
+        }),
+        fetch(`/api/student-tests/${id}/questions`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(questions.map((q, i) => ({ ...q, order: i }))),
+        }),
+        fetch(`/api/student-tests/${id}/content`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(contentBlocks.map((b, i) => ({ ...b, order: i }))),
+        }),
+      ])
+      const failed = responses.find((response) => !response.ok)
+      if (failed) {
+        const data = await failed.json().catch(() => null)
+        throw new Error(data?.error || 'Could not save the test. Please try again.')
+      }
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not save the test. Please try again.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   async function togglePublish() {
@@ -247,8 +268,8 @@ export default function StudentTestEditorPage({ params }: { params: Promise<{ id
           <Input label="Description" value={meta.description ?? ''} onChange={(e) => setMeta((m) => ({ ...m, description: e.target.value }))} />
           <div className="flex flex-col gap-1">
             <label className="text-sm font-semibold text-charcoal">Time Limit (min)</label>
-            <input type="number" min="5" value={meta.timeLimitMinutes ?? 30}
-              onChange={(e) => setMeta((m) => ({ ...m, timeLimitMinutes: parseInt(e.target.value) }))}
+            <input type="number" min="5" max="180" value={meta.timeLimitMinutes ?? 30}
+              onChange={(e) => setMeta((m) => ({ ...m, timeLimitMinutes: Number(e.target.value) }))}
               className="px-4 py-2.5 border border-gray-300 rounded-lg text-sm text-charcoal focus:outline-none focus:ring-2 focus:ring-midnight" />
           </div>
           <div className="flex flex-col gap-1">
@@ -257,7 +278,25 @@ export default function StudentTestEditorPage({ params }: { params: Promise<{ id
               onChange={(e) => setMeta((m) => ({ ...m, passScore: parseInt(e.target.value) }))}
               className="px-4 py-2.5 border border-gray-300 rounded-lg text-sm text-charcoal focus:outline-none focus:ring-2 focus:ring-midnight" />
           </div>
+          <div className="col-span-2 border-t border-gray-100 pt-4 mt-1">
+            <h3 className="text-sm font-bold text-midnight">Test availability</h3>
+            <p className="text-xs text-charcoal/50 mt-1">Edit these times after publishing, then click Save to update student availability.</p>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-semibold text-charcoal">Opens at</label>
+            <input type="datetime-local" value={meta.startAt ?? ''}
+              onChange={(e) => setMeta((m) => ({ ...m, startAt: e.target.value }))}
+              className="px-4 py-2.5 border border-gray-300 rounded-lg text-sm text-charcoal focus:outline-none focus:ring-2 focus:ring-midnight" />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-semibold text-charcoal">Closes at</label>
+            <input type="datetime-local" value={meta.endAt ?? ''}
+              onChange={(e) => setMeta((m) => ({ ...m, endAt: e.target.value }))}
+              className="px-4 py-2.5 border border-gray-300 rounded-lg text-sm text-charcoal focus:outline-none focus:ring-2 focus:ring-midnight" />
+          </div>
+          <p className="col-span-2 text-xs text-charcoal/50">Leave either time blank to remove that boundary. Times use your device&apos;s local timezone.</p>
         </div>
+        {error && <p role="alert" className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg mt-4">{error}</p>}
       </div>
 
       <TopicContentEditor testId={id} blocks={contentBlocks} onChange={setContentBlocks} />
