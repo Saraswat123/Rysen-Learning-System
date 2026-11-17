@@ -29,7 +29,7 @@ Exit: key rotated, live Groq smoke succeeds, contract tests pass, and baseline r
 
 ## Stage 1 — sessions, decisions and human approval
 
-- Create `AiThread`, `AiMessage`, `AiRun`, `AiToolInvocation`, `AiApproval` and `AiRunEvent` tables as designed in [DATABASE_DESIGN.md](DATABASE_DESIGN.md). Apply a reviewed migration to a disposable local DB, then staging before production.
+- Create `AiThread`, `AiMessage`, `AiRun`, `AiToolInvocation`, `AiApproval` and `AiRunEvent` tables as designed in [DATABASE_DESIGN.md](DATABASE_DESIGN.md). The current LMS has login-triggered SQL in `lib/migrations.ts`; build a versioned deploy migration path for AI tables/indexes, then test it on a disposable local DB and staging before production.
 - Add UI for multiple named threads per user. Persist only bounded recent messages plus a versioned summary; summaries are context compression, not model-weight updates.
 - Implement the run states in `ai/state-machine.ts`. The server, not the model or client, owns state transitions and tool authorization.
 - For v1, every LMS write becomes a proposed action with exact arguments shown to the authorized user. Approve/reject on the server, then execute once with an idempotency key. Read-only tools can execute without approval. Deletion and external reminders require explicit, separate approval.
@@ -78,6 +78,7 @@ Exit: a candidate beats the baseline on held-out quality/security without violat
 - Staging: deploy behind a feature flag, load test with synthetic data, check rollback and data deletion. Canary by user/tenant cohort, with automatic stop on quality, unauthorized access, error rate or p95 regression.
 - Production: keep the web app on Vercel initially. Add a queue/worker service only when ingestion or durable runs require it. Test a worker deployment locally with kind/Kubernetes before choosing production Kubernetes; avoid a second app platform without measured need.
 - 100k registered users is not a throughput target. Capacity model = active users × AI turns/user × provider calls/turn, plus peak factor and token mix. Example only: 10k daily active × 2 turns × 2 provider calls = 40k calls/day before peak. Validate actual Groq organization RPM/TPM/RPD limits and obtain capacity before a large launch; see [Groq rate limits](https://console.groq.com/docs/rate-limits).
+- As checked on 2026-11-17, Groq's published base Developer-plan table shows `openai/gpt-oss-120b` at 30 RPM, 1,000 RPD and 8,000 TPM, with possible account-specific limits. The illustrative 40k calls/day is far beyond that base RPD; scaling the app or adding threads cannot remove the provider limit. Obtain the actual organization limits and an agreed capacity plan first.
 - Load test DB connection pooling, queue depth, worker concurrency, model 429 handling, circuit breaker, cache hit rate and p95 end-to-end latency. Autoscale workers from queue lag; bound per-user and per-organization concurrency.
 
 Exit: defined load profile, error budget, canary criteria, rollback drill and production smoke checks all pass. Do not claim support for 100k users until measured against the agreed active-user scenario.

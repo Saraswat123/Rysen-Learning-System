@@ -23,3 +23,4 @@ Use the existing PostgreSQL database for session/action metadata. Keep provider 
 - Retention, encryption and deletion periods need owner policy before applying the migration. Database backups and embeddings must follow the same deletion/retention decision.
 - Store metrics (latency, tokens, error code) without raw student content. Keep audit visibility limited to authorized operators.
 - Migrate on staging first. Existing Prisma schema has no AI thread tables, so no production data migration has been run for this design.
+- The LMS currently applies idempotent SQL from `lib/migrations.ts` through `POST /api/admin/migrate` after admin login, with a small auth-only `lib/schema-heal.ts` path. Do not add large vector indexes or long-running AI DDL to a login-triggered route. Introduce a versioned deploy migration runner with a database advisory lock, dry-run/check mode and rollback plan; test schema parity on a disposable database before staging.
