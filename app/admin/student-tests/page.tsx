@@ -42,6 +42,12 @@ export default function StudentTestsPage() {
   const [form, setForm] = useState({ title: '', description: '', subject: '', targetClass: '', timeLimitMinutes: '30', passScore: '60', branchId: '', startAt: '', endAt: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [bulkMode, setBulkMode] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [bulkSaving, setBulkSaving] = useState(false)
+  const [bulkError, setBulkError] = useState('')
+  const [bulkNotice, setBulkNotice] = useState('')
+  const [bulkForm, setBulkForm] = useState({ changeStartAt: false, startAt: '', changeEndAt: false, endAt: '', changeTimeLimit: false, timeLimitMinutes: '' })
 
   async function load() {
     setLoading(true)
@@ -97,6 +103,54 @@ export default function StudentTestsPage() {
     load()
   }
 
+  function toggleSelected(id: string) {
+    setSelectedIds((current) => current.includes(id) ? current.filter((selected) => selected !== id) : [...current, id])
+  }
+
+  async function applyBulkTiming() {
+    setBulkError('')
+    if (selectedIds.length === 0 || selectedIds.length > 500) {
+      setBulkError('Select between 1 and 500 tests.')
+      return
+    }
+    if (!bulkForm.changeStartAt && !bulkForm.changeEndAt && !bulkForm.changeTimeLimit) {
+      setBulkError('Choose at least one time setting to update.')
+      return
+    }
+    const timingError = testScheduleError(bulkForm.changeStartAt ? bulkForm.startAt : '', bulkForm.changeEndAt ? bulkForm.endAt : '')
+    if (timingError) { setBulkError(timingError); return }
+    const limit = Number(bulkForm.timeLimitMinutes)
+    if (bulkForm.changeTimeLimit && (!Number.isInteger(limit) || limit < 5 || limit > 180)) {
+      setBulkError('Time limit must be between 5 and 180 minutes.')
+      return
+    }
+
+    const updates: Record<string, unknown> = { ids: selectedIds }
+    if (bulkForm.changeStartAt) updates.startAt = toUtcDateTime(bulkForm.startAt)
+    if (bulkForm.changeEndAt) updates.endAt = toUtcDateTime(bulkForm.endAt)
+    if (bulkForm.changeTimeLimit) updates.timeLimitMinutes = limit
+    setBulkSaving(true)
+    try {
+      const response = await fetch('/api/student-tests/bulk-timing', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || 'Could not update test timing.')
+      if (result.updated !== selectedIds.length) throw new Error(`Updated ${result.updated} of ${selectedIds.length} tests. Reload and check the list.`)
+      setBulkNotice(`Updated timing for ${result.updated} tests.`)
+      setBulkMode(false)
+      setSelectedIds([])
+      setBulkForm({ changeStartAt: false, startAt: '', changeEndAt: false, endAt: '', changeTimeLimit: false, timeLimitMinutes: '' })
+      await load()
+    } catch (err) {
+      setBulkError(err instanceof Error ? err.message : 'Could not update test timing.')
+    } finally {
+      setBulkSaving(false)
+    }
+  }
+
   const locationGroups = branches.reduce<Record<string, Branch[]>>((acc, b) => {
     acc[b.location] = [...(acc[b.location] ?? []), b]
     return acc
@@ -109,10 +163,64 @@ export default function StudentTestsPage() {
           <h1 className="text-2xl font-bold text-midnight">Student Tests</h1>
           <p className="text-sm text-charcoal/60 mt-0.5">{tests.length} test sets</p>
         </div>
-        <Button onClick={() => setShowAdd(true)} className="flex items-center gap-2">
-          <Plus size={15} /> Create Test
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" onClick={() => { setBulkMode((current) => !current); setSelectedIds([]); setBulkError('') }} className="flex items-center gap-2">
+            <CalendarClock size={15} /> {bulkMode ? 'Cancel bulk edit' : 'Bulk edit timing'}
+          </Button>
+          <Button onClick={() => setShowAdd(true)} className="flex items-center gap-2">
+            <Plus size={15} /> Create Test
+          </Button>
+        </div>
       </div>
+
+      {bulkNotice && <p role="status" className="text-sm text-forest bg-forest/10 px-4 py-3 rounded-xl mb-4">{bulkNotice}</p>}
+
+      {bulkMode && (
+        <section className="bg-white rounded-2xl border border-gray-100 p-5 mb-6" aria-label="Bulk edit test timing">
+          <h2 className="font-bold text-midnight">Bulk edit timing</h2>
+          <p className="text-sm text-charcoal/60 mt-1">Select tests below, then choose only the settings you want to change. Other settings stay as they are.</p>
+          <div className="flex flex-wrap items-center gap-2 mt-4 text-sm">
+            <Button size="sm" variant="ghost" onClick={() => setSelectedIds(tests.map((test) => test.id))}>Select all</Button>
+            <Button size="sm" variant="ghost" onClick={() => setSelectedIds(tests.filter((test) => test.isPublished).map((test) => test.id))}>Select published</Button>
+            <Button size="sm" variant="ghost" onClick={() => setSelectedIds([])}>Clear selection</Button>
+            <span className="text-charcoal/60">{selectedIds.length} selected</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-5">
+            <div className="flex flex-col gap-2">
+              <label className="flex items-center gap-2 text-sm font-semibold text-charcoal">
+                <input type="checkbox" checked={bulkForm.changeStartAt} onChange={(e) => setBulkForm((form) => ({ ...form, changeStartAt: e.target.checked }))} /> Change opening time
+              </label>
+              <input type="datetime-local" disabled={!bulkForm.changeStartAt} value={bulkForm.startAt}
+                onChange={(e) => setBulkForm((form) => ({ ...form, startAt: e.target.value }))}
+                aria-label="New opening time"
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-charcoal disabled:opacity-50" />
+            </div>
+            <div className="flex flex-col gap-2">
+              <label className="flex items-center gap-2 text-sm font-semibold text-charcoal">
+                <input type="checkbox" checked={bulkForm.changeEndAt} onChange={(e) => setBulkForm((form) => ({ ...form, changeEndAt: e.target.checked }))} /> Change closing time
+              </label>
+              <input type="datetime-local" disabled={!bulkForm.changeEndAt} value={bulkForm.endAt}
+                onChange={(e) => setBulkForm((form) => ({ ...form, endAt: e.target.value }))}
+                aria-label="New closing time"
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-charcoal disabled:opacity-50" />
+            </div>
+            <div className="flex flex-col gap-2">
+              <label className="flex items-center gap-2 text-sm font-semibold text-charcoal">
+                <input type="checkbox" checked={bulkForm.changeTimeLimit} onChange={(e) => setBulkForm((form) => ({ ...form, changeTimeLimit: e.target.checked }))} /> Change time limit
+              </label>
+              <input type="number" min="5" max="180" disabled={!bulkForm.changeTimeLimit} value={bulkForm.timeLimitMinutes}
+                onChange={(e) => setBulkForm((form) => ({ ...form, timeLimitMinutes: e.target.value }))}
+                placeholder="Minutes" aria-label="New time limit in minutes"
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-charcoal disabled:opacity-50" />
+            </div>
+          </div>
+          <p className="text-xs text-charcoal/50 mt-3">A checked opening or closing time left blank removes that boundary for the selected tests. Times use your device&apos;s local timezone.</p>
+          {bulkError && <p role="alert" className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg mt-4">{bulkError}</p>}
+          <Button onClick={applyBulkTiming} loading={bulkSaving} disabled={selectedIds.length === 0} className="mt-4">
+            Apply to {selectedIds.length} tests
+          </Button>
+        </section>
+      )}
 
       {showAdd && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
@@ -193,6 +301,7 @@ export default function StudentTestsPage() {
             const scheduleWindow = fmtWindow(test)
             return (
             <div key={test.id} className="bg-white rounded-2xl border border-gray-100 p-5 flex items-center gap-4">
+              {bulkMode && <input type="checkbox" checked={selectedIds.includes(test.id)} onChange={() => toggleSelected(test.id)} aria-label={`Select ${test.title}`} className="h-4 w-4 flex-shrink-0" />}
               <div className="w-12 h-12 rounded-xl bg-midnight/5 flex items-center justify-center flex-shrink-0">
                 <ClipboardList size={22} className="text-midnight" />
               </div>
