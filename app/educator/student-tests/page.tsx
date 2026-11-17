@@ -5,6 +5,7 @@ import { Plus, ClipboardList, Users, Clock, Eye, EyeOff, ChevronRight, Shield, T
 import Link from 'next/link'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
+import { testScheduleError, toUtcDateTime } from '@/lib/student-test-schedule'
 
 interface StudentTest {
   id: string; title: string; description: string | null
@@ -52,12 +53,14 @@ export default function EducatorStudentTestsPage() {
 
   async function createTest(e: React.FormEvent) {
     e.preventDefault()
+    const timingError = testScheduleError(form.startAt, form.endAt)
+    if (timingError) { setError(timingError); return }
     setSaving(true)
     setError('')
     const res = await fetch('/api/student-tests', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...form, timeLimitMinutes: parseInt(form.timeLimitMinutes), passScore: parseInt(form.passScore) }),
+      body: JSON.stringify({ ...form, timeLimitMinutes: parseInt(form.timeLimitMinutes), passScore: parseInt(form.passScore), startAt: toUtcDateTime(form.startAt), endAt: toUtcDateTime(form.endAt) }),
     })
     const data = await res.json()
     setSaving(false)
@@ -180,7 +183,7 @@ export default function EducatorStudentTestsPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1">
                   <label className="text-sm font-semibold text-charcoal">Time Limit (min)</label>
-                  <input type="number" min="5" max="180" value={form.timeLimitMinutes}
+                  <input type="number" min="5" max="180" required value={form.timeLimitMinutes}
                     onChange={(e) => setForm((f) => ({ ...f, timeLimitMinutes: e.target.value }))}
                     className="px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-midnight" />
                 </div>
