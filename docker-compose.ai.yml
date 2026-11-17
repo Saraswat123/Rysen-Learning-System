@@ -1,0 +1,9 @@
+services:
+  ai-contract-check:
+    build:
+      context: .
+      dockerfile: ml/evaluation/Dockerfile
+    image: rysen-ai-contract-check:local
+    environment:
+      RYSEN_AI_ENVIRONMENT: development
+    command: ["sh", "-c", "python ml/evaluation/validate_contract.py && python -m unittest discover -s ml/evaluation -p 'test_*.py' && python -m unittest discover -s ml/rag -p 'test_*.py'"]

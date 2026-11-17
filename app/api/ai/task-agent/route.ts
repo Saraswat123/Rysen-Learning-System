@@ -5,6 +5,8 @@ import { getSession } from '@/lib/auth'
 import { Role } from '@/app/generated/prisma/client'
 import { sendEmail, escapeHtml } from '@/lib/email'
 import Groq from 'groq-sdk'
+import { selectedGroqModel } from '@/lib/ai-model'
+import { AiChatInputError, parseAiChatHistory } from '@/lib/ai-chat-input'
 
 // ── Tool definitions ──────────────────────────────────────────────────────────
 const TOOLS: Groq.Chat.Completions.ChatCompletionTool[] = [
@@ -528,7 +530,13 @@ export async function POST(req: NextRequest) {
   const apiKey = process.env.GROQ_API_KEY
   if (!apiKey) return NextResponse.json({ reply: 'AI not configured. Set GROQ_API_KEY.', actions: [] })
 
-  const { messages } = await req.json() as { messages: Groq.Chat.Completions.ChatCompletionMessageParam[] }
+  let messages: ReturnType<typeof parseAiChatHistory>
+  try {
+    messages = parseAiChatHistory(await req.json())
+  } catch (err) {
+    const reply = err instanceof AiChatInputError ? err.message : 'Invalid JSON'
+    return NextResponse.json({ error: reply, reply, actions: [] }, { status: 400 })
+  }
 
   const groq = new Groq({ apiKey })
   const systemPrompt = `You are RYSEN AI — the intelligent task management assistant for RYSEN Learning Centre admin team.
@@ -578,7 +586,7 @@ EXAMPLE FLOWS the user might say:
       let response: Awaited<ReturnType<typeof groq.chat.completions.create>>
       try {
         response = await groq.chat.completions.create({
-          model: 'openai/gpt-oss-120b',
+          model: selectedGroqModel(),
           messages: msgHistory,
           tools: TOOLS,
           tool_choice: 'auto',
@@ -593,7 +601,7 @@ EXAMPLE FLOWS the user might say:
         if (errMsg.includes('tool_use_failed') || errMsg.includes('tool call validation')) {
           try {
             response = await groq.chat.completions.create({
-              model: 'openai/gpt-oss-120b',
+              model: selectedGroqModel(),
               messages: msgHistory,
               tools: TOOLS,
               tool_choice: 'auto',

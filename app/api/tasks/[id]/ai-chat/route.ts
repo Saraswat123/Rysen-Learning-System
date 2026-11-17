@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { getSession } from '@/lib/auth'
 import { canAccessTask } from '@/lib/task-access'
 import Groq from 'groq-sdk'
+import { selectedGroqModel } from '@/lib/ai-model'
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await getSession()
@@ -44,7 +45,7 @@ ${task.resources.length ? task.resources.map((r) => `- ${r.title} [${r.type}]: $
 
   const groq = new Groq({ apiKey })
   const completion = await groq.chat.completions.create({
-    model: 'openai/gpt-oss-120b',
+    model: selectedGroqModel(),
     messages: [
       {
         role: 'system',

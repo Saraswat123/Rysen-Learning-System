@@ -1,0 +1,50 @@
+schema_version: 1
+config_version: rysen-ai-config-0.1.0
+environment: development
+
+provider:
+  name: groq
+  model: openai/gpt-oss-120b
+  endpoint_mode: hosted
+  context_window_tokens: 131072 # Groq supported models, checked 2026-11-17
+  max_completion_tokens_provider: 65536 # https://console.groq.com/docs/models
+  max_input_tokens: null # reserve output and count tool schemas per request before enforcing a safe input cap
+  max_output_tokens:
+    insights: 800
+    educator_agent: 1200
+    admin_agent: 2000
+  fallback_model: null
+  timeout_ms: 30000
+  retries: 1
+
+generation:
+  temperature: VERIFY_DURING_EVAL
+  top_p: VERIFY_DURING_EVAL
+  stop_sequences: []
+  tool_choice: auto
+  deterministic_actions: true
+
+agent_limits:
+  admin_max_steps: 8
+  educator_max_steps: 6
+  max_tool_result_bytes: 20000
+  max_history_messages: 20
+
+prompting:
+  system_prompt_version: rysen-system-0.1.0
+  tool_schema_version: rysen-tools-0.1.0
+  context_compression: summary_after_limit
+  expose_hidden_chain_of_thought: false
+  final_response_mode: concise_summary
+
+observability:
+  record_token_usage: true
+  record_latency: true
+  record_tool_calls: true
+  record_prompt_version: true
+  record_raw_sensitive_content: false
+
+release:
+  stage: development
+  canary_percent: 0
+  approval_required: true
