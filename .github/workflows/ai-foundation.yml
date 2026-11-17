@@ -4,13 +4,21 @@ on:
   push:
     paths:
       - "ml/**"
+      - "ai/**"
       - "docs/AI_*.md"
+      - "docs/ai/**"
+      - "memory.md"
+      - "skills/rysen-ai/**"
       - "docker-compose.ai.yml"
       - ".github/workflows/ai-foundation.yml"
   pull_request:
     paths:
       - "ml/**"
+      - "ai/**"
       - "docs/AI_*.md"
+      - "docs/ai/**"
+      - "memory.md"
+      - "skills/rysen-ai/**"
       - "docker-compose.ai.yml"
       - ".github/workflows/ai-foundation.yml"
 
@@ -19,6 +27,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Reject tracked Groq secrets
+        run: python ml/evaluation/check_secrets.py
       - name: Validate AI contracts without secrets or network calls
         run: python ml/evaluation/validate_contract.py
       - name: Test safe Groq diagnostics

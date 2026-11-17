@@ -18,4 +18,4 @@ No approved instruction-tuning dataset or train/validation/test split is checked
 5. Compare prompt, tool, and retrieval improvements against any fine-tuned or distilled model.
 6. Version the approved dataset, model, prompt, tool schemas, and evaluation report before promotion.
 
-Pre-training a base model and QLoRA fine-tuning are separate projects. The Groq-hosted model is an inference endpoint; a QLoRA adapter would need its own training and hosting path. No production self-learning or automated weight updates are enabled.
+Pre-training a base model and QLoRA fine-tuning are separate projects. Groq does not train LoRA adapters for customers; its [LoRA inference service](https://console.groq.com/docs/lora) currently requires enterprise access, externally trained adapters, and a specifically supported base model. The current `openai/gpt-oss-120b` is not listed as a supported LoRA base in that documentation. No production self-learning or automated weight updates are enabled.
