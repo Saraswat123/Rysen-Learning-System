@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { assertRunTransition, assertToolApproval, requiresHumanApproval, toolRisk } from '@/ai/state-machine'
+import { assertRunTransition, assertToolApproval, assertToolExecution, requiresHumanApproval, toolRisk } from '@/ai/state-machine'
 
 describe('Rysen AI run contract', () => {
   it('permits a reviewable write and rejects a terminal-state replay', () => {
@@ -23,5 +23,8 @@ describe('Rysen AI run contract', () => {
     expect(() => assertToolApproval('create_task', 'digest-2', approval, now)).toThrow()
     expect(() => assertToolApproval('create_task', 'digest-1', approval, approval.expiresAt)).toThrow()
     expect(() => assertToolApproval('create_task', 'digest-1', null, now)).toThrow()
+    expect(() => assertToolExecution('PLANNING', 'create_task', 'digest-1', approval, now)).toThrow()
+    expect(() => assertToolExecution('AWAITING_APPROVAL', 'create_task', 'digest-1', approval, now)).not.toThrow()
+    expect(() => assertToolExecution('PLANNING', 'list_tasks', '', null, now)).not.toThrow()
   })
 })

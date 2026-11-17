@@ -75,3 +75,19 @@ export function assertToolApproval(
     throw new Error('AI action requires a current approval for the exact payload')
   }
 }
+
+/** Call immediately before a future executor runs a registered tool. */
+export function assertToolExecution(
+  state: RunState,
+  name: string,
+  proposedDigest: string,
+  approval: { decision: 'APPROVED' | 'REJECTED'; payloadDigest: string; expiresAt: Date } | null,
+  now: Date,
+): void {
+  if (requiresHumanApproval(name)) {
+    if (state !== 'AWAITING_APPROVAL') throw new Error('AI write must pass through approval state')
+    assertToolApproval(name, proposedDigest, approval, now)
+  } else if (state !== 'PLANNING') {
+    throw new Error('AI read must start from planning state')
+  }
+}
