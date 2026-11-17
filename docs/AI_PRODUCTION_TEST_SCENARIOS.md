@@ -26,6 +26,8 @@ If Groq returns HTTP 403, the script prints the provider error code when availab
 
 If the response is `text/plain` without a Groq error code, run `python3 ml/evaluation/groq_connectivity.py`. This calls the models endpoint without a key. A JSON 401 shows that the unauthenticated request reached Groq's API; a plain-text 403 on this no-key probe points to a connection or edge access problem that is independent of the API key. The probe prints no credentials.
 
+The probe also compares DNS and curl access to GitHub and Groq. If both hosts fail, inspect the Mac's DNS, VPN and proxy settings. If GitHub works but Groq fails, investigate filtering or routing specific to `api.groq.com`. A curl timeout is a network result, not evidence that the API key is invalid.
+
 ## Application scenarios
 
 | ID | Scenario | Expected result |
