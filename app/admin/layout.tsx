@@ -37,6 +37,7 @@ const NAV_GROUPS: { label: string; items: { href: string; label: string; icon: t
     items: [
       { href: '/admin/students', label: 'Roster', icon: School },
       { href: '/admin/student-tests', label: 'Test Creation', icon: ClipboardList },
+      { href: '/admin/student-programs', label: 'Student Programs', icon: Layers },
       { href: '/admin/test-results', label: 'Result Sheet', icon: FileSpreadsheet },
     ],
   },
@@ -98,14 +99,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       const d = await r.json()
       setUser(d.user)
       // Run migration once per browser session; skip if already done
-      if (!sessionStorage.getItem('rysen_migrated_v28')) {
+      if (!sessionStorage.getItem('rysen_migrated_v29')) {
         try {
           const ac = new AbortController()
           const t = setTimeout(() => ac.abort(), 12000)
           await fetch('/api/admin/migrate', { method: 'POST', signal: ac.signal })
           clearTimeout(t)
         } catch {}
-        sessionStorage.setItem('rysen_migrated_v28', '1')
+        sessionStorage.setItem('rysen_migrated_v29', '1')
       }
       setReady(true)
     })
