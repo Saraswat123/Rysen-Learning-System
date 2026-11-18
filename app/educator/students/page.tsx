@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Download, Plus, Search, Trash2, UserCheck, UserX, School, Upload, X, CheckCircle, AlertCircle, FileText, Square, SquareCheck, KeyRound } from 'lucide-react'
+import Link from 'next/link'
+import { Download, Plus, Search, Trash2, UserCheck, UserX, School, Upload, X, CheckCircle, AlertCircle, FileText, Square, SquareCheck, KeyRound, Layers } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 
@@ -195,6 +196,9 @@ export default function EducatorStudentsPage() {
           <p className="text-sm text-charcoal/60 mt-0.5">{students.length} students in your branch</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          <Link href="/educator/student-programs">
+            <Button size="sm" className="bg-midnight text-white flex items-center gap-2"><Layers size={15} /> Student Programs</Button>
+          </Link>
           <Button onClick={() => window.open('/api/students/export', '_blank')} size="sm"
             className="bg-forest text-white flex items-center gap-2">
             <Download size={15} /> Export CSV

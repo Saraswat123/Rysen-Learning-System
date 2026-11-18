@@ -1,10 +1,11 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import Link from 'next/link'
 import {
   Download, Plus, Search, Trash2, UserCheck, UserX, Upload, X,
   CheckCircle, AlertCircle, FileText, ChevronDown, RefreshCw,
-  Sheet, Building2, Users, FileSpreadsheet, Square, SquareCheck
+  Sheet, Building2, Users, FileSpreadsheet, Square, SquareCheck, Layers
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import Button from '@/components/ui/Button'
@@ -265,6 +266,9 @@ export default function StudentsPage() {
           <p className="text-sm text-charcoal/60 mt-0.5">{students.length} total · {branches.length} campuses</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          <Link href="/admin/student-programs">
+            <Button size="sm" className="bg-midnight text-white flex items-center gap-2"><Layers size={15} /> Student Programs</Button>
+          </Link>
           <button onClick={syncToSheet} disabled={syncing}
             className="flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border border-green-200 text-green-700 hover:bg-green-50 transition-colors disabled:opacity-50">
             <Sheet size={13} /> {syncing ? 'Syncing…' : 'Sync to Sheet'}
