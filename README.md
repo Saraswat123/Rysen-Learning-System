@@ -12,7 +12,7 @@ A multi-tenant, AI-integrated operations platform unifying educator professional
 - **Recognition & Rewards** — admin-configurable monthly rating categories with star ratings, top-3 e-certificate unlock, and educator-facing leaderboard
 - **Governed Communication** — group-scoped resource distribution, live educator chat, broadcast messaging (email + WhatsApp), automatic welcome/activate emails on account creation, and OTP-verified first-time account setup with Cloudflare Turnstile captcha on every login
 
-Built with Next.js App Router · Prisma 7.8.0 · PostgreSQL (Neon.tech) · Tailwind CSS v4 · Groq AI · Vercel
+Built with Next.js App Router · Prisma ^7.10.1 · PostgreSQL (Neon.tech) · Tailwind CSS v4 · Groq AI · Vercel
 
 Live: **https://rysen-learning-system.vercel.app**
 
@@ -40,7 +40,7 @@ Root `/` auto-redirects based on session role.
 | Framework    | Next.js 16 (App Router, Turbopack)                                                    |
 | Language     | TypeScript                                                                            |
 | Styling      | Tailwind CSS v4 (`@theme inline`, no config file)                                     |
-| ORM          | Prisma 7.8.0 with `@prisma/adapter-pg`                                                |
+| ORM          | Prisma ^7.10.1 with `@prisma/adapter-pg`                                                |
 | Database     | PostgreSQL on Neon.tech (free tier — auto-pauses)                                     |
 | AI           | Groq cloud — `openai/gpt-oss-120b` (tool calling)                                     |
 | Email        | Brevo (primary) → Resend (fallback) — `lib/email.ts` single entry point               |
