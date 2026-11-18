@@ -1,6 +1,6 @@
 # RYSEN Learning Centre
 
-A multi-tenant, AI-integrated operations platform unifying educator professional development, student assessment, task orchestration, and campus-level analytics for RYSEN Group of Schools across 15 campuses and 50+ educators. Engineered as a dynamically extensible system of record — programmes, testing modules, task workflows, resource governance, and communication channels are all modeled as first-class, independently composable entities rather than hardcoded flows, letting the platform absorb new campuses, cohorts, and training tracks without structural rework.
+A multi-tenant, AI-integrated operations platform unifying educator professional development, student assessment, task orchestration, and campus-level analytics for RYSEN Group of Schools across 15 campuses and 500+ educators. Engineered as a dynamically extensible system of record — programmes, testing modules, task workflows, resource governance, and communication channels are all modeled as first-class, independently composable entities rather than hardcoded flows, letting the platform absorb new campuses, cohorts, and training tracks without structural rework.
 
 **Core capability pillars**
 
