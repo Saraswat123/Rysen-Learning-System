@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
         },
         include: {
           enrollments: { where: { studentId: student.id }, select: { id: true } },
-          contentBlocks: { orderBy: { order: 'asc' } },
+          contentBlocks: { select: { id: true, type: true, title: true }, orderBy: { order: 'asc' } },
           tests: {
             where: {
               isPublished: true,
