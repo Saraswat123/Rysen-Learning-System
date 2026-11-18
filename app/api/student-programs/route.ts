@@ -15,12 +15,31 @@ export async function GET(req: NextRequest) {
     if (forStudent) {
       const student = await getStudentSession()
       if (!student) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      const now = new Date()
       const programs = await db.studentProgram.findMany({
         where: {
           isPublished: true,
-          ...educatorBranchListWhere(student.branchId),
+          AND: [
+            educatorBranchListWhere(student.branchId),
+            { OR: [{ targetClass: '' }, { targetClass: student.class }] },
+          ],
         },
-        include: { _count: { select: { tests: true } } },
+        include: {
+          contentBlocks: { orderBy: { order: 'asc' } },
+          tests: {
+            where: {
+              isPublished: true,
+              AND: [
+                educatorBranchListWhere(student.branchId),
+                { OR: [{ targetClass: '' }, { targetClass: student.class }] },
+                { OR: [{ startAt: null }, { startAt: { lte: now } }] },
+                { OR: [{ endAt: null }, { endAt: { gte: now } }] },
+              ],
+            },
+            select: { id: true, title: true, targetClass: true, order: true },
+            orderBy: { order: 'asc' },
+          },
+        },
         orderBy: { order: 'asc' },
       })
       return NextResponse.json(programs)
@@ -59,16 +78,29 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Your account has no campus assigned. Ask an admin to set one.' }, { status: 400 })
     }
     const body = await req.json()
+    if (!body || typeof body.title !== 'string' || !body.title.trim() || body.title.trim().length > 160) {
+      return NextResponse.json({ error: 'Program title is required (160 characters max)' }, { status: 400 })
+    }
+    if (typeof body.description === 'string' && body.description.length > 4000) {
+      return NextResponse.json({ error: 'Description must be 4,000 characters or less' }, { status: 400 })
+    }
 
     const branchId = user.role === Role.EDUCATOR ? (user.branchId ?? null) : (body.branchId || null)
+    if (branchId && typeof branchId !== 'string') {
+      return NextResponse.json({ error: 'Invalid campus' }, { status: 400 })
+    }
+    if (branchId && user.role !== Role.EDUCATOR) {
+      const branch = await db.branch.findUnique({ where: { id: branchId }, select: { id: true } })
+      if (!branch) return NextResponse.json({ error: 'Campus not found' }, { status: 400 })
+    }
 
     const maxOrder = await db.studentProgram.aggregate({ _max: { order: true } })
     const program = await db.studentProgram.create({
       data: {
-        title: body.title,
+        title: body.title.trim(),
         description: body.description ?? null,
         targetClass: body.targetClass ?? '',
-        isPublished: body.isPublished ?? true,
+        isPublished: body.isPublished ?? false,
         order: (maxOrder._max.order ?? 0) + 1,
         branchId,
         createdById: user.id,

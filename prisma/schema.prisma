@@ -20,15 +20,15 @@ enum QuestionType {
 }
 
 model Branch {
-  id           String        @id @default(cuid())
-  name         String
-  location     String
-  createdAt    DateTime      @default(now())
-  users        User[]
-  students     Student[]
-  studentTests StudentTest[]
-  resources    Resource[]
-  programs     Program[]     @relation("ProgramBranches")
+  id              String           @id @default(cuid())
+  name            String
+  location        String
+  createdAt       DateTime         @default(now())
+  users           User[]
+  students        Student[]
+  studentTests    StudentTest[]
+  resources       Resource[]
+  programs        Program[]        @relation("ProgramBranches")
   studentPrograms StudentProgram[]
 }
 
@@ -50,15 +50,15 @@ model Resource {
 }
 
 model EducatorGroup {
-  id          String                @id @default(cuid())
-  name        String
-  description String?
-  color       String                @default("#033D4C")
-  members     EducatorGroupMember[]
-  resources   Resource[]
-  messages    GroupMessage[]
+  id                  String                @id @default(cuid())
+  name                String
+  description         String?
+  color               String                @default("#033D4C")
+  members             EducatorGroupMember[]
+  resources           Resource[]
+  messages            GroupMessage[]
   recognitionCategory RecognitionCategory?
-  createdAt   DateTime              @default(now())
+  createdAt           DateTime              @default(now())
 }
 
 model GroupMessage {
@@ -69,6 +69,7 @@ model GroupMessage {
   user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   text      String
   createdAt DateTime      @default(now())
+
   @@index([groupId, createdAt])
 }
 
@@ -85,36 +86,37 @@ model EducatorGroupMember {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  name      String
-  email     String   @unique
-  phone     String?
-  avatarUrl String?
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  phone         String?
+  avatarUrl     String?
   password      String?
   passwordSetAt DateTime?
-  role      Role     @default(EDUCATOR)
-  branchId  String?
-  branch    Branch?  @relation(fields: [branchId], references: [id])
-  createdBy String?
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  role          Role      @default(EDUCATOR)
+  branchId      String?
+  branch        Branch?   @relation(fields: [branchId], references: [id])
+  createdBy     String?
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
-  progress          StageProgress[]
-  sessions          Session[]
-  textResponses     TextResponse[]
-  enrollments       ProgramEnrollment[]
-  createdTaskGroups TaskGroup[]          @relation("TaskGroupCreator")
-  createdStudents   Student[]            @relation("StudentCreator")
+  progress               StageProgress[]
+  sessions               Session[]
+  textResponses          TextResponse[]
+  enrollments            ProgramEnrollment[]
+  createdTaskGroups      TaskGroup[]           @relation("TaskGroupCreator")
+  createdStudents        Student[]             @relation("StudentCreator")
   createdStudentPrograms StudentProgram[]
-  createdTasks      Task[]               @relation("TaskCreator")
-  taskAssignments   TaskAssignment[]     @relation("TaskAssignee")
-  taskComments      TaskComment[]        @relation("TaskCommenter")
-  notifications     Notification[]       @relation("NotificationRecipient")
-  educatorGroups    EducatorGroupMember[]
-  groupMessages     GroupMessage[]
-  ratings           EducatorRating[] @relation("RatedEducator")
-  ratingsGiven      EducatorRating[] @relation("RatingCreator")
+  createdTasks           Task[]                @relation("TaskCreator")
+  taskAssignments        TaskAssignment[]      @relation("TaskAssignee")
+  taskComments           TaskComment[]         @relation("TaskCommenter")
+  notifications          Notification[]        @relation("NotificationRecipient")
+  educatorGroups         EducatorGroupMember[]
+  groupMessages          GroupMessage[]
+  ratings                EducatorRating[]      @relation("RatedEducator")
+  ratingsGiven           EducatorRating[]      @relation("RatingCreator")
+
   @@index([branchId, role])
 }
 
@@ -153,7 +155,7 @@ model EducatorRating {
   user        User                @relation("RatedEducator", fields: [userId], references: [id], onDelete: Cascade)
   categoryId  String
   category    RecognitionCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  period      String              // "YYYY-MM"
+  period      String // "YYYY-MM"
   scores      Json                @default("{}")
   comment     String?
   ratedById   String?
@@ -173,17 +175,18 @@ model Session {
   token     String   @unique
   expiresAt DateTime
   createdAt DateTime @default(now())
+
   @@index([userId])
 }
 
 model Program {
-  id           String   @id @default(cuid())
+  id           String              @id @default(cuid())
   name         String
   description  String?
-  isPublished  Boolean  @default(false)
-  applicableTo String   @default("BOTH")
-  order        Int      @default(0)
-  createdAt    DateTime @default(now())
+  isPublished  Boolean             @default(false)
+  applicableTo String              @default("BOTH")
+  order        Int                 @default(0)
+  createdAt    DateTime            @default(now())
   stages       Stage[]
   enrollments  ProgramEnrollment[]
   // Which campuses this program applies to. Empty = every campus (old
@@ -191,7 +194,7 @@ model Program {
   // At 500-educator scale this is the only allocation that scales — a
   // program targets campuses, every educator there gets it automatically,
   // no per-educator picking.
-  branches     Branch[] @relation("ProgramBranches")
+  branches     Branch[]            @relation("ProgramBranches")
 }
 
 model ProgramEnrollment {
@@ -264,21 +267,22 @@ model TextResponse {
 }
 
 model Student {
-  id          String   @id @default(cuid())
-  name        String
-  class       String
-  section     String   @default("")
-  subject     String   @default("")
-  branchId    String?
-  branch      Branch?  @relation(fields: [branchId], references: [id])
-  createdById String?
-  createdByUser User?  @relation("StudentCreator", fields: [createdById], references: [id], onDelete: SetNull)
-  pinHash     String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
+  id            String   @id @default(cuid())
+  name          String
+  class         String
+  section       String   @default("")
+  subject       String   @default("")
+  branchId      String?
+  branch        Branch?  @relation(fields: [branchId], references: [id])
+  createdById   String?
+  createdByUser User?    @relation("StudentCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  pinHash       String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
 
   sessions StudentSession[]
   attempts StudentAttempt[]
+
   @@index([branchId, isActive])
 }
 
@@ -289,23 +293,24 @@ model StudentSession {
   token     String   @unique
   expiresAt DateTime
   createdAt DateTime @default(now())
+
   @@index([studentId])
 }
 
 model StudentTest {
-  id               String   @id @default(cuid())
+  id               String          @id @default(cuid())
   title            String
   description      String?
-  subject          String   @default("")
-  targetClass      String   @default("")
-  timeLimitMinutes Int      @default(30)
-  passScore        Int      @default(60)
-  isPublished      Boolean  @default(false)
-  order            Int      @default(0)
-  createdBy        String   @default("ADMIN")
+  subject          String          @default("")
+  targetClass      String          @default("")
+  timeLimitMinutes Int             @default(30)
+  passScore        Int             @default(60)
+  isPublished      Boolean         @default(false)
+  order            Int             @default(0)
+  createdBy        String          @default("ADMIN")
   branchId         String?
-  branch           Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
-  createdAt        DateTime @default(now())
+  branch           Branch?         @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  createdAt        DateTime        @default(now())
   // Schedule window — gates student-side visibility/access only. Null = always
   // live (old behavior, nothing published before this breaks). Admin/educator
   // side always shows the test regardless of window, with a schedule badge.
@@ -317,6 +322,7 @@ model StudentTest {
   questions     StudentQuestion[]
   attempts      StudentAttempt[]
   contentBlocks StudentTestContent[]
+
   @@index([branchId])
 }
 
@@ -339,34 +345,49 @@ model StudentTestContent {
 // Branch-scoped like StudentTest itself, not per-individual-educator, matching
 // how StudentTest already works (shared across educators at the same branch).
 model StudentProgram {
-  id          String   @id @default(cuid())
-  title       String
-  description String?
-  targetClass String   @default("")
-  branchId    String?
-  branch      Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
-  createdById String?
-  createdByUser User?  @relation(fields: [createdById], references: [id], onDelete: SetNull)
-  isPublished Boolean  @default(true)
-  order       Int      @default(0)
-  createdAt   DateTime @default(now())
+  id            String   @id @default(cuid())
+  title         String
+  description   String?
+  targetClass   String   @default("")
+  branchId      String?
+  branch        Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  createdById   String?
+  createdByUser User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  isPublished   Boolean  @default(true)
+  order         Int      @default(0)
+  createdAt     DateTime @default(now())
 
-  tests StudentTest[]
+  tests         StudentTest[]
+  contentBlocks StudentProgramContent[]
+}
+
+model StudentProgramContent {
+  id        String         @id @default(cuid())
+  programId String
+  program   StudentProgram @relation(fields: [programId], references: [id], onDelete: Cascade)
+  type      String // TEXT | VIDEO
+  title     String
+  body      String?
+  url       String?
+  order     Int            @default(0)
+  createdAt DateTime       @default(now())
+
+  @@index([programId, order])
 }
 
 model StudentQuestion {
-  id          String  @id @default(cuid())
+  id          String      @id @default(cuid())
   testId      String
   test        StudentTest @relation(fields: [testId], references: [id], onDelete: Cascade)
-  type        String  @default("MCQ")
+  type        String      @default("MCQ")
   text        String
   imageUrl    String?
   videoUrl    String?
-  options     Json    @default("[]")
-  correctId   String  @default("")
+  options     Json        @default("[]")
+  correctId   String      @default("")
   explanation String?
-  order       Int     @default(0)
-  marks       Int     @default(1)
+  order       Int         @default(0)
+  marks       Int         @default(1)
 }
 
 model StudentAttempt {
@@ -380,6 +401,7 @@ model StudentAttempt {
   passed      Boolean     @default(false)
   answers     Json        @default("{}")
   completedAt DateTime    @default(now())
+
   @@index([studentId, completedAt])
   @@index([testId])
 }
@@ -396,24 +418,25 @@ model TaskGroup {
 }
 
 model Task {
-  id          String    @id @default(cuid())
+  id          String     @id @default(cuid())
   groupId     String?
   group       TaskGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
   title       String
   description String?
   notes       String?
   deadline    DateTime?
-  priority    String    @default("NORMAL")
-  visibility  String    @default("ALL_ADMINS")
+  priority    String     @default("NORMAL")
+  visibility  String     @default("ALL_ADMINS")
   createdById String
-  createdBy   User      @relation("TaskCreator", fields: [createdById], references: [id], onDelete: Cascade)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdBy   User       @relation("TaskCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
 
   subtasks    SubTask[]
   resources   TaskResource[]
   assignments TaskAssignment[]
   comments    TaskComment[]
+
   @@index([createdAt])
 }
 
@@ -485,6 +508,7 @@ model Notification {
   read      Boolean  @default(false)
   relatedId String?
   createdAt DateTime @default(now())
+
   @@index([userId, createdAt])
 }
 

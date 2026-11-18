@@ -522,4 +522,20 @@ export const MIGRATIONS: Migration[] = [
     check: `SELECT 1 FROM pg_indexes WHERE indexname='StudentTest_branchId_idx'`,
     sql: `CREATE INDEX CONCURRENTLY IF NOT EXISTS "StudentTest_branchId_idx" ON "StudentTest" ("branchId")`,
   },
+  {
+    label: 'StudentProgramContent table',
+    check: `SELECT 1 FROM information_schema.tables WHERE table_name='StudentProgramContent'`,
+    sql: `CREATE TABLE IF NOT EXISTS "StudentProgramContent" (
+      "id" TEXT PRIMARY KEY,
+      "programId" TEXT NOT NULL REFERENCES "StudentProgram"("id") ON DELETE CASCADE,
+      "type" TEXT NOT NULL,
+      "title" TEXT NOT NULL,
+      "body" TEXT,
+      "url" TEXT,
+      "order" INTEGER NOT NULL DEFAULT 0,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS "StudentProgramContent_programId_order_idx"
+      ON "StudentProgramContent"("programId", "order");`,
+  },
 ]
