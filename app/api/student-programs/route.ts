@@ -25,6 +25,7 @@ export async function GET(req: NextRequest) {
           ],
         },
         include: {
+          enrollments: { where: { studentId: student.id }, select: { id: true } },
           contentBlocks: { orderBy: { order: 'asc' } },
           tests: {
             where: {
@@ -42,7 +43,7 @@ export async function GET(req: NextRequest) {
         },
         orderBy: { order: 'asc' },
       })
-      return NextResponse.json(programs)
+      return NextResponse.json(programs.map(({ enrollments, ...program }) => ({ ...program, isEnrolled: enrollments.length > 0 })))
     }
 
     const user = await getSession()

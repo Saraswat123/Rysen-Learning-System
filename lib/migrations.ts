@@ -538,4 +538,17 @@ export const MIGRATIONS: Migration[] = [
     CREATE INDEX IF NOT EXISTS "StudentProgramContent_programId_order_idx"
       ON "StudentProgramContent"("programId", "order");`,
   },
+  {
+    label: 'StudentProgramEnrollment table',
+    check: `SELECT 1 FROM information_schema.tables WHERE table_name='StudentProgramEnrollment'`,
+    sql: `CREATE TABLE IF NOT EXISTS "StudentProgramEnrollment" (
+      "id" TEXT PRIMARY KEY,
+      "studentId" TEXT NOT NULL REFERENCES "Student"("id") ON DELETE CASCADE,
+      "programId" TEXT NOT NULL REFERENCES "StudentProgram"("id") ON DELETE CASCADE,
+      "enrolledAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "StudentProgramEnrollment_studentId_programId_key" UNIQUE ("studentId", "programId")
+    );
+    CREATE INDEX IF NOT EXISTS "StudentProgramEnrollment_programId_idx"
+      ON "StudentProgramEnrollment"("programId");`,
+  },
 ]
