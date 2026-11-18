@@ -88,7 +88,7 @@ export default function StudentProgramList({ basePath, admin = false }: { basePa
           <h1 className="text-2xl font-bold text-midnight flex items-center gap-2">
             <Layers size={24} /> Student Programs
           </h1>
-          <p className="text-sm text-charcoal/60 mt-0.5">Group your tests into a named program for your class · {programs.length} programs</p>
+          <p className="text-sm text-charcoal/60 mt-0.5">Create and publish lessons and tests for students in your branch · {programs.length} programs</p>
         </div>
         <Button onClick={() => setShowAdd(true)} className="flex items-center gap-2">
           <Plus size={15} /> Create Program

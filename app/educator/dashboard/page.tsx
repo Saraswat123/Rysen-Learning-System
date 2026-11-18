@@ -170,7 +170,7 @@ export default function EducatorDashboard() {
       {/* Student Management Quick Access */}
       <div className="mb-8">
         <h2 className="text-sm font-semibold text-charcoal/50 uppercase tracking-wide mb-3">Student Management</h2>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <Link href="/educator/students">
             <div className="bg-white rounded-2xl border border-gray-100 p-4 flex flex-col items-center gap-2 hover:shadow-md hover:border-midnight/20 transition-all cursor-pointer text-center">
               <div className="w-10 h-10 rounded-xl bg-midnight flex items-center justify-center">
@@ -187,6 +187,15 @@ export default function EducatorDashboard() {
               </div>
               <p className="text-sm font-semibold text-midnight">Student Tests</p>
               <p className="text-xs text-charcoal/50">Create &amp; manage tests</p>
+            </div>
+          </Link>
+          <Link href="/educator/student-programs">
+            <div className="bg-white rounded-2xl border border-gray-100 p-4 flex flex-col items-center gap-2 hover:shadow-md hover:border-midnight/20 transition-all cursor-pointer text-center h-full">
+              <div className="w-10 h-10 rounded-xl bg-gold flex items-center justify-center">
+                <Layers size={20} className="text-midnight" />
+              </div>
+              <p className="text-sm font-semibold text-midnight">Student Programs</p>
+              <p className="text-xs text-charcoal/50">Create lessons for students</p>
             </div>
           </Link>
           <Link href="/educator/tasks">

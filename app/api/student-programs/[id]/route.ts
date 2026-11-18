@@ -20,6 +20,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         where: {
           id,
           isPublished: true,
+          enrollments: { some: { studentId: student.id } },
           AND: [
             educatorBranchListWhere(student.branchId),
             { OR: [{ targetClass: '' }, { targetClass: student.class }] },

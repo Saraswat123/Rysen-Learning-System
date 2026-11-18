@@ -282,6 +282,7 @@ model Student {
 
   sessions StudentSession[]
   attempts StudentAttempt[]
+  programEnrollments StudentProgramEnrollment[]
 
   @@index([branchId, isActive])
 }
@@ -359,6 +360,19 @@ model StudentProgram {
 
   tests         StudentTest[]
   contentBlocks StudentProgramContent[]
+  enrollments   StudentProgramEnrollment[]
+}
+
+model StudentProgramEnrollment {
+  id         String        @id @default(cuid())
+  studentId  String
+  student    Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  programId  String
+  program    StudentProgram @relation(fields: [programId], references: [id], onDelete: Cascade)
+  enrolledAt DateTime      @default(now())
+
+  @@unique([studentId, programId])
+  @@index([programId])
 }
 
 model StudentProgramContent {

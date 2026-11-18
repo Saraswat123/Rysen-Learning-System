@@ -6,6 +6,7 @@ import { BookOpen, ChevronRight, Layers, Play, Video } from 'lucide-react'
 
 interface Program {
   id: string; title: string; description: string | null; targetClass: string
+  isEnrolled: boolean
   contentBlocks: { id: string; type: string }[]
   tests: { id: string; title: string }[]
 }
@@ -13,6 +14,18 @@ interface Program {
 export default function StudentProgramsPage() {
   const [programs, setPrograms] = useState<Program[]>([])
   const [loading, setLoading] = useState(true)
+  const [enrollingId, setEnrollingId] = useState<string | null>(null)
+  const [error, setError] = useState('')
+
+  async function enroll(programId: string) {
+    setEnrollingId(programId)
+    setError('')
+    const response = await fetch(`/api/student-programs/${programId}/enroll`, { method: 'POST' })
+    const data = await response.json().catch(() => ({}))
+    setEnrollingId(null)
+    if (!response.ok) { setError(data.error ?? 'Could not enroll. Please try again.'); return }
+    setPrograms((current) => current.map((program) => program.id === programId ? { ...program, isEnrolled: true } : program))
+  }
 
   useEffect(() => {
     fetch('/api/student-programs?student=true')
@@ -33,7 +46,8 @@ export default function StudentProgramsPage() {
       ) : (
         <div className="grid gap-4">
           {programs.map((program) => (
-            <Link key={program.id} href={`/student/programs/${program.id}`} className="bg-white rounded-2xl border border-gray-100 p-5 hover:border-midnight/30 hover:shadow-sm transition-all">
+            <div key={program.id} className="bg-white rounded-2xl border border-gray-100 p-5 flex items-center gap-4 hover:border-midnight/30 transition-all">
+              <Link href={program.isEnrolled ? `/student/programs/${program.id}` : '#'} onClick={(event) => { if (!program.isEnrolled) event.preventDefault() }} className="flex items-start gap-4 flex-1 min-w-0">
               <div className="flex items-start gap-4">
                 <div className="w-11 h-11 rounded-xl bg-midnight/5 flex items-center justify-center text-midnight"><BookOpen size={20} /></div>
                 <div className="flex-1 min-w-0">
@@ -47,10 +61,19 @@ export default function StudentProgramsPage() {
                 </div>
                 <ChevronRight size={18} className="mt-2 text-charcoal/30" />
               </div>
-            </Link>
+              </Link>
+              {program.isEnrolled ? (
+                <Link href={`/student/programs/${program.id}`} className="shrink-0 px-4 py-2 rounded-xl bg-midnight text-white text-sm font-semibold">Open</Link>
+              ) : (
+                <button type="button" onClick={() => enroll(program.id)} disabled={enrollingId === program.id} className="shrink-0 px-4 py-2 rounded-xl bg-forest text-white text-sm font-semibold disabled:opacity-50">
+                  {enrollingId === program.id ? 'Enrolling…' : 'Enroll'}
+                </button>
+              )}
+            </div>
           ))}
         </div>
       )}
+      {error && <p role="alert" className="mt-4 text-sm text-red-700 bg-red-50 rounded-xl p-3">{error}</p>}
     </div>
   )
 }

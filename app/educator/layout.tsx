@@ -19,6 +19,7 @@ const NAV_GROUPS: { label: string; items: { href: string; label: string; icon: t
     label: 'Students',
     items: [
       { href: '/educator/students', label: 'Manage Students', icon: School },
+      { href: '/educator/student-programs', label: 'Student Programs', icon: Layers },
       { href: '/educator/student-tests', label: 'Student Tests', icon: ClipboardList },
       { href: '/educator/results', label: 'Student Results', icon: Award },
       { href: '/educator/students/progress', label: 'Student Progress', icon: BarChart3 },
@@ -30,7 +31,6 @@ const NAV_GROUPS: { label: string; items: { href: string; label: string; icon: t
     label: 'Programs',
     items: [
       { href: '/educator/programs', label: 'Training Programs', icon: Layers },
-      { href: '/educator/student-programs', label: 'Student Programs', icon: Layers },
     ],
   },
   { label: '', items: [{ href: '/educator/groups', label: 'My Groups', icon: Users }] },
