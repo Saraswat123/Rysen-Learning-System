@@ -5,10 +5,11 @@ import { getSession } from '@/lib/auth'
 import { Role } from '@/app/generated/prisma/client'
 import { Pool } from 'pg'
 import { MIGRATIONS } from '@/lib/migrations'
+import { getDatabaseUrl } from '@/lib/database-url'
 
 
 async function checkPending() {
-  const pool = new Pool({ connectionString: process.env.DATABASE_URL, connectionTimeoutMillis: 8000 })
+  const pool = new Pool({ connectionString: getDatabaseUrl(), connectionTimeoutMillis: 8000 })
   try {
     for (const m of MIGRATIONS) {
       const { rows } = await pool.query(m.check)
@@ -34,7 +35,7 @@ export async function POST() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   }
 
-  const pool = new Pool({ connectionString: process.env.DATABASE_URL, connectionTimeoutMillis: 8000 })
+  const pool = new Pool({ connectionString: getDatabaseUrl(), connectionTimeoutMillis: 8000 })
   const results: string[] = []
 
   try {
