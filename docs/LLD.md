@@ -112,15 +112,10 @@ legitimate first-time user needs to be routed to setup, not just told "no" —
 is handled with a separate `code: 'NO_PASSWORD'` field the UI checks, which
 doesn't change the user-visible error text.
 
-**First-time setup** (`lib/account-setup-otp.ts`) is a separate two-step
-flow, not a variant of login: `POST /api/auth/request-setup-otp` confirms the
-typed name matches an unset-password account, emails a 6-digit code, and
-returns a JWT whose payload carries only an **HMAC** of that code (keyed
-with a server secret the browser never sees — a plain hash would let the
-code be brute-forced offline from the readable JWT payload in under a
-second). `POST /api/auth/set-password` requires that code back, rate-limited
-to 5 guesses per emailed code, before it will set the password and create a
-session.
+**First-time setup** uses `POST /api/auth/set-password` to match the
+admin-registered name and email, then set a password and create a session.
+Cloudflare Turnstile and per-IP/per-email rate limits protect the public
+setup endpoint. Email verification is not part of this flow.
 
 ## Flow 2: student submits a test
 
