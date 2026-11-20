@@ -4,22 +4,21 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { createSession, SESSION_COOKIE, SESSION_DURATION_MS } from '@/lib/auth'
 import { hashPassword, ensurePasswordColumns, MIN_PASSWORD_LENGTH } from '@/lib/password'
-import { verifySetupToken } from '@/lib/account-setup-otp'
 import { Role } from '@/app/generated/prisma/client'
 import { clientIp, rateLimit, TOO_MANY } from '@/lib/rate-limit'
 import crypto from 'crypto'
+import { verifyTurnstile } from '@/lib/turnstile'
 
-// Step 2 of first-time account claim — requires the emailed OTP code to have
-// been verified (via /api/auth/request-setup-otp's token), proving the
-// requester owns the account's email, before letting them set a password.
+// First-time setup: match the admin-created account by name and email, then
+// set its password. Turnstile and per-IP/per-email rate limits reduce abuse.
 export async function POST(req: NextRequest) {
   try {
     await ensurePasswordColumns()
 
-    const { token: setupToken, otp, password, confirmPassword } = await req.json()
+    const { name, email, password, confirmPassword, turnstileToken } = await req.json()
 
-    if (!setupToken || !otp || !password) {
-      return NextResponse.json({ error: 'Verification code and password are required' }, { status: 400 })
+    if (!name || !email || !password) {
+      return NextResponse.json({ error: 'Name, email and password are required' }, { status: 400 })
     }
     if (password !== confirmPassword) {
       return NextResponse.json({ error: 'Passwords do not match' }, { status: 400 })
@@ -28,21 +27,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters` }, { status: 400 })
     }
 
-    // Caps guesses per emailed code, so the 6-digit OTP can't be brute-forced online
-    const tokenKey = crypto.createHash('sha256').update(String(setupToken)).digest('hex')
-    const allowed = (await rateLimit(`set-password:ip:${clientIp(req)}`, 20, 15 * 60)) && (await rateLimit(`set-password:token:${tokenKey}`, 5, 15 * 60))
-    if (!allowed) return NextResponse.json(TOO_MANY, { status: 429 })
-
-    const claim = await verifySetupToken(setupToken, String(otp))
-    if (!claim) {
-      return NextResponse.json({ error: 'Invalid or expired verification code. Request a new one.' }, { status: 401 })
+    const normalizedEmail = String(email).toLowerCase().trim()
+    const ip = clientIp(req)
+    const human = await verifyTurnstile(turnstileToken, ip)
+    if (!human) {
+      return NextResponse.json({ error: 'Captcha verification failed. Please try again.' }, { status: 403 })
     }
 
-    const user = await db.user.findUnique({ where: { id: claim.uid }, omit: { password: false } })
+    const emailKey = crypto.createHash('sha256').update(normalizedEmail).digest('hex')
+    const allowed = (await rateLimit(`set-password:ip:${ip}`, 20, 15 * 60)) && (await rateLimit(`set-password:email:${emailKey}`, 5, 60 * 60))
+    if (!allowed) return NextResponse.json(TOO_MANY, { status: 429 })
 
-    if (!user || !user.isActive || user.email.toLowerCase() !== claim.email
+    const user = await db.user.findUnique({ where: { email: normalizedEmail }, omit: { password: false } })
+
+    if (!user || !user.isActive
       || (user.role !== Role.ADMIN && user.role !== Role.SUPER_ADMIN && user.role !== Role.EDUCATOR && user.role !== Role.PRINCIPAL)) {
       return NextResponse.json({ error: 'Account not found. Contact your admin.' }, { status: 401 })
+    }
+    if (user.name.toLowerCase().trim() !== String(name).toLowerCase().trim()) {
+      return NextResponse.json({ error: 'Name does not match our records.' }, { status: 401 })
     }
     if (user.password) {
       return NextResponse.json({ error: 'Password already set up for this account. Use Sign In, or ask your admin to reset it.' }, { status: 409 })
