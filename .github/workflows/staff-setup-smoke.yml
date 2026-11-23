@@ -21,6 +21,15 @@ jobs:
           import { chromium } from '@playwright/test'
           const browser = await chromium.launch({ channel: 'chrome' })
           try {
+            const validation = await fetch('https://rysen-learning-system.vercel.app/api/auth/set-password', {
+              method: 'POST',
+              headers: { 'content-type': 'application/json' },
+              body: '{}',
+            })
+            if (validation.status !== 400 || (await validation.json()).error !== 'Name, email and password are required') {
+              throw new Error('Unexpected response to an empty setup request')
+            }
+            console.log('Production setup validated the required fields')
             for (const path of ['/login', '/admin/login', '/principal/login']) {
               const page = await browser.newPage()
               const res = await page.goto('https://rysen-learning-system.vercel.app' + path + '?setup=1', { waitUntil: 'domcontentloaded' })
