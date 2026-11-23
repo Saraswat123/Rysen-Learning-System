@@ -14,7 +14,7 @@ it.each([
   [Role.ADMIN, '/admin/login'],
   [Role.PRINCIPAL, '/principal/login'],
   [Role.EDUCATOR, '/login'],
-])('links %s to the current production setup page', async (role, path) => {
+] as const)('links %s to the current production setup page', async (role, path) => {
   vi.stubEnv('NEXT_PUBLIC_APP_URL', '')
   vi.stubEnv('VERCEL_URL', 'old-build.example.test')
   await sendWelcomeEmail({ name: 'Test', email: 'staff@example.test', role })
