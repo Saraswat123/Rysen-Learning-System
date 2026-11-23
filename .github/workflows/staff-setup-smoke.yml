@@ -1,0 +1,39 @@
+name: Production staff setup smoke check
+on:
+  pull_request:
+    paths:
+      - .github/workflows/staff-setup-smoke.yml
+permissions:
+  contents: read
+jobs:
+  public-form:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci --ignore-scripts
+      - name: Inspect the production setup form in Chrome
+        run: |
+          node --input-type=module <<'JS'
+          import { chromium } from '@playwright/test'
+          const browser = await chromium.launch({ channel: 'chrome' })
+          try {
+            for (const path of ['/login', '/admin/login', '/principal/login']) {
+              const page = await browser.newPage()
+              const res = await page.goto('https://rysen-learning-system.vercel.app' + path + '?setup=1', { waitUntil: 'domcontentloaded' })
+              console.log(path, res.status(), new URL(page.url()).pathname)
+              if (res.status() !== 200) throw new Error('Setup page unavailable')
+              await page.getByRole('button', { name: 'Set Password & Sign In' }).waitFor()
+              if (await page.getByRole('button', {name: 'Send Verification Code'}).count()) throw new Error('Old OTP form still present')
+              const form = page.locator('form').filter({has: page.getByRole('button', { name: 'Set Password & Sign In' })})
+              if (await form.locator('input[type=password]').count() !== 2) throw new Error('Missing password inputs')
+              console.log(path, 'setup form ready')
+              await page.close()
+            }
+          } finally {
+            await browser.close()
+          }
+          JS
