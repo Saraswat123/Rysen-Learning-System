@@ -5,6 +5,7 @@ import { Role } from '@/app/generated/prisma/client'
 
 vi.mock('@/lib/db', async () => ({ db: (await import('./harness')).db }))
 vi.mock('@/lib/schema-heal', () => ({ ensureRuntimeSchema: vi.fn(async () => {}) }))
+vi.mock('@/lib/turnstile', () => ({ verifyTurnstile: vi.fn(async () => true) }))
 vi.mock('@/lib/auth', async (orig) => ({ ...(await orig<typeof import('@/lib/auth')>()), getSession: vi.fn() }))
 vi.mock('@/lib/student-auth', async (orig) => ({ ...(await orig<typeof import('@/lib/student-auth')>()), getStudentSession: vi.fn(async () => null) }))
 
@@ -14,7 +15,6 @@ const session = vi.mocked(getSession)
 beforeEach(() => {
   resetDb()
   session.mockReset()
-  process.env.AUTH_TOKEN_SECRET = 'test-secret-at-least-32-characters-long!!'
 })
 
 describe('staff login (educator, admin, principal)', async () => {
@@ -67,22 +67,17 @@ describe('staff login (educator, admin, principal)', async () => {
 
 describe('first-time password setup', async () => {
   const { POST } = await import('@/app/api/auth/set-password/route')
-  const { signSetupToken } = await import('@/lib/account-setup-otp')
 
-  it('allows only a few guesses per emailed code', async () => {
-    const token = await signSetupToken('e1', 'ravi@rysen.in', '123456')
-    rateLimitHits(6)
-    const res = await POST(request('POST', '/api/auth/set-password', { token, otp: '000000', password: 'newpass1', confirmPassword: 'newpass1' }))
+  it('rate-limits setup attempts', async () => {
+    rateLimitHits(21)
+    const res = await POST(request('POST', '/api/auth/set-password', { name: 'Ravi', email: 'ravi@rysen.in', password: 'newpass1', confirmPassword: 'newpass1' }))
     expect(res.status).toBe(429)
   })
 
-  it('rejects a wrong code and accepts the right one', async () => {
-    const token = await signSetupToken('e1', 'ravi@rysen.in', '123456')
-    const wrong = await POST(request('POST', '/api/auth/set-password', { token, otp: '000000', password: 'newpass1', confirmPassword: 'newpass1' }))
-    expect(wrong.status).toBe(401)
+  it('sets a password when the registered name and email match', async () => {
     db.user.findUnique.mockResolvedValue({ id: 'e1', name: 'Ravi', email: 'ravi@rysen.in', role: Role.EDUCATOR, isActive: true, password: null })
-    const right = await POST(request('POST', '/api/auth/set-password', { token, otp: '123456', password: 'newpass1', confirmPassword: 'newpass1' }))
-    expect(right.status).toBe(200)
+    const res = await POST(request('POST', '/api/auth/set-password', { name: 'Ravi', email: 'RAVI@rysen.in ', password: 'newpass1', confirmPassword: 'newpass1' }))
+    expect(res.status).toBe(200)
     expect(db.user.update).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'e1' } }))
   })
 })

@@ -10,7 +10,7 @@ A multi-tenant, AI-integrated operations platform unifying educator professional
 - **Applied AI Layer** — Groq-hosted agentic tool-use loop driving autonomous task management + live student-test analytics queries, LLM-generated insight across training/test-performance data, and data-backed AI score suggestions for monthly recognition ratings
 - **Operational Analytics** — campus-wise pass-rate reporting, subject-level performance heatmaps, stage-dropout funnels, at-risk cohort detection, and an automated weekly digest email
 - **Recognition & Rewards** — admin-configurable monthly rating categories with star ratings, top-3 e-certificate unlock, and educator-facing leaderboard
-- **Governed Communication** — group-scoped resource distribution, live educator chat, broadcast messaging (email + WhatsApp), automatic welcome/activate emails on account creation, and OTP-verified first-time account setup with Cloudflare Turnstile captcha on every login
+- **Governed Communication** — group-scoped resource distribution, live educator chat, broadcast messaging (email + WhatsApp), automatic welcome emails on account creation, and first-time password setup with Cloudflare Turnstile captcha
 
 Built with Next.js App Router · Prisma ^7.10.1 · PostgreSQL (Neon.tech) · Tailwind CSS v4 · Groq AI · Vercel
 
@@ -112,7 +112,6 @@ Root `/` auto-redirects based on session role.
 # Required
 DATABASE_URL=               # Neon.tech PostgreSQL connection string
 GROQ_API_KEY=                # Groq cloud API key (openai/gpt-oss-120b)
-AUTH_TOKEN_SECRET=           # Long random string — signs OTP setup tokens (lib/account-setup-otp.ts)
 
 # Email — Brevo tried first, falls back to Resend if BREVO_API_KEY unset (lib/email.ts)
 BREVO_API_KEY=                # Brevo transactional email API key
@@ -256,7 +255,7 @@ app/
 │   │                       # real campus/test completion data, not guessed),
 │   │                       # insights, student-insights
 │   ├── auth/                # login, admin, principal, student, logout, me, profile,
-│   │                       # request-setup-otp + set-password (2-step OTP claim)
+│   │                       # set-password (first-time account setup)
 │   ├── notifications/      # In-app notifications (polled 30s)
 │   └── admin/              # migrate, cleanup (cron), weekly-digest (cron),
 │                           # send-welcome-emails, educator-ratings (+finalize, +suggest),
@@ -268,7 +267,7 @@ app/
 ├── generated/prisma/       # Prisma client output (do not edit)
 └── components/
     ├── RysenLogo, NotificationBell, Toast, ui/Button, ui/Input, ui/StarRating
-    ├── auth/SetupPasswordForm.tsx   # Shared 2-step OTP setup form (all 3 login pages)
+    ├── auth/SetupPasswordForm.tsx   # Shared first-time setup form (all staff login pages)
     ├── auth/TurnstileWidget.tsx     # Cloudflare Turnstile widget, no-op until configured
     └── QuestionPdfImport.tsx        # PDF/photo → parsed questions, used on both
                                       # admin and educator test-question-edit pages
@@ -278,7 +277,6 @@ lib/
 ├── auth.ts                 # Session cookie helpers (staff)
 ├── student-auth.ts         # Session cookie helpers (students)
 ├── password.ts             # bcrypt hash/verify + self-healing column migration
-├── account-setup-otp.ts    # Signs/verifies the OTP claim token (jose, HS256)
 ├── welcome-email.ts        # "Activate your account" email, sent on every new account
 ├── email.ts                # Single sendEmail() — Brevo first, Resend fallback
 ├── turnstile.ts            # Server-side Turnstile verification (no-op until configured)
@@ -372,15 +370,13 @@ Admin enters/edits scores per educator per month at `/admin/rewards`; **unfinali
 - Staff (admin/educator/principal): HTTP-only cookie `rysen_session`, looked up against the `Session` table (DB-backed, not JWT)
 - Students: HTTP-only cookie `rysen_student_session`, name + class + campus; **opt-in PIN** (`Student.pinHash`, bcrypt) — an educator sets a 4-6 digit PIN per student, after which it's required. Rate-limited per IP and per identity (`lib/rate-limit.ts`), and unknown-student vs wrong-PIN return the identical response so the login can't be used to enumerate students.
 - **Admin/educator now require a password** (`POST /api/auth/admin`, `POST /api/auth/login` — bcrypt via `lib/password.ts`)
-  - First login for any admin-created account is a two-step, email-verified claim (`lib/account-setup-otp.ts`), not a bare name+email check:
-    1. `POST /api/auth/request-setup-otp` — confirms name+email match an unset-password account, emails a 6-digit code, returns a signed JWT (jose, HS256) carrying only the code's **hash**. Response shape is identical whether or not the account exists (decoy token on miss) so account existence can't be inferred.
-    2. `POST /api/auth/set-password` — requires that code back alongside the new password before it's set; only then creates the session.
-  - Shared `components/auth/SetupPasswordForm.tsx` drives this 2-step flow on all three login pages (`/login`, `/admin/login`, `/principal/login`)
+  - First login for any admin-created account uses `POST /api/auth/set-password` to match the registered name and email and set a password. Turnstile and per-IP/per-email rate limits apply.
+  - Shared `components/auth/SetupPasswordForm.tsx` drives this setup flow on all three login pages (`/login`, `/admin/login`, `/principal/login`)
   - A `NO_PASSWORD` error code on sign-in tells the frontend to route to the setup flow instead of just failing
   - Every new account (single-create or bulk import) also gets an automatic "Welcome — Activate Your Account" email (`lib/welcome-email.ts`) linking to the same setup flow (`?setup=1` query param auto-selects the tab); `POST /api/admin/send-welcome-emails` bulk-sends it to any pre-existing unactivated account
   - Admins can force a reset (`resetPassword: true` on `PUT /api/educators/[id]` or `PUT /api/admins/[id]`) — sets `password` back to `null`, forcing that account through setup again on next login
   - Existing sessions are unaffected by a password reset — only future logins are gated
-- **Cloudflare Turnstile captcha** on every sign-in form and the OTP-request step (`components/auth/TurnstileWidget.tsx` + `lib/turnstile.ts`) — no-op until `NEXT_PUBLIC_TURNSTILE_SITE_KEY`/`TURNSTILE_SECRET_KEY` are set, so it ships safely ahead of the keys existing
+- **Cloudflare Turnstile captcha** on every sign-in form and first-time password setup (`components/auth/TurnstileWidget.tsx` + `lib/turnstile.ts`) — no-op until `NEXT_PUBLIC_TURNSTILE_SITE_KEY`/`TURNSTILE_SECRET_KEY` are set, so it ships safely ahead of the keys existing
 - Role-based redirects from root `/`
 
 ---
@@ -462,7 +458,7 @@ Admin enters/edits scores per educator per month at `/admin/rewards`; **unfinali
 
 **Next.js params** — Dynamic route params are Promises in this version. Always `const { id } = await params`.
 
-**Email** — `lib/email.ts` is the single `sendEmail(to, subject, html)` entry point used everywhere (welcome emails, OTP codes, weekly digest, task reminders, broadcasts, AI agent reminders, test-notification). Tries Brevo first (`BREVO_API_KEY`/`BREVO_FROM_EMAIL`) — chosen over Resend for deliverability to corporate Google Workspace domains, since Brevo only requires single-click sender verification rather than full DNS domain authentication. Falls back to Resend if Brevo isn't configured, so nothing breaks mid-rollout. Resend's batch API (`resend.batch.send()`) was dropped in favor of per-recipient `sendEmail()` calls via `Promise.all` for provider-agnostic consistency.
+**Email** — `lib/email.ts` is the single `sendEmail(to, subject, html)` entry point used for welcome emails, weekly digest, task reminders, broadcasts, AI agent reminders, and test notifications. Tries Brevo first (`BREVO_API_KEY`/`BREVO_FROM_EMAIL`) and falls back to Resend when Brevo isn't configured. Resend's batch API was dropped in favor of per-recipient `sendEmail()` calls via `Promise.all` for provider-agnostic consistency.
 
 **WhatsApp** — Twilio if `TWILIO_*` env vars set; falls back to `wa.me/{e164}?text=...` links. E.164 normalisation adds `+91` prefix for Indian numbers.
 
@@ -473,8 +469,6 @@ Admin enters/edits scores per educator per month at `/admin/rewards`; **unfinali
 **Per-student test shuffle** — `lib/shuffle.ts` seeds a deterministic PRNG from `studentId:testId` (questions) and `studentId:questionId` (options within each question) — same student sees the same order on reload/resume, different students never match. Answers are already keyed by option `id` not position, so option reordering doesn't affect scoring.
 
 **PDF question import** — `lib/question-extractor.ts`, entirely client-side (nothing uploaded to a server). Typed PDFs go through `pdfjs-dist` text extraction first (fast, exact); falls back to `tesseract.js` OCR automatically when a page yields too little text to be typed content, or always for a direct photo upload. Regex-based structural parse (numbered questions, lettered options, inline or trailing-block answer key) never guesses an answer it can't find — unanswered questions are flagged in the import preview and must be set manually before the batch can be imported.
-
-**First-time setup OTP** — `lib/account-setup-otp.ts` signs a JWT (jose, HS256) carrying only the OTP's SHA-256 hash, never the code itself, 10-minute expiry. Replaced an older flow that only checked a typed name+email matched the DB record — anyone who knew those two public-ish facts could have claimed someone else's account.
 
 **Task visibility** — `visibility` column on `Task`. `ALL_ADMINS` (default) visible to all admins; `PRIVATE` visible only to creator. Filter: `OR: [{ createdById: user.id }, { visibility: 'ALL_ADMINS' }]`.
 
