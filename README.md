@@ -1,6 +1,6 @@
 # RYSEN Learning Centre
 
-A multi-tenant, AI-integrated operations platform unifying educator professional development, student assessment, task orchestration, and campus-level analytics for RYSEN Group of Schools across 15 campuses and 50+ educators. Engineered as a dynamically extensible system of record — programmes, testing modules, task workflows, resource governance, and communication channels are all modeled as first-class, independently composable entities rather than hardcoded flows, letting the platform absorb new campuses, cohorts, and training tracks without structural rework.
+A multi-tenant, AI-integrated operations platform unifying educator professional development, student assessment, task orchestration, and campus-level analytics for RYSEN Group of Schools across 15 campuses and 500+ educators. Engineered as a dynamically extensible system of record — programmes, testing modules, task workflows, resource governance, and communication channels are all modeled as first-class, independently composable entities rather than hardcoded flows, letting the platform absorb new campuses, cohorts, and training tracks without structural rework.
 
 **Core capability pillars**
 
@@ -12,7 +12,7 @@ A multi-tenant, AI-integrated operations platform unifying educator professional
 - **Recognition & Rewards** — admin-configurable monthly rating categories with star ratings, top-3 e-certificate unlock, and educator-facing leaderboard
 - **Governed Communication** — group-scoped resource distribution, live educator chat, broadcast messaging (email + WhatsApp), automatic welcome emails on account creation, and first-time password setup with Cloudflare Turnstile captcha
 
-Built with Next.js App Router · Prisma 7.8.0 · PostgreSQL (Neon.tech) · Tailwind CSS v4 · Groq AI · Vercel
+Built with Next.js App Router · Prisma ^7.10.1 · PostgreSQL (Neon.tech) · Tailwind CSS v4 · Groq AI · Vercel
 
 Live: **https://rysen-learning-system.vercel.app**
 
@@ -40,7 +40,7 @@ Root `/` auto-redirects based on session role.
 | Framework    | Next.js 16 (App Router, Turbopack)                                                    |
 | Language     | TypeScript                                                                            |
 | Styling      | Tailwind CSS v4 (`@theme inline`, no config file)                                     |
-| ORM          | Prisma 7.8.0 with `@prisma/adapter-pg`                                                |
+| ORM          | Prisma ^7.10.1 with `@prisma/adapter-pg`                                                |
 | Database     | PostgreSQL on Neon.tech (free tier — auto-pauses)                                     |
 | AI           | Groq cloud — `openai/gpt-oss-120b` (tool calling)                                     |
 | Email        | Brevo (primary) → Resend (fallback) — `lib/email.ts` single entry point               |
@@ -371,8 +371,7 @@ Admin enters/edits scores per educator per month at `/admin/rewards`; **unfinali
 - Students: HTTP-only cookie `rysen_student_session`, name + class + campus; **opt-in PIN** (`Student.pinHash`, bcrypt) — an educator sets a 4-6 digit PIN per student, after which it's required. Rate-limited per IP and per identity (`lib/rate-limit.ts`), and unknown-student vs wrong-PIN return the identical response so the login can't be used to enumerate students.
 - **Admin/educator now require a password** (`POST /api/auth/admin`, `POST /api/auth/login` — bcrypt via `lib/password.ts`)
   - First login for any admin-created account uses `POST /api/auth/set-password` to match the registered name and email and set a password. Turnstile and per-IP/per-email rate limits apply.
-    2. `POST /api/auth/set-password` — requires that code back alongside the new password before it's set; only then creates the session.
-  - Shared `components/auth/SetupPasswordForm.tsx` drives this 2-step flow on all three login pages (`/login`, `/admin/login`, `/principal/login`)
+  - Shared `components/auth/SetupPasswordForm.tsx` drives this setup flow on all three login pages (`/login`, `/admin/login`, `/principal/login`)
   - A `NO_PASSWORD` error code on sign-in tells the frontend to route to the setup flow instead of just failing
   - Every new account (single-create or bulk import) also gets an automatic "Welcome — Activate Your Account" email (`lib/welcome-email.ts`) linking to the same setup flow (`?setup=1` query param auto-selects the tab); `POST /api/admin/send-welcome-emails` bulk-sends it to any pre-existing unactivated account
   - Admins can force a reset (`resetPassword: true` on `PUT /api/educators/[id]` or `PUT /api/admins/[id]`) — sets `password` back to `null`, forcing that account through setup again on next login
