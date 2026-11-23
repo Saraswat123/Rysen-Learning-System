@@ -10,7 +10,7 @@ function loginUrlFor(role: Role, appUrl: string): string {
 }
 
 export async function sendWelcomeEmail(user: { name: string; email: string; role: Role }): Promise<boolean> {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? `https://${process.env.VERCEL_URL ?? 'rysen-learning-centre.vercel.app'}`
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL?.trim() || 'https://rysen-learning-system.vercel.app').replace(/\/+$/, '')
   const loginUrl = loginUrlFor(user.role, appUrl)
 
   return sendEmail(
