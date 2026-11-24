@@ -1,92 +1,198 @@
-'use client'
+"use client";
 
-import { useState, useEffect, useRef } from 'react'
-import Link from 'next/link'
-import { Download, Plus, Search, Trash2, UserCheck, UserX, School, Upload, X, CheckCircle, AlertCircle, FileText, Square, SquareCheck, KeyRound, Layers } from 'lucide-react'
-import Button from '@/components/ui/Button'
-import Input from '@/components/ui/Input'
+import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
+import {
+  Download,
+  Plus,
+  Search,
+  Trash2,
+  UserCheck,
+  UserX,
+  School,
+  Upload,
+  X,
+  CheckCircle,
+  AlertCircle,
+  FileText,
+  Square,
+  SquareCheck,
+  KeyRound,
+  Layers,
+  Pencil,
+} from "lucide-react";
+import Button from "@/components/ui/Button";
+import Input from "@/components/ui/Input";
 
-interface Branch { id: string; name: string }
+interface Branch {
+  id: string;
+  name: string;
+}
 interface Student {
-  id: string; name: string; class: string; section: string
-  subject: string; isActive: boolean; createdAt: string
-  branch: Branch | null; _count: { attempts: number }; hasPin?: boolean
+  id: string;
+  name: string;
+  class: string;
+  section: string;
+  subject: string;
+  isActive: boolean;
+  createdAt: string;
+  branch: Branch | null;
+  _count: { attempts: number };
+  hasPin?: boolean;
 }
 
-interface ParsedRow { name: string; class: string; section: string; subject: string; valid: boolean; error?: string }
+interface ParsedRow {
+  name: string;
+  class: string;
+  section: string;
+  subject: string;
+  valid: boolean;
+  error?: string;
+}
 
 function parseCSV(text: string): ParsedRow[] {
-  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
-  if (lines.length === 0) return []
+  const lines = text
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+  if (lines.length === 0) return [];
   // Detect header row
-  const first = lines[0].toLowerCase()
-  const hasHeader = first.includes('name') || first.includes('class') || first.includes('student')
-  const dataLines = hasHeader ? lines.slice(1) : lines
+  const first = lines[0].toLowerCase();
+  const hasHeader =
+    first.includes("name") ||
+    first.includes("class") ||
+    first.includes("student");
+  const dataLines = hasHeader ? lines.slice(1) : lines;
   return dataLines.map((line) => {
     // Support comma or tab separated
-    const cols = line.includes('\t') ? line.split('\t') : line.split(',')
-    const [name, cls, section, subject] = cols.map((c) => c.trim().replace(/^"|"$/g, ''))
-    const valid = !!(name && cls)
-    return { name: name ?? '', class: cls ?? '', section: section ?? '', subject: subject ?? '', valid, error: valid ? undefined : 'Name and Class required' }
-  })
+    const cols = line.includes("\t") ? line.split("\t") : line.split(",");
+    const [name, cls, section, subject] = cols.map((c) =>
+      c.trim().replace(/^"|"$/g, ""),
+    );
+    const valid = !!(name && cls);
+    return {
+      name: name ?? "",
+      class: cls ?? "",
+      section: section ?? "",
+      subject: subject ?? "",
+      valid,
+      error: valid ? undefined : "Name and Class required",
+    };
+  });
 }
 
 export default function EducatorStudentsPage() {
-  const [students, setStudents] = useState<Student[]>([])
-  const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState('')
-  const [filterClass, setFilterClass] = useState('')
-  const [showAdd, setShowAdd] = useState(false)
-  const [form, setForm] = useState({ name: '', class: '', section: '', subject: '' })
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
+  const [students, setStudents] = useState<Student[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [filterClass, setFilterClass] = useState("");
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm] = useState({
+    name: "",
+    class: "",
+    section: "",
+    subject: "",
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  // Edit existing student — updates in place, never deletes the row
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({
+    name: "",
+    class: "",
+    section: "",
+    subject: "",
+  });
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState("");
 
   // Bulk select state
-  const [selected, setSelected] = useState<Set<string>>(new Set())
-  const [bulkDeleting, setBulkDeleting] = useState(false)
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   // Bulk import state
-  const [showImport, setShowImport] = useState(false)
-  const [parsedRows, setParsedRows] = useState<ParsedRow[]>([])
-  const [importing, setImporting] = useState(false)
-  const [importResult, setImportResult] = useState<{ added: number; skipped: number; errors: string[] } | null>(null)
-  const fileRef = useRef<HTMLInputElement>(null)
+  const [showImport, setShowImport] = useState(false);
+  const [parsedRows, setParsedRows] = useState<ParsedRow[]>([]);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<{
+    added: number;
+    skipped: number;
+    errors: string[];
+  } | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   async function load() {
-    setLoading(true)
-    const params = new URLSearchParams()
-    if (filterClass) params.set('class', filterClass)
-    const s = await fetch(`/api/students?${params}`).then((r) => r.json())
-    setStudents(Array.isArray(s) ? s : [])
-    setLoading(false)
+    setLoading(true);
+    const params = new URLSearchParams();
+    if (filterClass) params.set("class", filterClass);
+    const s = await fetch(`/api/students?${params}`).then((r) => r.json());
+    setStudents(Array.isArray(s) ? s : []);
+    setLoading(false);
   }
 
-  useEffect(() => { load() }, [filterClass]) // eslint-disable-line
+  useEffect(() => {
+    load();
+  }, [filterClass]); // eslint-disable-line
 
   async function addStudent(e: React.FormEvent) {
-    e.preventDefault()
-    setSaving(true)
-    setError('')
-    const res = await fetch('/api/students', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+    e.preventDefault();
+    setSaving(true);
+    setError("");
+    const res = await fetch("/api/students", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(form),
-    })
-    const data = await res.json()
-    setSaving(false)
-    if (!res.ok) { setError(data.error); return }
-    setShowAdd(false)
-    setForm({ name: '', class: '', section: '', subject: '' })
-    load()
+    });
+    const data = await res.json();
+    setSaving(false);
+    if (!res.ok) {
+      setError(data.error);
+      return;
+    }
+    setShowAdd(false);
+    setForm({ name: "", class: "", section: "", subject: "" });
+    load();
+  }
+
+  function openEdit(student: Student) {
+    setEditingId(student.id);
+    setEditForm({
+      name: student.name,
+      class: student.class,
+      section: student.section,
+      subject: student.subject,
+    });
+    setEditError("");
+  }
+
+  async function saveEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingId) return;
+    setEditSaving(true);
+    setEditError("");
+    const res = await fetch(`/api/students/${editingId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(editForm),
+    });
+    const data = await res.json().catch(() => null);
+    setEditSaving(false);
+    if (!res.ok) {
+      setEditError(data?.error ?? "Could not save changes");
+      return;
+    }
+    setEditingId(null);
+    load();
   }
 
   async function toggleActive(student: Student) {
     await fetch(`/api/students/${student.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ isActive: !student.isActive }),
-    })
-    load()
+    });
+    load();
   }
 
   async function setPin(student: Student) {
@@ -94,97 +200,119 @@ export default function EducatorStudentsPage() {
       student.hasPin
         ? `Enter a new 4-6 digit PIN for ${student.name}, or leave empty to remove the PIN.`
         : `Set a 4-6 digit login PIN for ${student.name}. They will need it to log in.`,
-    )
-    if (pin === null) return
-    const value = pin.trim()
-    if (value && !/^\d{4,6}$/.test(value)) { alert('PIN must be 4 to 6 digits.'); return }
+    );
+    if (pin === null) return;
+    const value = pin.trim();
+    if (value && !/^\d{4,6}$/.test(value)) {
+      alert("PIN must be 4 to 6 digits.");
+      return;
+    }
     const res = await fetch(`/api/students/${student.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ pin: value || null }),
-    })
-    if (!res.ok) { alert((await res.json().catch(() => null))?.error ?? 'Could not update PIN'); return }
-    if (value) alert(`PIN set. Share it with ${student.name} privately.`)
-    load()
+    });
+    if (!res.ok) {
+      alert(
+        (await res.json().catch(() => null))?.error ?? "Could not update PIN",
+      );
+      return;
+    }
+    if (value) alert(`PIN set. Share it with ${student.name} privately.`);
+    load();
   }
 
   async function deleteStudent(id: string) {
-    if (!confirm('Delete student? All test attempts will be lost.')) return
-    await fetch(`/api/students/${id}`, { method: 'DELETE' })
-    load()
+    if (!confirm("Delete student? All test attempts will be lost.")) return;
+    await fetch(`/api/students/${id}`, { method: "DELETE" });
+    load();
   }
 
   async function bulkDelete() {
-    if (selected.size === 0) return
-    if (!confirm(`Delete ${selected.size} selected student${selected.size > 1 ? 's' : ''}? All their test attempts will be lost. This cannot be undone.`)) return
-    setBulkDeleting(true)
-    await fetch('/api/students/bulk', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
+    if (selected.size === 0) return;
+    if (
+      !confirm(
+        `Delete ${selected.size} selected student${selected.size > 1 ? "s" : ""}? All their test attempts will be lost. This cannot be undone.`,
+      )
+    )
+      return;
+    setBulkDeleting(true);
+    await fetch("/api/students/bulk", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ids: [...selected] }),
-    })
-    setBulkDeleting(false)
-    setSelected(new Set())
-    load()
+    });
+    setBulkDeleting(false);
+    setSelected(new Set());
+    load();
   }
 
   function toggleSelect(id: string) {
     setSelected((prev) => {
-      const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
-      return next
-    })
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
   }
 
   function toggleSelectAll() {
     if (selected.size === filtered.length && filtered.length > 0) {
-      setSelected(new Set())
+      setSelected(new Set());
     } else {
-      setSelected(new Set(filtered.map((s) => s.id)))
+      setSelected(new Set(filtered.map((s) => s.id)));
     }
   }
 
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
-    const reader = new FileReader()
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
     reader.onload = (ev) => {
-      const text = ev.target?.result as string
-      setParsedRows(parseCSV(text))
-      setImportResult(null)
-    }
-    reader.readAsText(file)
+      const text = ev.target?.result as string;
+      setParsedRows(parseCSV(text));
+      setImportResult(null);
+    };
+    reader.readAsText(file);
   }
 
   async function runImport() {
-    const valid = parsedRows.filter((r) => r.valid)
-    if (valid.length === 0) return
-    setImporting(true)
-    const res = await fetch('/api/students/bulk', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+    const valid = parsedRows.filter((r) => r.valid);
+    if (valid.length === 0) return;
+    setImporting(true);
+    const res = await fetch("/api/students/bulk", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ students: valid }),
-    })
-    const data = await res.json()
-    setImporting(false)
-    setImportResult(data)
-    if (data.added > 0) { load(); setParsedRows([]) }
+    });
+    const data = await res.json();
+    setImporting(false);
+    setImportResult(data);
+    if (data.added > 0) {
+      load();
+      setParsedRows([]);
+    }
   }
 
   function downloadTemplate() {
-    const csv = 'Name,Class,Section,Subject\nArjun Sharma,10,A,Science\nPriya Verma,9,B,Maths'
-    const blob = new Blob([csv], { type: 'text/csv' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url; a.download = 'students-template.csv'; a.click()
-    URL.revokeObjectURL(url)
+    const csv =
+      "Name,Class,Section,Subject\nArjun Sharma,10,A,Science\nPriya Verma,9,B,Maths";
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "students-template.csv";
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   const filtered = students.filter((s) =>
-    search ? s.name.toLowerCase().includes(search.toLowerCase()) || s.class.includes(search) : true
-  )
-  const classes = [...new Set(students.map((s) => s.class))].sort()
-  const validCount = parsedRows.filter((r) => r.valid).length
+    search
+      ? s.name.toLowerCase().includes(search.toLowerCase()) ||
+        s.class.includes(search)
+      : true,
+  );
+  const classes = [...new Set(students.map((s) => s.class))].sort();
+  const validCount = parsedRows.filter((r) => r.valid).length;
 
   return (
     <div>
@@ -193,21 +321,42 @@ export default function EducatorStudentsPage() {
           <h1 className="text-2xl font-bold text-midnight flex items-center gap-2">
             <School size={24} /> My Students
           </h1>
-          <p className="text-sm text-charcoal/60 mt-0.5">{students.length} students in your branch</p>
+          <p className="text-sm text-charcoal/60 mt-0.5">
+            {students.length} students in your branch
+          </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <Link href="/educator/student-programs">
-            <Button size="sm" className="bg-midnight text-white flex items-center gap-2"><Layers size={15} /> Student Programs</Button>
+            <Button
+              size="sm"
+              className="bg-midnight text-white flex items-center gap-2"
+            >
+              <Layers size={15} /> Student Programs
+            </Button>
           </Link>
-          <Button onClick={() => window.open('/api/students/export', '_blank')} size="sm"
-            className="bg-forest text-white flex items-center gap-2">
+          <Button
+            onClick={() => window.open("/api/students/export", "_blank")}
+            size="sm"
+            className="bg-forest text-white flex items-center gap-2"
+          >
             <Download size={15} /> Export CSV
           </Button>
-          <Button onClick={() => { setShowImport(true); setImportResult(null); setParsedRows([]) }} size="sm"
-            className="bg-olive/90 text-white flex items-center gap-2">
+          <Button
+            onClick={() => {
+              setShowImport(true);
+              setImportResult(null);
+              setParsedRows([]);
+            }}
+            size="sm"
+            className="bg-olive/90 text-white flex items-center gap-2"
+          >
             <Upload size={15} /> Bulk Import
           </Button>
-          <Button onClick={() => setShowAdd(true)} size="sm" className="flex items-center gap-2">
+          <Button
+            onClick={() => setShowAdd(true)}
+            size="sm"
+            className="flex items-center gap-2"
+          >
             <Plus size={15} /> Add Student
           </Button>
         </div>
@@ -217,18 +366,126 @@ export default function EducatorStudentsPage() {
       {showAdd && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md mx-4">
-            <h2 className="text-lg font-bold text-midnight mb-4">Add Student to Your Branch</h2>
+            <h2 className="text-lg font-bold text-midnight mb-4">
+              Add Student to Your Branch
+            </h2>
             <form onSubmit={addStudent} className="flex flex-col gap-3">
-              <Input label="Full Name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} required />
+              <Input
+                label="Full Name"
+                value={form.name}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, name: e.target.value }))
+                }
+                required
+              />
               <div className="grid grid-cols-2 gap-3">
-                <Input label="Class" placeholder="e.g. 10" value={form.class} onChange={(e) => setForm((f) => ({ ...f, class: e.target.value }))} required />
-                <Input label="Section" placeholder="e.g. A" value={form.section} onChange={(e) => setForm((f) => ({ ...f, section: e.target.value }))} />
+                <Input
+                  label="Class"
+                  placeholder="e.g. 10"
+                  value={form.class}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, class: e.target.value }))
+                  }
+                  required
+                />
+                <Input
+                  label="Section"
+                  placeholder="e.g. A"
+                  value={form.section}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, section: e.target.value }))
+                  }
+                />
               </div>
-              <Input label="Subject" placeholder="e.g. Science" value={form.subject} onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value }))} />
-              {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
+              <Input
+                label="Subject"
+                placeholder="e.g. Science"
+                value={form.subject}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, subject: e.target.value }))
+                }
+              />
+              {error && (
+                <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">
+                  {error}
+                </p>
+              )}
               <div className="flex gap-3 mt-2">
-                <Button type="button" onClick={() => setShowAdd(false)} className="flex-1 bg-gray-100 text-charcoal hover:bg-gray-200">Cancel</Button>
-                <Button type="submit" loading={saving} className="flex-1">Add Student</Button>
+                <Button
+                  type="button"
+                  onClick={() => setShowAdd(false)}
+                  className="flex-1 bg-gray-100 text-charcoal hover:bg-gray-200"
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" loading={saving} className="flex-1">
+                  Add Student
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Student Modal — updates the existing row, never deletes it */}
+      {editingId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md mx-4">
+            <h2 className="text-lg font-bold text-midnight mb-4">
+              Edit Student
+            </h2>
+            <form onSubmit={saveEdit} className="flex flex-col gap-3">
+              <Input
+                label="Full Name"
+                value={editForm.name}
+                onChange={(e) =>
+                  setEditForm((f) => ({ ...f, name: e.target.value }))
+                }
+                required
+              />
+              <div className="grid grid-cols-2 gap-3">
+                <Input
+                  label="Class"
+                  placeholder="e.g. 10"
+                  value={editForm.class}
+                  onChange={(e) =>
+                    setEditForm((f) => ({ ...f, class: e.target.value }))
+                  }
+                  required
+                />
+                <Input
+                  label="Section"
+                  placeholder="e.g. A"
+                  value={editForm.section}
+                  onChange={(e) =>
+                    setEditForm((f) => ({ ...f, section: e.target.value }))
+                  }
+                />
+              </div>
+              <Input
+                label="Subject"
+                placeholder="e.g. Science"
+                value={editForm.subject}
+                onChange={(e) =>
+                  setEditForm((f) => ({ ...f, subject: e.target.value }))
+                }
+              />
+              {editError && (
+                <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">
+                  {editError}
+                </p>
+              )}
+              <div className="flex gap-3 mt-2">
+                <Button
+                  type="button"
+                  onClick={() => setEditingId(null)}
+                  className="flex-1 bg-gray-100 text-charcoal hover:bg-gray-200"
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" loading={editSaving} className="flex-1">
+                  Save Changes
+                </Button>
               </div>
             </form>
           </div>
@@ -240,8 +497,13 @@ export default function EducatorStudentsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl mx-auto flex flex-col max-h-[90vh]">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <h2 className="text-lg font-bold text-midnight">Bulk Import Students</h2>
-              <button onClick={() => setShowImport(false)} className="text-charcoal/40 hover:text-charcoal transition-colors">
+              <h2 className="text-lg font-bold text-midnight">
+                Bulk Import Students
+              </h2>
+              <button
+                onClick={() => setShowImport(false)}
+                className="text-charcoal/40 hover:text-charcoal transition-colors"
+              >
                 <X size={20} />
               </button>
             </div>
@@ -252,12 +514,19 @@ export default function EducatorStudentsPage() {
                 <div className="flex items-center gap-3">
                   <FileText size={20} className="text-midnight/50" />
                   <div>
-                    <p className="text-sm font-semibold text-midnight">CSV Format</p>
-                    <p className="text-xs text-charcoal/50">Columns: Name, Class, Section, Subject. First row can be header.</p>
+                    <p className="text-sm font-semibold text-midnight">
+                      CSV Format
+                    </p>
+                    <p className="text-xs text-charcoal/50">
+                      Columns: Name, Class, Section, Subject. First row can be
+                      header.
+                    </p>
                   </div>
                 </div>
-                <button onClick={downloadTemplate}
-                  className="flex items-center gap-1.5 text-xs font-semibold text-midnight hover:underline underline-offset-2 whitespace-nowrap">
+                <button
+                  onClick={downloadTemplate}
+                  className="flex items-center gap-1.5 text-xs font-semibold text-midnight hover:underline underline-offset-2 whitespace-nowrap"
+                >
                   <Download size={13} /> Download Template
                 </button>
               </div>
@@ -265,25 +534,49 @@ export default function EducatorStudentsPage() {
               {/* File upload */}
               <div
                 onClick={() => fileRef.current?.click()}
-                className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center cursor-pointer hover:border-midnight/30 hover:bg-midnight/5 transition-all">
+                className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center cursor-pointer hover:border-midnight/30 hover:bg-midnight/5 transition-all"
+              >
                 <Upload size={28} className="mx-auto mb-2 text-charcoal/30" />
-                <p className="text-sm font-semibold text-midnight">Click to upload CSV file</p>
-                <p className="text-xs text-charcoal/40 mt-0.5">.csv files only</p>
-                <input ref={fileRef} type="file" accept=".csv,text/csv" className="hidden" onChange={handleFile} />
+                <p className="text-sm font-semibold text-midnight">
+                  Click to upload CSV file
+                </p>
+                <p className="text-xs text-charcoal/40 mt-0.5">
+                  .csv files only
+                </p>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept=".csv,text/csv"
+                  className="hidden"
+                  onChange={handleFile}
+                />
               </div>
 
               {/* Import result */}
               {importResult && (
-                <div className={`rounded-xl p-4 flex items-start gap-3 ${importResult.added > 0 ? 'bg-forest/10' : 'bg-amber-50'}`}>
-                  {importResult.added > 0
-                    ? <CheckCircle size={18} className="text-forest flex-shrink-0 mt-0.5" />
-                    : <AlertCircle size={18} className="text-amber-600 flex-shrink-0 mt-0.5" />}
+                <div
+                  className={`rounded-xl p-4 flex items-start gap-3 ${importResult.added > 0 ? "bg-forest/10" : "bg-amber-50"}`}
+                >
+                  {importResult.added > 0 ? (
+                    <CheckCircle
+                      size={18}
+                      className="text-forest flex-shrink-0 mt-0.5"
+                    />
+                  ) : (
+                    <AlertCircle
+                      size={18}
+                      className="text-amber-600 flex-shrink-0 mt-0.5"
+                    />
+                  )}
                   <div>
                     <p className="text-sm font-semibold text-midnight">
-                      {importResult.added} added · {importResult.skipped} skipped
+                      {importResult.added} added · {importResult.skipped}{" "}
+                      skipped
                     </p>
                     {importResult.errors.length > 0 && (
-                      <p className="text-xs text-red-600 mt-0.5">Failed: {importResult.errors.join(', ')}</p>
+                      <p className="text-xs text-red-600 mt-0.5">
+                        Failed: {importResult.errors.join(", ")}
+                      </p>
                     )}
                   </div>
                 </div>
@@ -293,31 +586,67 @@ export default function EducatorStudentsPage() {
               {parsedRows.length > 0 && !importResult && (
                 <div>
                   <p className="text-sm font-semibold text-midnight mb-2">
-                    Preview — {validCount} valid · {parsedRows.length - validCount} invalid
+                    Preview — {validCount} valid ·{" "}
+                    {parsedRows.length - validCount} invalid
                   </p>
                   <div className="border border-gray-100 rounded-xl overflow-hidden max-h-64 overflow-y-auto">
                     <div className="overflow-x-auto">
                       <table className="w-full text-xs min-w-[640px]">
                         <thead className="bg-gray-50 sticky top-0">
                           <tr>
-                            <th className="text-left px-3 py-2 text-charcoal/50 font-semibold">Name</th>
-                            <th className="text-left px-3 py-2 text-charcoal/50 font-semibold">Class</th>
-                            <th className="text-left px-3 py-2 text-charcoal/50 font-semibold">Section</th>
-                            <th className="text-left px-3 py-2 text-charcoal/50 font-semibold">Subject</th>
+                            <th className="text-left px-3 py-2 text-charcoal/50 font-semibold">
+                              Name
+                            </th>
+                            <th className="text-left px-3 py-2 text-charcoal/50 font-semibold">
+                              Class
+                            </th>
+                            <th className="text-left px-3 py-2 text-charcoal/50 font-semibold">
+                              Section
+                            </th>
+                            <th className="text-left px-3 py-2 text-charcoal/50 font-semibold">
+                              Subject
+                            </th>
                             <th className="px-3 py-2" />
                           </tr>
                         </thead>
                         <tbody>
                           {parsedRows.map((r, i) => (
-                            <tr key={i} className={`border-t border-gray-50 ${r.valid ? '' : 'bg-red-50'}`}>
-                              <td className="px-3 py-2 font-medium text-midnight">{r.name || <span className="text-red-500 italic">missing</span>}</td>
-                              <td className="px-3 py-2 text-charcoal/70">{r.class || <span className="text-red-500 italic">missing</span>}</td>
-                              <td className="px-3 py-2 text-charcoal/50">{r.section || '—'}</td>
-                              <td className="px-3 py-2 text-charcoal/50">{r.subject || '—'}</td>
+                            <tr
+                              key={i}
+                              className={`border-t border-gray-50 ${r.valid ? "" : "bg-red-50"}`}
+                            >
+                              <td className="px-3 py-2 font-medium text-midnight">
+                                {r.name || (
+                                  <span className="text-red-500 italic">
+                                    missing
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-3 py-2 text-charcoal/70">
+                                {r.class || (
+                                  <span className="text-red-500 italic">
+                                    missing
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-3 py-2 text-charcoal/50">
+                                {r.section || "—"}
+                              </td>
+                              <td className="px-3 py-2 text-charcoal/50">
+                                {r.subject || "—"}
+                              </td>
                               <td className="px-3 py-2 text-center">
-                                {r.valid
-                                  ? <CheckCircle size={13} className="text-forest mx-auto" />
-                                  : <X size={13} className="text-red-500 mx-auto" />}
+                                {r.valid ? (
+                                  <CheckCircle
+                                    size={13}
+                                    className="text-forest mx-auto"
+                                  />
+                                ) : (
+                                  <X
+                                    size={13}
+                                    className="text-red-500 mx-auto"
+                                  />
+                                )}
                               </td>
                             </tr>
                           ))}
@@ -330,9 +659,19 @@ export default function EducatorStudentsPage() {
             </div>
 
             <div className="px-6 py-4 border-t border-gray-100 flex gap-3">
-              <Button onClick={() => setShowImport(false)} className="flex-1 bg-gray-100 text-charcoal hover:bg-gray-200">Close</Button>
+              <Button
+                onClick={() => setShowImport(false)}
+                className="flex-1 bg-gray-100 text-charcoal hover:bg-gray-200"
+              >
+                Close
+              </Button>
               {parsedRows.length > 0 && !importResult && (
-                <Button onClick={runImport} loading={importing} disabled={validCount === 0} className="flex-1">
+                <Button
+                  onClick={runImport}
+                  loading={importing}
+                  disabled={validCount === 0}
+                  className="flex-1"
+                >
                   Import {validCount} Students
                 </Button>
               )}
@@ -346,16 +685,24 @@ export default function EducatorStudentsPage() {
         <div className="mb-4 flex items-center justify-between gap-4 bg-red-50 border border-red-200 rounded-2xl px-5 py-3">
           <div className="flex items-center gap-2">
             <SquareCheck size={16} className="text-red-500" />
-            <span className="text-sm font-semibold text-red-700">{selected.size} student{selected.size > 1 ? 's' : ''} selected</span>
+            <span className="text-sm font-semibold text-red-700">
+              {selected.size} student{selected.size > 1 ? "s" : ""} selected
+            </span>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={() => setSelected(new Set())}
-              className="text-xs text-charcoal/50 hover:text-midnight px-3 py-1.5 rounded-lg hover:bg-white transition-colors">
+            <button
+              onClick={() => setSelected(new Set())}
+              className="text-xs text-charcoal/50 hover:text-midnight px-3 py-1.5 rounded-lg hover:bg-white transition-colors"
+            >
               Clear selection
             </button>
-            <button onClick={bulkDelete} disabled={bulkDeleting}
-              className="flex items-center gap-1.5 text-xs font-bold bg-red-500 hover:bg-red-600 text-white px-4 py-1.5 rounded-xl transition-colors disabled:opacity-50">
-              <Trash2 size={13} /> {bulkDeleting ? 'Deleting…' : `Delete ${selected.size}`}
+            <button
+              onClick={bulkDelete}
+              disabled={bulkDeleting}
+              className="flex items-center gap-1.5 text-xs font-bold bg-red-500 hover:bg-red-600 text-white px-4 py-1.5 rounded-xl transition-colors disabled:opacity-50"
+            >
+              <Trash2 size={13} />{" "}
+              {bulkDeleting ? "Deleting…" : `Delete ${selected.size}`}
             </button>
           </div>
         </div>
@@ -364,17 +711,28 @@ export default function EducatorStudentsPage() {
       {/* Filters */}
       <div className="flex flex-wrap gap-3 mb-4">
         <div className="relative flex-1 min-w-48">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-charcoal/40" />
+          <Search
+            size={15}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-charcoal/40"
+          />
           <input
             className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-midnight"
             placeholder="Search by name or class…"
-            value={search} onChange={(e) => setSearch(e.target.value)}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <select value={filterClass} onChange={(e) => setFilterClass(e.target.value)}
-          className="px-3 py-2 border border-gray-200 rounded-xl text-sm text-charcoal focus:outline-none focus:ring-2 focus:ring-midnight">
+        <select
+          value={filterClass}
+          onChange={(e) => setFilterClass(e.target.value)}
+          className="px-3 py-2 border border-gray-200 rounded-xl text-sm text-charcoal focus:outline-none focus:ring-2 focus:ring-midnight"
+        >
           <option value="">All Classes</option>
-          {classes.map((c) => <option key={c} value={c}>Class {c}</option>)}
+          {classes.map((c) => (
+            <option key={c} value={c}>
+              Class {c}
+            </option>
+          ))}
         </select>
       </div>
 
@@ -389,51 +747,110 @@ export default function EducatorStudentsPage() {
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50">
                   <th className="px-5 py-3 w-10">
-                    <button onClick={toggleSelectAll} className="text-charcoal/30 hover:text-midnight transition-colors">
-                      {selected.size > 0 && selected.size === filtered.length
-                        ? <SquareCheck size={16} className="text-midnight" />
-                        : <Square size={16} />}
+                    <button
+                      onClick={toggleSelectAll}
+                      className="text-charcoal/30 hover:text-midnight transition-colors"
+                    >
+                      {selected.size > 0 &&
+                      selected.size === filtered.length ? (
+                        <SquareCheck size={16} className="text-midnight" />
+                      ) : (
+                        <Square size={16} />
+                      )}
                     </button>
                   </th>
-                  <th className="text-left px-5 py-3 text-charcoal/60 font-semibold">Name</th>
-                  <th className="text-left px-5 py-3 text-charcoal/60 font-semibold">Class</th>
-                  <th className="text-left px-5 py-3 text-charcoal/60 font-semibold hidden sm:table-cell">Subject</th>
-                  <th className="text-left px-5 py-3 text-charcoal/60 font-semibold hidden md:table-cell">Tests Taken</th>
-                  <th className="text-left px-5 py-3 text-charcoal/60 font-semibold">Status</th>
-                  <th className="text-right px-5 py-3 text-charcoal/60 font-semibold">Actions</th>
+                  <th className="text-left px-5 py-3 text-charcoal/60 font-semibold">
+                    Name
+                  </th>
+                  <th className="text-left px-5 py-3 text-charcoal/60 font-semibold">
+                    Class
+                  </th>
+                  <th className="text-left px-5 py-3 text-charcoal/60 font-semibold hidden sm:table-cell">
+                    Subject
+                  </th>
+                  <th className="text-left px-5 py-3 text-charcoal/60 font-semibold hidden md:table-cell">
+                    Tests Taken
+                  </th>
+                  <th className="text-left px-5 py-3 text-charcoal/60 font-semibold">
+                    Status
+                  </th>
+                  <th className="text-right px-5 py-3 text-charcoal/60 font-semibold">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.map((s) => (
-                  <tr key={s.id} className={`border-b border-gray-50 hover:bg-gray-50/50 ${selected.has(s.id) ? 'bg-red-50/40' : ''}`}>
+                  <tr
+                    key={s.id}
+                    className={`border-b border-gray-50 hover:bg-gray-50/50 ${selected.has(s.id) ? "bg-red-50/40" : ""}`}
+                  >
                     <td className="px-5 py-3">
-                      <button onClick={() => toggleSelect(s.id)} className="text-charcoal/30 hover:text-midnight transition-colors">
-                        {selected.has(s.id)
-                          ? <SquareCheck size={16} className="text-midnight" />
-                          : <Square size={16} />}
+                      <button
+                        onClick={() => toggleSelect(s.id)}
+                        className="text-charcoal/30 hover:text-midnight transition-colors"
+                      >
+                        {selected.has(s.id) ? (
+                          <SquareCheck size={16} className="text-midnight" />
+                        ) : (
+                          <Square size={16} />
+                        )}
                       </button>
                     </td>
-                    <td className="px-5 py-3 font-medium text-midnight">{s.name}</td>
-                    <td className="px-5 py-3 text-charcoal/70">{s.class}{s.section ? ` - ${s.section}` : ''}</td>
-                    <td className="px-5 py-3 text-charcoal/60 hidden sm:table-cell">{s.subject || '—'}</td>
-                    <td className="px-5 py-3 text-charcoal/60 hidden md:table-cell">{s._count.attempts}</td>
+                    <td className="px-5 py-3 font-medium text-midnight">
+                      {s.name}
+                    </td>
+                    <td className="px-5 py-3 text-charcoal/70">
+                      {s.class}
+                      {s.section ? ` - ${s.section}` : ""}
+                    </td>
+                    <td className="px-5 py-3 text-charcoal/60 hidden sm:table-cell">
+                      {s.subject || "—"}
+                    </td>
+                    <td className="px-5 py-3 text-charcoal/60 hidden md:table-cell">
+                      {s._count.attempts}
+                    </td>
                     <td className="px-5 py-3">
-                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${s.isActive ? 'bg-forest/10 text-forest' : 'bg-red-50 text-red-600'}`}>
-                        {s.isActive ? 'Active' : 'Inactive'}
+                      <span
+                        className={`text-xs font-semibold px-2 py-0.5 rounded-full ${s.isActive ? "bg-forest/10 text-forest" : "bg-red-50 text-red-600"}`}
+                      >
+                        {s.isActive ? "Active" : "Inactive"}
                       </span>
                     </td>
                     <td className="px-5 py-3">
                       <div className="flex items-center justify-end gap-2">
-                        <button onClick={() => toggleActive(s)} title={s.isActive ? 'Deactivate' : 'Activate'}
-                          className="p-1.5 rounded-lg hover:bg-gray-100 text-charcoal/40 hover:text-charcoal transition-colors">
-                          {s.isActive ? <UserX size={15} /> : <UserCheck size={15} />}
+                        <button
+                          onClick={() => openEdit(s)}
+                          title="Edit details"
+                          className="p-1.5 rounded-lg hover:bg-gray-100 text-charcoal/40 hover:text-charcoal transition-colors"
+                        >
+                          <Pencil size={15} />
                         </button>
-                        <button onClick={() => setPin(s)} title={s.hasPin ? 'Change or remove PIN' : 'Set login PIN'}
-                          className={`p-1.5 rounded-lg hover:bg-gray-100 transition-colors ${s.hasPin ? 'text-forest' : 'text-charcoal/40 hover:text-charcoal'}`}>
+                        <button
+                          onClick={() => toggleActive(s)}
+                          title={s.isActive ? "Deactivate" : "Activate"}
+                          className="p-1.5 rounded-lg hover:bg-gray-100 text-charcoal/40 hover:text-charcoal transition-colors"
+                        >
+                          {s.isActive ? (
+                            <UserX size={15} />
+                          ) : (
+                            <UserCheck size={15} />
+                          )}
+                        </button>
+                        <button
+                          onClick={() => setPin(s)}
+                          title={
+                            s.hasPin ? "Change or remove PIN" : "Set login PIN"
+                          }
+                          className={`p-1.5 rounded-lg hover:bg-gray-100 transition-colors ${s.hasPin ? "text-forest" : "text-charcoal/40 hover:text-charcoal"}`}
+                        >
                           <KeyRound size={15} />
                         </button>
-                        <button onClick={() => deleteStudent(s.id)} title="Delete"
-                          className="p-1.5 rounded-lg hover:bg-red-50 text-charcoal/40 hover:text-red-600 transition-colors">
+                        <button
+                          onClick={() => deleteStudent(s.id)}
+                          title="Delete"
+                          className="p-1.5 rounded-lg hover:bg-red-50 text-charcoal/40 hover:text-red-600 transition-colors"
+                        >
                           <Trash2 size={15} />
                         </button>
                       </div>
@@ -441,9 +858,16 @@ export default function EducatorStudentsPage() {
                   </tr>
                 ))}
                 {filtered.length === 0 && (
-                  <tr><td colSpan={7} className="text-center py-12 text-charcoal/40 text-sm">
-                    {students.length === 0 ? 'No students added yet. Click "Add Student" or "Bulk Import" to start.' : 'No students match your search.'}
-                  </td></tr>
+                  <tr>
+                    <td
+                      colSpan={7}
+                      className="text-center py-12 text-charcoal/40 text-sm"
+                    >
+                      {students.length === 0
+                        ? 'No students added yet. Click "Add Student" or "Bulk Import" to start.'
+                        : "No students match your search."}
+                    </td>
+                  </tr>
                 )}
               </tbody>
             </table>
@@ -451,5 +875,5 @@ export default function EducatorStudentsPage() {
         </div>
       )}
     </div>
-  )
+  );
 }
