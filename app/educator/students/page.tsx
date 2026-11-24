@@ -132,8 +132,9 @@ export default function EducatorStudentsPage() {
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- async loader; state is set after await
     load();
-  }, [filterClass]); // eslint-disable-line
+  }, [filterClass]);
 
   async function addStudent(e: React.FormEvent) {
     e.preventDefault();
