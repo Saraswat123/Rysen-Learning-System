@@ -28,11 +28,21 @@ beforeEach(() => {
 describe('POST /api/auth/student', async () => {
   const { POST } = await import('@/app/api/auth/student/route')
   const login = (body: object) => POST(request('POST', '/api/auth/student', body))
+  const saved = (extra: object) => {
+    const record = { ...student, ...extra }
+    db.student.findMany.mockResolvedValue([record])
+    db.student.findUnique.mockResolvedValue({ ...record, pinHash: undefined, branch: null })
+  }
+
+  it('logs in a student whose record has double spaces, a "6th" class or no section', async () => {
+    saved({ name: 'OJAS  SHARMA ', class: '6th', section: '', pinHash: null })
+    expect((await login({ name: 'ojas sharma', class: '6', section: 'B' })).status).toBe(200)
+  })
 
   it('uses one message for an unknown student and a wrong PIN (no enumeration)', async () => {
-    db.student.findFirst.mockResolvedValueOnce(null)
+    db.student.findMany.mockResolvedValueOnce([])
     const unknown = await login({ name: 'Nobody', class: '10' })
-    db.student.findFirst.mockResolvedValueOnce({ ...student, branch: null, pinHash: await bcrypt.hash('4321', 4) })
+    saved({ pinHash: await bcrypt.hash('4321', 4) })
     const wrongPin = await login({ name: 'Asha Rao', class: '10', pin: '0000' })
     expect(unknown.status).toBe(401)
     expect(wrongPin.status).toBe(401)
@@ -40,7 +50,7 @@ describe('POST /api/auth/student', async () => {
   })
 
   it('requires the PIN once a teacher has set one', async () => {
-    db.student.findFirst.mockResolvedValue({ ...student, branch: null, pinHash: await bcrypt.hash('4321', 4) })
+    saved({ pinHash: await bcrypt.hash('4321', 4) })
     expect((await login({ name: 'Asha Rao', class: '10' })).status).toBe(401)
     const ok = await login({ name: 'Asha Rao', class: '10', pin: '4321' })
     expect(ok.status).toBe(200)
@@ -48,12 +58,12 @@ describe('POST /api/auth/student', async () => {
   })
 
   it('students without a PIN log in with name and class as before', async () => {
-    db.student.findFirst.mockResolvedValue({ ...student, branch: null, pinHash: null })
+    saved({ pinHash: null })
     expect((await login({ name: 'asha  rao', class: '10' })).status).toBe(200)
   })
 
   it('never returns the PIN hash', async () => {
-    db.student.findFirst.mockResolvedValue({ ...student, branch: null, pinHash: null })
+    saved({ pinHash: null })
     const body = await (await login({ name: 'Asha Rao', class: '10' })).json()
     expect(JSON.stringify(body)).not.toContain('pinHash')
   })
@@ -62,7 +72,7 @@ describe('POST /api/auth/student', async () => {
     rateLimitHits(31)
     const res = await login({ name: 'Asha Rao', class: '10' })
     expect(res.status).toBe(429)
-    expect(db.student.findFirst).not.toHaveBeenCalled()
+    expect(db.student.findMany).not.toHaveBeenCalled()
   })
 
   it('rejects malformed bodies with 400', async () => {

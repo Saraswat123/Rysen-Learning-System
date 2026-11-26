@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { cleanText } from '@/lib/student-identity'
 import { hashPassword } from '@/lib/password'
 import { ensureRuntimeSchema } from '@/lib/schema-heal'
 import { getSession } from '@/lib/auth'
@@ -64,10 +65,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const student = await db.student.update({
       where: { id },
       data: {
-        ...(typeof body.name === 'string' && body.name.trim() && { name: body.name.trim() }),
-        ...(typeof body.class === 'string' && body.class.trim() && { class: body.class.trim() }),
-        ...(typeof body.section === 'string' && { section: body.section.trim() }),
-        ...(typeof body.subject === 'string' && { subject: body.subject.trim() }),
+        ...(typeof body.name === 'string' && cleanText(body.name) && { name: cleanText(body.name) }),
+        ...(typeof body.class === 'string' && cleanText(body.class) && { class: cleanText(body.class) }),
+        ...(typeof body.section === 'string' && { section: cleanText(body.section) }),
+        ...(typeof body.subject === 'string' && { subject: cleanText(body.subject) }),
         // Educators can't move a student to another campus, that would take it out of their own scope
         ...(user.role !== Role.EDUCATOR && body.branchId !== undefined && { branchId: body.branchId || null }),
         ...(typeof body.isActive === 'boolean' && { isActive: body.isActive }),

@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { cleanText, matchStudents, nameKey, parseClass } from '@/lib/student-identity'
 import { createStudentSession, STUDENT_SESSION_COOKIE } from '@/lib/student-auth'
 import { verifyTurnstile } from '@/lib/turnstile'
 import { verifyPassword } from '@/lib/password'
@@ -23,9 +24,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Name and class required' }, { status: 400 })
     }
 
-    const normalizedName = name.trim().replace(/\s+/g, ' ')
     const ip = clientIp(req)
-    const identity = `${normalizedName.toLowerCase()}|${cls.trim().toLowerCase()}|${typeof branchId === 'string' ? branchId : ''}`
+    const identity = `${nameKey(name)}|${parseClass(cls).cls}|${typeof branchId === 'string' ? branchId : ''}`
     const allowed = (await rateLimit(`student-login:ip:${ip}`, 30, 15 * 60))
       && (await rateLimit(`student-login:id:${identity}`, 10, 15 * 60))
     if (!allowed) return NextResponse.json(TOO_MANY, { status: 429 })
@@ -35,25 +35,31 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Captcha verification failed. Please try again.' }, { status: 403 })
     }
 
-    const student = await db.student.findFirst({
-      where: {
-        name: { equals: normalizedName, mode: 'insensitive' },
-        class: { equals: cls.trim(), mode: 'insensitive' },
-        ...(typeof section === 'string' && section.trim() ? { section: { equals: section.trim(), mode: 'insensitive' } } : {}),
-        ...(typeof branchId === 'string' && branchId ? { branchId } : {}),
-        isActive: true,
-      },
-      include: { branch: true },
-      omit: { pinHash: false },
+    // Compare in code, not SQL, so records saved with extra spaces or "6th" still match
+    const roster = await db.student.findMany({
+      where: { isActive: true, ...(typeof branchId === 'string' && branchId ? { branchId } : {}) },
+      select: { id: true, name: true, class: true, section: true, pinHash: true },
+    })
+    const matches = matchStudents(roster, {
+      name: cleanText(name),
+      class: cls,
+      section: typeof section === 'string' ? section : '',
     })
 
-    if (!student) return NextResponse.json(NO_MATCH, { status: 401 })
-
     // PINs are opt-in per student: once an educator sets one, it is required.
-    if (student.pinHash) {
-      const ok = typeof pin === 'string' && pin.length > 0 && (await verifyPassword(pin, student.pinHash))
-      if (!ok) return NextResponse.json(NO_MATCH, { status: 401 })
+    let matchedId: string | null = null
+    for (const candidate of matches) {
+      const pinOk = !candidate.pinHash
+        || (typeof pin === 'string' && pin.length > 0 && (await verifyPassword(pin, candidate.pinHash)))
+      if (pinOk) {
+        matchedId = candidate.id
+        break
+      }
     }
+    const student = matchedId
+      ? await db.student.findUnique({ where: { id: matchedId }, include: { branch: true } })
+      : null
+    if (!student) return NextResponse.json(NO_MATCH, { status: 401 })
 
     const token = await createStudentSession(student.id)
 

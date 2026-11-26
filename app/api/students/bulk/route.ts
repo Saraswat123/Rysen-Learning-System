@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { cleanText } from '@/lib/student-identity'
 import { getSession } from '@/lib/auth'
 import { Role } from '@/app/generated/prisma/client'
 import { educatorStudentWhere } from '@/lib/student-scope'
@@ -30,11 +31,11 @@ export async function POST(req: NextRequest) {
 
     const effectiveBranchId = user.role === Role.EDUCATOR ? (user.branchId ?? null) : (branchId ?? null)
 
-    const str = (v: unknown) => (typeof v === 'string' ? v.trim() : '')
+    const str = (v: unknown) => (typeof v === 'string' ? cleanText(v) : '')
     const valid = students
       .filter((s) => s && str(s.name) && str(s.class))
       .map((s) => ({
-        name: str(s.name).replace(/\s+/g, ' '),
+        name: str(s.name),
         class: str(s.class),
         section: str(s.section),
         subject: str(s.subject),

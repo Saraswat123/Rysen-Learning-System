@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { cleanText } from '@/lib/student-identity'
 import { getSession } from '@/lib/auth'
 import { Role, Prisma } from '@/app/generated/prisma/client'
 import { educatorStudentWhere } from '@/lib/student-scope'
@@ -57,10 +58,10 @@ export async function POST(req: NextRequest) {
 
     const student = await db.student.create({
       data: {
-        name: name.trim().replace(/\s+/g, ' '),
-        class: cls.trim(),
-        section: section?.trim() ?? '',
-        subject: subject?.trim() ?? '',
+        name: cleanText(name),
+        class: cleanText(cls),
+        section: cleanText(section ?? ''),
+        subject: cleanText(subject ?? ''),
         branchId: effectiveBranchId,
         createdById: user.id,
       },
